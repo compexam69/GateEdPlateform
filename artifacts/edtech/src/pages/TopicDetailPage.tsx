@@ -1,20 +1,172 @@
 import { AppLayout } from "@/components/layout/AppLayout";
-import { useParams, Link } from "wouter";
-import { ArrowLeft, PlayCircle, FileText, CheckSquare, Target, Lock, CheckCircle2 } from "lucide-react";
+import { useParams, useLocation } from "wouter";
+import { ArrowLeft, PlayCircle, FileText, CheckSquare, Target, Lock, CheckCircle2, ExternalLink } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { getTopicProgress, getGetTopicProgressUrl, useRecordLectureClick } from "@workspace/api-client-react";
+import { supabase } from "@/lib/supabase";
+import { useToast } from "@/hooks/use-toast";
+
+interface TopicStep {
+  id: string;
+  title: string;
+  description: string;
+  icon: React.ElementType;
+  quizType: string;
+  isAlwaysUnlocked: boolean;
+  isUnlocked: (progress: Record<string, unknown>) => boolean;
+  action: string;
+}
+
+const STEPS: TopicStep[] = [
+  {
+    id: "lecture",
+    title: "Watch Lecture",
+    description: "Open the Telegram lecture video for this topic.",
+    icon: PlayCircle,
+    quizType: "",
+    isAlwaysUnlocked: true,
+    isUnlocked: () => true,
+    action: "Open in Telegram",
+  },
+  {
+    id: "lecture_quiz",
+    title: "Lecture Quiz",
+    description: "Test your understanding of the lecture material.",
+    icon: CheckSquare,
+    quizType: "lecture_quiz",
+    isAlwaysUnlocked: false,
+    isUnlocked: (p) => !!(p["lecture_clicked"]),
+    action: "Start Quiz",
+  },
+  {
+    id: "dpp",
+    title: "Daily Practice Problems",
+    description: "Solve DPPs to reinforce your concept mastery.",
+    icon: FileText,
+    quizType: "dpp",
+    isAlwaysUnlocked: false,
+    isUnlocked: (p) => !!(p["lecture_quiz_passed"]),
+    action: "Start DPP",
+  },
+  {
+    id: "pyqs",
+    title: "Previous Year Questions",
+    description: "Practice PYQs from JEE/NEET/GATE on this topic.",
+    icon: Target,
+    quizType: "pyqs",
+    isAlwaysUnlocked: false,
+    isUnlocked: (p) => !!(p["dpp_completed"]),
+    action: "Start PYQs",
+  },
+  {
+    id: "topic_test",
+    title: "Topic Test",
+    description: "Final test — pass this to mark the topic complete!",
+    icon: CheckSquare,
+    quizType: "topic_test",
+    isAlwaysUnlocked: false,
+    isUnlocked: (p) => !!(p["pyqs_completed"]),
+    action: "Start Test",
+  },
+];
 
 export default function TopicDetailPage() {
   const { topicId } = useParams<{ topicId: string }>();
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  // Mock progress state
-  const steps = [
-    { id: "lecture", title: "Watch Lecture", icon: PlayCircle, status: "completed", action: "Open in Telegram" },
-    { id: "quiz", title: "Lecture Quiz", icon: CheckSquare, status: "unlocked", action: "Start Quiz" },
-    { id: "dpp", title: "Daily Practice Problem", icon: FileText, status: "locked", action: "Start DPP" },
-    { id: "pyq", title: "Previous Year Questions", icon: Target, status: "locked", action: "Start PYQs" },
-    { id: "test", title: "Topic Test", icon: CheckSquare, status: "locked", action: "Start Test" },
-  ];
+  const { data: topic } = useQuery({
+    queryKey: ["topic-detail", topicId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("topics")
+        .select("*, lectures(*), chapters(title, subject_id)")
+        .eq("id", topicId!)
+        .single();
+      return data;
+    },
+    enabled: !!topicId,
+  });
+
+  const { data: progress, isLoading: progressLoading } = useQuery({
+    queryKey: [getGetTopicProgressUrl(topicId!), topicId],
+    queryFn: () => getTopicProgress(topicId!),
+    enabled: !!topicId,
+  });
+
+  const { data: quizzes } = useQuery({
+    queryKey: ["topic-quizzes", topicId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("quizzes")
+        .select("id, type")
+        .eq("topic_id", topicId!)
+        .eq("is_active", true);
+      return data ?? [];
+    },
+    enabled: !!topicId,
+  });
+
+  const recordClick = useRecordLectureClick();
+
+  const getQuizId = (quizType: string) => {
+    return quizzes?.find((q: { type: string }) => q.type === quizType)?.id ?? null;
+  };
+
+  const getTelegramLink = () => {
+    const lecture = topic?.lectures?.[0];
+    if (!lecture?.telegram_chat_id || !lecture?.telegram_message_id) return null;
+    return `https://t.me/c/${lecture.telegram_chat_id}/${lecture.telegram_message_id}`;
+  };
+
+  async function handleLectureClick() {
+    const link = getTelegramLink();
+    const lecture = topic?.lectures?.[0];
+    if (!lecture) {
+      toast({ title: "No lecture", description: "Lecture link not configured yet.", variant: "destructive" });
+      return;
+    }
+    try {
+      await recordClick.mutateAsync({ data: { lecture_id: lecture.id, topic_id: topicId! } });
+      queryClient.invalidateQueries({ queryKey: [getGetTopicProgressUrl(topicId!), topicId] });
+    } catch {}
+    if (link) window.open(link, "_blank");
+  }
+
+  async function handleStepClick(step: TopicStep) {
+    if (step.id === "lecture") {
+      handleLectureClick();
+      return;
+    }
+    const quizId = getQuizId(step.quizType);
+    if (!quizId) {
+      toast({ title: "Not available", description: "This quiz hasn't been set up yet.", variant: "destructive" });
+      return;
+    }
+    setLocation(`/exam/${quizId}`);
+  }
+
+  const p = (progress ?? {}) as Record<string, unknown>;
+
+  const stepsWithStatus = STEPS.map(step => {
+    const completed = (() => {
+      switch (step.id) {
+        case "lecture": return !!(p["lecture_clicked"]);
+        case "lecture_quiz": return !!(p["lecture_quiz_passed"]);
+        case "dpp": return !!(p["dpp_completed"]);
+        case "pyqs": return !!(p["pyqs_completed"]);
+        case "topic_test": return !!(p["topic_test_passed"]);
+        default: return false;
+      }
+    })();
+    const unlocked = step.isAlwaysUnlocked || step.isUnlocked(p);
+    return { ...step, completed, unlocked, locked: !unlocked };
+  });
+
+  const topicComplete = !!(p["topic_complete"]);
 
   return (
     <AppLayout>
@@ -24,49 +176,85 @@ export default function TopicDetailPage() {
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Topic Details</h1>
-            <p className="text-muted-foreground mt-1">Complete each step to master this topic.</p>
+            <h1 className="text-3xl font-bold tracking-tight">{topic?.title || "Topic"}</h1>
+            <p className="text-muted-foreground mt-1">
+              {topic?.description || "Complete each step in order to master this topic."}
+            </p>
           </div>
+          {topicComplete && (
+            <div className="ml-auto flex items-center gap-2 px-3 py-1.5 rounded-full bg-success/10 text-success text-sm font-medium">
+              <CheckCircle2 className="w-4 h-4" />
+              Completed
+            </div>
+          )}
         </div>
 
-        <div className="relative space-y-6 before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-border before:to-transparent">
-          {steps.map((step, idx) => {
-            const Icon = step.icon;
-            const isCompleted = step.status === "completed";
-            const isLocked = step.status === "locked";
-            const isUnlocked = step.status === "unlocked";
-
-            return (
-              <div key={step.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                <div className={`flex items-center justify-center w-10 h-10 rounded-full border-4 border-background shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow-sm z-10 ${
-                  isCompleted ? "bg-success text-success-foreground" : 
-                  isUnlocked ? "bg-primary text-primary-foreground" : 
-                  "bg-muted text-muted-foreground"
-                }`}>
-                  {isCompleted ? <CheckCircle2 className="w-5 h-5" /> : 
-                   isLocked ? <Lock className="w-4 h-4" /> : 
-                   <Icon className="w-4 h-4" />}
-                </div>
-
-                <Card className={`w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] ${isLocked ? "opacity-60" : ""}`}>
-                  <CardContent className="p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div>
-                      <div className="text-sm font-medium text-muted-foreground mb-1">Step {idx + 1}</div>
-                      <h3 className="font-semibold text-lg">{step.title}</h3>
+        {progressLoading ? (
+          <div className="flex h-32 items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {stepsWithStatus.map((step, idx) => {
+              const Icon = step.icon;
+              return (
+                <Card
+                  key={step.id}
+                  className={`bg-card transition-all ${step.locked ? "opacity-60" : ""}`}
+                >
+                  <CardContent className="p-5 flex items-center gap-4">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${
+                      step.completed
+                        ? "bg-success/10 text-success"
+                        : step.locked
+                        ? "bg-muted text-muted-foreground"
+                        : "bg-primary/10 text-primary"
+                    }`}>
+                      {step.completed
+                        ? <CheckCircle2 className="w-6 h-6" />
+                        : step.locked
+                        ? <Lock className="w-5 h-5" />
+                        : <Icon className="w-6 h-6" />}
                     </div>
-                    <Button 
-                      disabled={isLocked} 
-                      variant={isCompleted ? "outline" : "default"}
-                      className={isCompleted ? "text-success border-success hover:text-success hover:bg-success/10" : ""}
-                    >
-                      {isCompleted ? "Review" : step.action}
-                    </Button>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-medium text-muted-foreground mb-0.5">Step {idx + 1}</div>
+                      <h3 className="font-semibold text-base">{step.title}</h3>
+                      <p className="text-sm text-muted-foreground mt-0.5">{step.description}</p>
+                    </div>
+
+                    <div className="shrink-0">
+                      {step.locked ? (
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground px-3 py-1.5 rounded-md border border-border">
+                          <Lock className="w-3 h-3" /> Locked
+                        </div>
+                      ) : step.id === "lecture" ? (
+                        <Button
+                          variant={step.completed ? "outline" : "default"}
+                          size="sm"
+                          onClick={handleLectureClick}
+                          className={step.completed ? "border-success text-success hover:bg-success/10" : ""}
+                        >
+                          <ExternalLink className="w-4 h-4 mr-1.5" />
+                          {step.completed ? "Rewatch" : step.action}
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant={step.completed ? "outline" : "default"}
+                          onClick={() => handleStepClick(step)}
+                          className={step.completed ? "border-success text-success hover:bg-success/10" : ""}
+                        >
+                          {step.completed ? "Redo" : step.action}
+                        </Button>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </AppLayout>
   );

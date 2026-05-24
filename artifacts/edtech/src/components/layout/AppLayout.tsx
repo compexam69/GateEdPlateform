@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { Sidebar } from "./Sidebar";
 import { BottomNav } from "./BottomNav";
 
-export function AppLayout({ children }: { children: ReactNode }) {
+export function AppLayout({ children }: { children: ReactNode; requireAdmin?: boolean }) {
   return (
     <div className="flex h-[100dvh] w-full overflow-hidden bg-background text-foreground">
       {/* Desktop Sidebar */}
