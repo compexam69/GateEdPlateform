@@ -56,3 +56,23 @@ self.addEventListener("notificationclick", (event: NotificationEvent) => {
       })
   );
 });
+
+// Background Sync: notify all open clients to retry queued Pomodoro sessions
+interface SyncEvent extends ExtendableEvent {
+  readonly tag: string;
+}
+
+self.addEventListener("sync", (event: Event) => {
+  const syncEvent = event as SyncEvent;
+  if (syncEvent.tag === "pomodoro-session-sync") {
+    syncEvent.waitUntil(
+      self.clients
+        .matchAll({ type: "window", includeUncontrolled: true })
+        .then((clientList) => {
+          clientList.forEach(client => {
+            client.postMessage({ type: "POMODORO_SYNC_RETRY" });
+          });
+        })
+    );
+  }
+});

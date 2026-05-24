@@ -47,10 +47,10 @@ A mastery-gated PWA for Indian students (JEE, NEET, GATE) — students cannot sk
 - **Auth:** Register with full name, +91 mobile, email, strong password. Email verification required.
 - **Dashboard:** Focus streak, today's time, progress tree, tasks, performance chart
 - **Learning path:** Subject → Chapter → Topic with 5-step gates (Lecture → Quiz → DPP → PYQs → Topic Test)
-- **Exam interface:** Full-screen, countdown timer, question grid, mark for review, auto-save to localStorage
+- **Exam interface:** Full-screen, countdown timer, question grid, mark for review, auto-save to IndexedDB (idb), server-time sync every 60s, mobile swipe navigation
 - **Exam results:** Score summary, pie chart, answer sheet with solutions and QR codes
 - **Notes:** Gated PDF upload (unlocked after chapter test), per-user 500MB quota, B2 storage
-- **Pomodoro:** 25/5/15 timer modes, streak tracking, context-aware logging
+- **Pomodoro:** 25/5/15/custom timer modes, streak tracking, context-aware logging, offline session queue (Background Sync)
 - **Study Planner:** Auto-generated + manual tasks, drag-to-reorder, status lifecycle
 - **Test Tracker:** External exam log + line chart (internal vs external scores)
 - **Admin panel:** User approvals, content CRUD (subjects/chapters/topics), analytics, storage monitor
@@ -60,6 +60,20 @@ A mastery-gated PWA for Indian students (JEE, NEET, GATE) — students cannot sk
 - Fully serverless: Supabase + Backblaze B2 only. No Express DB (no DATABASE_URL needed).
 - Dark mode by default. Design system: Deep Slate #0F172A bg, Focus Indigo #6366F1 primary.
 - No emojis in UI — lucide-react icons only.
+
+## Infrastructure (F9 & F11 — manual setup required)
+
+### F9: B2 Bucket Lifecycle (file versioning — retain last 3)
+Configure in Backblaze B2 Dashboard → Buckets → your bucket → Lifecycle Rules:
+- Keep only the last 3 versions of each file: set **"Keep prior versions for X days"** to `0` days and **"Number of versions to keep"** to `3`.
+- Or via B2 CLI: `b2 update-bucket --lifecycle-rule '{"daysFromHidingToDeleting":1,"fileNamePrefix":"","daysFromUploadingToHiding":null}' <bucketName> allPrivate`
+
+### F11: CDN in Front of B2 (Cloudflare)
+To serve B2 files through Cloudflare's CDN for lower latency:
+1. Create a **Cloudflare R2** bucket (compatible with B2 S3 API) or set up a **Cloudflare Worker** proxy to your B2 bucket.
+2. Alternatively, point a Cloudflare-proxied CNAME at your B2 bucket's S3-compatible endpoint (`s3.us-west-004.backblazeb2.com`).
+3. Set Cache-Control headers on presigned URL responses: `max-age=3600` for public files.
+4. Update `B2_PUBLIC_BASE_URL` env var to your Cloudflare domain once configured.
 
 ## Gotchas
 

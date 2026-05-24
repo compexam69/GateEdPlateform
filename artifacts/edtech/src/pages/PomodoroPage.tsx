@@ -2,7 +2,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { RotateCcw, Coffee, Brain, Clock, Tag, X, Trophy } from "lucide-react";
+import { RotateCcw, Coffee, Brain, Clock, Tag, X, Trophy, Settings } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getPomodoroStats, getGetPomodoroStatsUrl } from "@workspace/api-client-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -12,7 +12,7 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
   usePomodoroStore,
-  POMODORO_DURATIONS,
+  getDurationForMode,
   POMODORO_LABELS,
   type PomodoroMode,
 } from "@/store/pomodoroStore";
@@ -22,18 +22,21 @@ const MODE_ICONS: Record<PomodoroMode, typeof Brain> = {
   focus: Brain,
   short: Coffee,
   long: Coffee,
+  custom: Settings,
 };
 
 const MODE_COLOR: Record<PomodoroMode, string> = {
   focus: "text-primary",
   short: "text-secondary",
   long: "text-accent",
+  custom: "text-primary",
 };
 
 const MODE_BG: Record<PomodoroMode, string> = {
   focus: "hsl(var(--primary))",
   short: "hsl(var(--secondary))",
   long: "hsl(var(--accent))",
+  custom: "hsl(var(--primary))",
 };
 
 interface TopicOption {
@@ -45,7 +48,8 @@ interface TopicOption {
 export default function PomodoroPage() {
   const { user } = useAuth();
   const store = usePomodoroStore();
-  const { mode, timeLeft, isRunning, startTime, sessionCount, selectedTopicId, selectedTopicTitle } = store;
+  const { mode, customMinutes, timeLeft, isRunning, startTime, sessionCount, selectedTopicId, selectedTopicTitle } = store;
+  const [customInput, setCustomInput] = useState(String(customMinutes));
 
   const [topicSearch, setTopicSearch] = useState("");
   const [topicPickerOpen, setTopicPickerOpen] = useState(false);
@@ -100,7 +104,8 @@ export default function PomodoroPage() {
   const ModeIcon = MODE_ICONS[mode];
   const radius = 120;
   const circumference = 2 * Math.PI * radius;
-  const progress = (POMODORO_DURATIONS[mode] - timeLeft) / POMODORO_DURATIONS[mode];
+  const totalDuration = getDurationForMode(mode, customMinutes);
+  const progress = totalDuration > 0 ? (totalDuration - timeLeft) / totalDuration : 0;
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
 
@@ -113,8 +118,8 @@ export default function PomodoroPage() {
             <p className="text-muted-foreground text-sm mt-1">Stay focused, study smarter.</p>
           </div>
 
-          <div className="flex justify-center gap-2">
-            {(["focus", "short", "long"] as PomodoroMode[]).map((m) => {
+          <div className="flex justify-center gap-2 flex-wrap">
+            {(["focus", "short", "long", "custom"] as PomodoroMode[]).map((m) => {
               const Icon = MODE_ICONS[m];
               return (
                 <Button
@@ -130,6 +135,34 @@ export default function PomodoroPage() {
               );
             })}
           </div>
+
+          {mode === "custom" && (
+            <div className="flex justify-center">
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-muted/30">
+                <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Duration:</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={120}
+                  value={customInput}
+                  onChange={(e) => {
+                    setCustomInput(e.target.value);
+                    const v = parseInt(e.target.value, 10);
+                    if (!isNaN(v) && v >= 1 && v <= 120) store.setCustomMinutes(v);
+                  }}
+                  onBlur={() => {
+                    const v = parseInt(customInput, 10);
+                    if (isNaN(v) || v < 1) { store.setCustomMinutes(1); setCustomInput("1"); }
+                    else if (v > 120) { store.setCustomMinutes(120); setCustomInput("120"); }
+                  }}
+                  disabled={isRunning}
+                  className="w-14 bg-transparent text-center font-mono font-bold text-sm border-b border-border focus:outline-none focus:border-primary disabled:opacity-50"
+                />
+                <span className="text-sm text-muted-foreground">min</span>
+              </div>
+            </div>
+          )}
 
           {mode === "focus" && (
             <div className="flex justify-center">

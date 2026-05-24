@@ -590,3 +590,56 @@ alter table rate_limits enable row level security;
 drop policy if exists "rate_limits_service" on rate_limits;
 create policy "rate_limits_service" on rate_limits
   for all using (true) with check (true);
+
+-- ── PDF Full-Text Search (F10) ─────────────────────────────────────────────────
+-- Adds a tsvector column to user_notes for future server-side full-text search.
+-- After extracting PDF text server-side (e.g. via pdf-parse in an Edge Function),
+-- store the extracted text in `content_text` and update `content_tsv` via trigger.
+alter table user_notes add column if not exists content_text text;
+alter table user_notes add column if not exists content_tsv tsvector
+  generated always as (to_tsvector('english', coalesce(content_text, ''))) stored;
+
+create index if not exists idx_user_notes_content_tsv on user_notes using gin(content_tsv);
+
+-- ── Scheduled Jobs (pg_cron — requires Supabase Pro+) ─────────────────────────
+-- Enable pg_cron extension in Supabase dashboard (Extensions → pg_cron), then run:
+--
+-- 1. Daily study reminders at 7 PM IST (13:30 UTC):
+-- SELECT cron.schedule(
+--   'daily-study-reminders',
+--   '30 13 * * *',
+--   $$
+--     SELECT net.http_post(
+--       url        := current_setting('app.api_url') || '/api/admin/study-reminders',
+--       headers    := json_build_object(
+--                       'Authorization', 'Bearer ' || current_setting('app.service_role_key'),
+--                       'Content-Type', 'application/json')::jsonb,
+--       body       := '{}'::jsonb
+--     );
+--   $$
+-- );
+--
+-- 2. Monthly attempt archival (1st of each month at 02:00 UTC):
+-- SELECT cron.schedule(
+--   'monthly-attempts-archive',
+--   '0 2 1 * *',
+--   $$
+--     INSERT INTO attempts_archive (
+--       original_attempt_id, user_id, quiz_id, quiz_title, quiz_type,
+--       score, total_marks, accuracy, time_taken_ms, negative_marks_applied,
+--       status, started_at, submitted_at
+--     )
+--     SELECT
+--       ua.id, ua.user_id, ua.quiz_id,
+--       q.title, q.type,
+--       ua.score, ua.total_marks, ua.accuracy, ua.time_taken_ms, ua.negative_marks_applied,
+--       ua.status, ua.started_at, ua.submitted_at
+--     FROM user_attempts ua
+--     JOIN quizzes q ON q.id = ua.quiz_id
+--     WHERE ua.submitted_at < NOW() - INTERVAL '12 months'
+--     ON CONFLICT DO NOTHING;
+--
+--     DELETE FROM user_attempts
+--     WHERE submitted_at < NOW() - INTERVAL '12 months';
+--   $$
+-- );

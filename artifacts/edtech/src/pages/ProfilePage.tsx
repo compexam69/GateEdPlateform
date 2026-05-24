@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogOut, User, Camera, Eye, EyeOff, CheckCircle, Shield, X, Pencil, Phone, Bell, Mail } from "lucide-react";
+import { LogOut, User, Camera, Eye, EyeOff, CheckCircle, Shield, X, Pencil, Phone, Bell, Mail, Download } from "lucide-react";
 import { useState, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
@@ -454,8 +454,31 @@ export default function ProfilePage() {
 
         <Card>
           <CardHeader><CardTitle>Account</CardTitle></CardHeader>
-          <CardContent>
-            <Separator className="mb-4" />
+          <CardContent className="space-y-3">
+            <Separator className="mb-2" />
+            <Button
+              variant="outline"
+              className="w-full justify-start"
+              onClick={async () => {
+                try {
+                  const res = await fetch(`${getApiBase()}/user/export`, {
+                    headers: { Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token ?? ""}` },
+                  });
+                  if (!res.ok) throw new Error("Export failed");
+                  const blob = await res.blob();
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `gateed-my-data-${new Date().toISOString().split("T")[0]}.json`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                } catch {
+                  toast({ title: "Export failed", description: "Could not download your data. Please try again.", variant: "destructive" });
+                }
+              }}
+            >
+              <Download className="w-4 h-4 mr-2" /> Download My Data
+            </Button>
             <Button variant="outline" className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30" onClick={() => signOut()}>
               <LogOut className="w-4 h-4 mr-2" /> Sign Out
             </Button>

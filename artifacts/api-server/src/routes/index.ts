@@ -14,6 +14,7 @@ import dashboardRouter from "./dashboard";
 import notificationsRouter from "./notifications";
 import pushRouter from "./push";
 import authEmailRouter from "./auth-email";
+import userRouter from "./user";
 
 const router: IRouter = Router();
 
@@ -32,5 +33,6 @@ router.use(adminRouter);
 router.use(notificationsRouter);
 router.use(pushRouter);
 router.use(authEmailRouter);
+router.use(userRouter);
 
 export default router;

@@ -386,6 +386,49 @@ router.get("/admin/users/:userId/detail", requireAdmin, async (req: AuthRequest,
   });
 });
 
+// Send study reminders to students who have no pomodoro session today
+router.post("/admin/study-reminders", requireAdmin, async (_req: AuthRequest, res) => {
+  const { data: students } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("role", "student")
+    .eq("status", "active");
+
+  if (!students || students.length === 0) {
+    res.json({ sent: 0, skipped: 0, message: "No active students" });
+    return;
+  }
+
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date();
+  todayEnd.setHours(23, 59, 59, 999);
+
+  const { data: studiedToday } = await supabase
+    .from("pomodoro_sessions")
+    .select("user_id")
+    .gte("start_time", todayStart.toISOString())
+    .lte("start_time", todayEnd.toISOString());
+
+  const studiedSet = new Set((studiedToday ?? []).map((s: { user_id: string }) => s.user_id));
+  const toRemind = students.filter(s => !studiedSet.has(s.id));
+
+  let sent = 0;
+  for (const student of toRemind) {
+    try {
+      await sendPushToUser(student.id, {
+        title: "Time to Study!",
+        body: "You haven't studied today yet. Keep your streak going!",
+        url: "/dashboard",
+        tag: "study-reminder",
+      });
+      sent++;
+    } catch { /* best-effort */ }
+  }
+
+  res.json({ sent, skipped: students.length - toRemind.length, total_students: students.length });
+});
+
 router.get("/admin/lecture-ctr", requireAdmin, async (_req: AuthRequest, res) => {
   const { data: clicks, error } = await supabase
     .from("lecture_clicks")

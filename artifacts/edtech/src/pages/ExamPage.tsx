@@ -7,6 +7,8 @@ import type { ExamSession, Question } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { MathText } from "@/components/MathText";
 import { playChime } from "@/lib/playChime";
+import { saveDraftIdb, loadDraftIdb, clearDraftIdb, type DraftState } from "@/lib/examDraftDb";
+import { apiFetch } from "@/lib/api";
 
 type QuestionStatus = "not-visited" | "unanswered" | "answered" | "marked" | "answered-marked";
 
@@ -18,49 +20,6 @@ interface QuestionState {
   status: QuestionStatus;
 }
 
-interface DraftState {
-  quizId: string;
-  attempt_id: string;
-  questions: Array<{
-    question_id: string;
-    selectedOption: string | null;
-    isMarked: boolean;
-    timeSpentMs: number;
-    status: QuestionStatus;
-  }>;
-  currentIdx: number;
-  timeLeft: number;
-  pauseCount: number;
-  savedAt: number;
-}
-
-function getDraftKey(quizId: string) {
-  return `exam_draft_${quizId}`;
-}
-
-function saveDraft(quizId: string, draft: DraftState) {
-  try {
-    localStorage.setItem(getDraftKey(quizId), JSON.stringify(draft));
-  } catch {}
-}
-
-function loadDraft(quizId: string): DraftState | null {
-  try {
-    const raw = localStorage.getItem(getDraftKey(quizId));
-    if (!raw) return null;
-    const d = JSON.parse(raw) as DraftState;
-    // Expire after 4 hours
-    if (Date.now() - d.savedAt > 4 * 60 * 60 * 1000) {
-      localStorage.removeItem(getDraftKey(quizId));
-      return null;
-    }
-    return d;
-  } catch { return null; }
-}
-
-function clearDraft(quizId: string) {
-  try { localStorage.removeItem(getDraftKey(quizId)); } catch {}
-}
 
 export default function ExamPage() {
   const { quizId } = useParams<{ quizId: string }>();
@@ -88,6 +47,7 @@ export default function ExamPage() {
   const currentIdxRef = useRef(0);
   const timeLeftRef = useRef(0);
   const pauseCountRef = useRef(0);
+  const touchStartX = useRef<number | null>(null);
 
   const startExam = useStartExam();
   const submitExam = useSubmitExam();
@@ -117,17 +77,18 @@ export default function ExamPage() {
       pauseCount,
       savedAt: Date.now(),
     };
-    saveDraft(quizId, d);
+    void saveDraftIdb(d);
   }, [questionStates, currentIdx, timeLeft, pauseCount, quizId, session, loading]);
 
-  // Check for existing draft on mount
+  // Check for existing draft on mount (async IndexedDB)
   useEffect(() => {
     if (!quizId) return;
-    const existing = loadDraft(quizId);
-    if (existing) {
-      setDraft(existing);
-      setShowResumeBanner(true);
-    }
+    loadDraftIdb(quizId).then(existing => {
+      if (existing) {
+        setDraft(existing);
+        setShowResumeBanner(true);
+      }
+    });
   }, [quizId]);
 
   const handleSubmit = useCallback(async () => {
@@ -144,7 +105,7 @@ export default function ExamPage() {
       is_marked_for_review: q.isMarked,
     }));
 
-    if (quizId) clearDraft(quizId);
+    if (quizId) void clearDraftIdb(quizId);
 
     submitExam.mutate(
       { data: { attempt_id: s.attempt_id, answers } },
@@ -194,7 +155,7 @@ export default function ExamPage() {
 
   function startFreshExam() {
     if (!quizId) return;
-    clearDraft(quizId);
+    void clearDraftIdb(quizId);
     setShowResumeBanner(false);
     setDraft(null);
     startExam.mutate(
@@ -226,20 +187,21 @@ export default function ExamPage() {
 
   useEffect(() => {
     if (!quizId) return;
-    const existing = loadDraft(quizId);
-    if (!existing) {
-      // Start fresh immediately if no draft
-      startExam.mutate(
-        { data: { quiz_id: quizId } },
-        {
-          onSuccess: (data: ExamSession) => initExam(data),
-          onError: (err: unknown) => {
-            setError((err as Error)?.message || "Failed to start exam");
-            setLoading(false);
-          },
-        }
-      );
-    }
+    loadDraftIdb(quizId).then(existing => {
+      if (!existing) {
+        // Start fresh immediately if no draft
+        startExam.mutate(
+          { data: { quiz_id: quizId } },
+          {
+            onSuccess: (data: ExamSession) => initExam(data),
+            onError: (err: unknown) => {
+              setError((err as Error)?.message || "Failed to start exam");
+              setLoading(false);
+            },
+          }
+        );
+      }
+    });
   }, [quizId]);
 
   // Timer
@@ -259,6 +221,19 @@ export default function ExamPage() {
     }, 1000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [loading, session, isPaused, handleSubmit]);
+
+  // Server-time sync: poll every 60s to detect and correct clock drift >30s
+  useEffect(() => {
+    if (loading || !session) return;
+    const poll = setInterval(async () => {
+      try {
+        const data = await apiFetch(`/exam/time-remaining/${session.attempt_id}`) as { time_remaining_seconds: number };
+        const drift = Math.abs(data.time_remaining_seconds - timeLeftRef.current);
+        if (drift > 30) setTimeLeft(data.time_remaining_seconds);
+      } catch { /* silent — never interrupt the exam */ }
+    }, 60_000);
+    return () => clearInterval(poll);
+  }, [loading, session]);
 
   useEffect(() => {
     if (showWarning) {
@@ -521,7 +496,18 @@ export default function ExamPage() {
 
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
         {/* Main question area */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 flex flex-col">
+        <main
+          className="flex-1 overflow-y-auto p-4 sm:p-6 flex flex-col"
+          onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+          onTouchEnd={(e) => {
+            if (touchStartX.current === null) return;
+            const delta = e.changedTouches[0].clientX - touchStartX.current;
+            touchStartX.current = null;
+            if (Math.abs(delta) < 50) return;
+            if (delta < 0 && currentIdx < questionStates.length - 1) goToQuestion(currentIdx + 1);
+            else if (delta > 0 && currentIdx > 0) goToQuestion(currentIdx - 1);
+          }}
+        >
           <div className="flex justify-between items-center mb-5">
             <h2 className="text-lg font-bold">Question {currentIdx + 1} of {questionStates.length}</h2>
             <label className="flex items-center gap-2 cursor-pointer select-none">

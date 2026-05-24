@@ -503,4 +503,35 @@ router.post("/qr/generate", requireAdmin, async (req: AuthRequest, res) => {
   res.json({ qr_code_url, youtube_url });
 });
 
+// Server-time sync: returns authoritative remaining seconds for an in-progress attempt
+router.get("/exam/time-remaining/:attemptId", requireAuth, async (req: AuthRequest, res) => {
+  const { attemptId } = req.params as { attemptId: string };
+  const userId = req.user!.id;
+
+  const { data: attempt } = await supabase
+    .from("user_attempts")
+    .select("started_at, quizzes(duration_minutes)")
+    .eq("id", attemptId)
+    .eq("user_id", userId)
+    .eq("status", "in_progress")
+    .maybeSingle();
+
+  if (!attempt) {
+    res.status(404).json({ error: "Attempt not found or already completed" });
+    return;
+  }
+
+  const quiz = attempt.quizzes as unknown as { duration_minutes: number };
+  const startedAt = new Date(attempt.started_at as string).getTime();
+  const durationMs = (quiz.duration_minutes ?? 30) * 60 * 1000;
+  const elapsed = Date.now() - startedAt;
+  const timeRemainingMs = Math.max(0, durationMs - elapsed);
+
+  res.json({
+    time_remaining_ms: timeRemainingMs,
+    time_remaining_seconds: Math.floor(timeRemainingMs / 1000),
+    server_time: new Date().toISOString(),
+  });
+});
+
 export default router;
