@@ -604,7 +604,19 @@ create index if not exists idx_user_notes_content_tsv on user_notes using gin(co
 -- ── Scheduled Jobs (pg_cron — requires Supabase Pro+) ─────────────────────────
 -- Enable pg_cron extension in Supabase dashboard (Extensions → pg_cron), then run:
 --
--- 1. Daily study reminders at 7 PM IST (13:30 UTC):
+-- 1. Rate-limits table cleanup (every hour):
+--    Deletes rows older than 2 hours. The longest rate-limit window in use is
+--    1 hour (register / resend / password-change), so 2 hours retains the full
+--    window with one extra hour of buffer. The per-request best-effort cleanup
+--    in rateLimitDb.ts handles bursts; this job guarantees the table never grows
+--    unboundedly in low-traffic periods.
+-- SELECT cron.schedule(
+--   'rate-limits-cleanup',
+--   '0 * * * *',
+--   $$ DELETE FROM public.rate_limits WHERE created_at < now() - INTERVAL '2 hours'; $$
+-- );
+--
+-- 2. Daily study reminders at 7 PM IST (13:30 UTC):
 -- SELECT cron.schedule(
 --   'daily-study-reminders',
 --   '30 13 * * *',
