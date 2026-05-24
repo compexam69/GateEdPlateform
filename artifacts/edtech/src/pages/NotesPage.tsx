@@ -141,11 +141,24 @@ export default function NotesPage() {
     await doUpload(file, selectedChapterId);
   }
 
+  async function computeSha256(file: File): Promise<string> {
+    const buffer = await file.arrayBuffer();
+    const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+  }
+
   async function doUpload(file: File, chapterId: string) {
     setUploading(true);
+    let fileHash: string | undefined;
+    try {
+      fileHash = await computeSha256(file);
+    } catch {
+      // Hash computation failed — proceed without deduplication check
+    }
     try {
       const result = await getUploadUrl.mutateAsync({
-        data: { chapter_id: chapterId, filename: file.name, content_type: file.type, size_bytes: file.size },
+        data: { chapter_id: chapterId, filename: file.name, content_type: file.type, size_bytes: file.size, file_hash: fileHash },
       });
 
       const uploadResp = await fetch(result.upload_url, {

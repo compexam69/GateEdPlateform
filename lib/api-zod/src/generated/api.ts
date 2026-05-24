@@ -523,7 +523,8 @@ export const GetUploadUrlBody = zod.object({
   "chapter_id": zod.string(),
   "filename": zod.string(),
   "content_type": zod.string(),
-  "size_bytes": zod.number()
+  "size_bytes": zod.number(),
+  "file_hash": zod.string().optional().describe('SHA-256 hex digest of the file for deduplication')
 })
 
 export const GetUploadUrlResponse = zod.object({

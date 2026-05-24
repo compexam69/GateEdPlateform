@@ -11,4 +11,6 @@ export interface UploadUrlInput {
   filename: string;
   content_type: string;
   size_bytes: number;
+  /** SHA-256 hex digest of the file for deduplication */
+  file_hash?: string;
 }

@@ -1563,6 +1563,9 @@ components:
           type: string
         size_bytes:
           type: integer
+        file_hash:
+          type: string
+          description: SHA-256 hex digest of the file for deduplication
       required: [chapter_id, filename, content_type, size_bytes]
 
     UploadUrlResult:

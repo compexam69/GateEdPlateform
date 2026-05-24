@@ -2,6 +2,7 @@ import { Router } from "express";
 import { supabase } from "../lib/supabase";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
 import { createNotification } from "./notifications";
+import { sendPushToUser } from "../lib/push";
 
 const router = Router();
 
@@ -75,17 +76,13 @@ router.delete("/tasks/:taskId", requireAuth, async (req: AuthRequest, res) => {
 });
 
 router.post("/tasks/reorder", requireAuth, async (req: AuthRequest, res) => {
-  const { orderedIds } = req.body;
-  if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
-    res.status(400).json({ error: "orderedIds array required" });
-    return;
-  }
-  const userId = req.user!.id;
-  await Promise.all(
-    orderedIds.map((id: string, idx: number) =>
-      supabase.from("study_tasks").update({ order_index: idx }).eq("id", id).eq("user_id", userId)
-    )
+  const { tasks } = req.body as { tasks: Array<{ id: string; order_index: number }> };
+  if (!Array.isArray(tasks)) { res.status(400).json({ error: "tasks array required" }); return; }
+
+  const updates = tasks.map(t =>
+    supabase.from("study_tasks").update({ order_index: t.order_index }).eq("id", t.id).eq("user_id", req.user!.id)
   );
+  await Promise.all(updates);
   res.json({ message: "Reordered" });
 });
 
@@ -94,7 +91,7 @@ router.post("/tasks/generate", requireAuth, async (req: AuthRequest, res) => {
 
   const { data: attempts } = await supabase
     .from("user_attempts")
-    .select("quiz_id, accuracy, submitted_at, quizzes(topic_id, type, title, topics(title, chapter_id, chapters(title, subject_id, subjects(title))))")
+    .select("accuracy, submitted_at, quizzes(topic_id, type, topics(title, chapters(title, subjects(title))))")
     .eq("user_id", userId)
     .eq("status", "submitted")
     .not("accuracy", "is", null)
@@ -163,7 +160,15 @@ router.post("/tasks/generate", requireAuth, async (req: AuthRequest, res) => {
       }).select().single();
       if (insertRes1.data) newTasks.push(insertRes1.data);
     }
+
     await createNotification(userId, "Study Plan Updated", `${newTasks.length} new tasks added to your study plan.`, "plan");
+    await sendPushToUser(userId, {
+      title: "Your Daily Plan is Ready",
+      body: `${newTasks.length} new task${newTasks.length !== 1 ? "s" : ""} added to your study plan.`,
+      url: "/tasks",
+      tag: "daily-plan",
+    }).catch(() => {});
+
     res.json({ created: newTasks.length, tasks: newTasks, message: `${newTasks.length} tasks added to help you get started.` });
     return;
   }
@@ -186,6 +191,13 @@ router.post("/tasks/generate", requireAuth, async (req: AuthRequest, res) => {
 
   await createNotification(userId, "Smart Plan Ready",
     `${newTasks.length} weak topic${newTasks.length !== 1 ? "s" : ""} added — ${weakTopics.map(t => t.topicTitle).join(", ")}.`, "plan");
+
+  await sendPushToUser(userId, {
+    title: "Your Daily Study Plan is Ready",
+    body: `${newTasks.length} weak topic${newTasks.length !== 1 ? "s" : ""} identified: ${weakTopics.slice(0, 2).map(t => t.topicTitle).join(", ")}${weakTopics.length > 2 ? "..." : ""}.`,
+    url: "/tasks",
+    tag: "daily-plan",
+  }).catch(() => {});
 
   res.json({
     created: newTasks.length, tasks: newTasks,

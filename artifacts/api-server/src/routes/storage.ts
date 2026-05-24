@@ -5,7 +5,20 @@ import { requireAuth, type AuthRequest } from "../middlewares/auth";
 
 const router = Router();
 
-const PER_USER_LIMIT = 500 * 1024 * 1024; // 500MB
+const PER_USER_LIMIT = 500 * 1024 * 1024; // 500 MB
+
+// In-memory rate limiters (reset on server restart, adequate for single-instance)
+const pdfUploadLog = new Map<string, number[]>();
+const photoUploadLog = new Map<string, number[]>();
+
+function checkRateLimit(log: Map<string, number[]>, key: string, maxCount: number, windowMs: number): boolean {
+  const now = Date.now();
+  const hits = (log.get(key) ?? []).filter(t => now - t < windowMs);
+  if (hits.length >= maxCount) return false;
+  hits.push(now);
+  log.set(key, hits);
+  return true;
+}
 
 router.get("/notes", requireAuth, async (req: AuthRequest, res) => {
   const { data, error } = await supabase
@@ -35,8 +48,14 @@ router.delete("/notes/:noteId", requireAuth, async (req: AuthRequest, res) => {
 });
 
 router.post("/b2/upload-url", requireAuth, async (req: AuthRequest, res) => {
-  const { chapter_id, filename, content_type, size_bytes } = req.body;
+  const { chapter_id, filename, content_type, size_bytes, file_hash } = req.body;
   const userId = req.user!.id;
+
+  // Rate limit: 5 PDF uploads per user per hour
+  if (!checkRateLimit(pdfUploadLog, userId, 5, 60 * 60 * 1000)) {
+    res.status(429).json({ error: "Too many upload requests. Maximum 5 PDF uploads per hour." });
+    return;
+  }
 
   const { data: chapter_progress } = await supabase
     .from("user_chapter_progress")
@@ -48,6 +67,20 @@ router.post("/b2/upload-url", requireAuth, async (req: AuthRequest, res) => {
   if (!chapter_progress?.pdf_upload_unlocked) {
     res.status(403).json({ error: "Complete the Chapter Test first to unlock PDF uploads" });
     return;
+  }
+
+  // SHA-256 deduplication check
+  if (file_hash) {
+    const { data: existing } = await supabase
+      .from("user_notes")
+      .select("id, title")
+      .eq("user_id", userId)
+      .eq("file_hash", file_hash)
+      .maybeSingle();
+    if (existing) {
+      res.status(409).json({ error: `Duplicate file detected. You already uploaded "${existing.title}".` });
+      return;
+    }
   }
 
   const { data: usageData } = await supabase
@@ -66,6 +99,19 @@ router.post("/b2/upload-url", requireAuth, async (req: AuthRequest, res) => {
 
   try {
     const { uploadUrl } = await getUploadPresignedUrl(storagePath);
+
+    // Create the user_notes record now (with size and hash); b2_file_id populated after client confirms upload
+    const cleanName = filename.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
+    await supabase.from("user_notes").insert({
+      user_id: userId,
+      chapter_id,
+      title: cleanName,
+      b2_storage_path: storagePath,
+      pdf_size_bytes: size_bytes,
+      file_hash: file_hash ?? null,
+      content_type: content_type ?? "application/pdf",
+    }).select().single();
+
     res.json({ upload_url: uploadUrl, storage_path: storagePath, expires_at: expiry });
   } catch (e) {
     res.status(500).json({ error: "Failed to generate upload URL" });
@@ -91,6 +137,13 @@ router.post("/b2/download-url", requireAuth, async (req: AuthRequest, res) => {
 
 router.post("/b2/profile-upload-url", requireAuth, async (req: AuthRequest, res) => {
   const userId = req.user!.id;
+
+  // Rate limit: 5 profile photo uploads per user per hour
+  if (!checkRateLimit(photoUploadLog, userId, 5, 60 * 60 * 1000)) {
+    res.status(429).json({ error: "Too many upload requests. Maximum 5 photo uploads per hour." });
+    return;
+  }
+
   const storagePath = generateProfilePhotoPath(userId);
   const expiry = new Date(Date.now() + 15 * 60 * 1000).toISOString();
   try {

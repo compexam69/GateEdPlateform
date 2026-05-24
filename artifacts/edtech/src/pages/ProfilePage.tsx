@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogOut, User, Camera, Eye, EyeOff, CheckCircle, Shield, X, Pencil, Phone, Bell } from "lucide-react";
+import { LogOut, User, Camera, Eye, EyeOff, CheckCircle, Shield, X, Pencil, Phone, Bell, Mail } from "lucide-react";
 import { useState, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
@@ -43,6 +43,7 @@ async function compressImage(file: File, maxSizeKB = 500, maxDim = 500): Promise
 }
 
 const MOBILE_REGEX = /^(\+91)[\s-]?[6-9]\d{9}$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 interface NotifPrefs {
   daily_plan: boolean;
@@ -63,6 +64,13 @@ export default function ProfilePage() {
   const [editingMobile, setEditingMobile] = useState(false);
   const [newMobile, setNewMobile] = useState(user?.user_metadata?.mobile_number || "");
   const [savingMobile, setSavingMobile] = useState(false);
+
+  const [editingEmail, setEditingEmail] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [emailConfirmPwd, setEmailConfirmPwd] = useState("");
+  const [showEmailPwd, setShowEmailPwd] = useState(false);
+  const [changingEmail, setChangingEmail] = useState(false);
+  const [emailChangeSuccess, setEmailChangeSuccess] = useState(false);
 
   const [currentPwd, setCurrentPwd] = useState("");
   const [newPwd, setNewPwd] = useState("");
@@ -118,6 +126,37 @@ export default function ProfilePage() {
     } finally { setSavingMobile(false); }
   }
 
+  async function handleChangeEmail() {
+    const trimmed = newEmail.trim().toLowerCase();
+    if (!EMAIL_REGEX.test(trimmed)) {
+      toast({ title: "Invalid email address", variant: "destructive" }); return;
+    }
+    if (trimmed === user?.email?.toLowerCase()) {
+      toast({ title: "Same email address", description: "New email must be different from your current email.", variant: "destructive" }); return;
+    }
+    if (!emailConfirmPwd) {
+      toast({ title: "Password required", description: "Enter your current password to confirm the email change.", variant: "destructive" }); return;
+    }
+    setChangingEmail(true);
+    try {
+      // Re-authenticate first
+      const { error: reAuthErr } = await supabase.auth.signInWithPassword({ email: user!.email!, password: emailConfirmPwd });
+      if (reAuthErr) {
+        toast({ title: "Wrong password", description: "Your current password is incorrect.", variant: "destructive" });
+        setChangingEmail(false);
+        return;
+      }
+      const { error } = await supabase.auth.updateUser({ email: trimmed });
+      if (error) throw error;
+      setEmailChangeSuccess(true);
+      setEditingEmail(false);
+      setNewEmail("");
+      setEmailConfirmPwd("");
+    } catch (err: unknown) {
+      toast({ title: "Error", description: (err as Error).message, variant: "destructive" });
+    } finally { setChangingEmail(false); }
+  }
+
   async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -135,7 +174,10 @@ export default function ProfilePage() {
       const urlRes = await fetch(`${getApiBase()}/b2/profile-upload-url`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({}),
       });
-      if (!urlRes.ok) throw new Error("Failed to get upload URL");
+      if (!urlRes.ok) {
+        const errData = await urlRes.json().catch(() => ({}));
+        throw new Error((errData as { error?: string }).error || "Failed to get upload URL");
+      }
       const { upload_url, storage_path } = await urlRes.json();
       const uploadRes = await fetch(upload_url, {
         method: "POST",
@@ -257,13 +299,70 @@ export default function ProfilePage() {
                 )}
 
                 <div className="space-y-1.5">
-                  <div className="flex items-center gap-2 justify-center sm:justify-start">
-                    <p className="text-muted-foreground">{user?.email}</p>
-                    {isEmailVerified
-                      ? <Badge variant="secondary" className="bg-success/10 text-success text-xs gap-1"><CheckCircle className="w-3 h-3" />Verified</Badge>
-                      : <Badge variant="destructive" className="text-xs">Unverified</Badge>}
+                  {/* Email field */}
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 justify-center sm:justify-start">
+                      <p className="text-muted-foreground">{user?.email}</p>
+                      {isEmailVerified
+                        ? <Badge variant="secondary" className="bg-success/10 text-success text-xs gap-1"><CheckCircle className="w-3 h-3" />Verified</Badge>
+                        : <Badge variant="destructive" className="text-xs">Unverified</Badge>}
+                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => { setEditingEmail(true); setEmailChangeSuccess(false); }}>
+                        <Pencil className="w-3 h-3" />
+                      </Button>
+                    </div>
+
+                    {emailChangeSuccess && (
+                      <div className="flex items-start gap-2 rounded-md bg-success/10 border border-success/20 px-3 py-2 text-xs text-success">
+                        <CheckCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                        <span>Verification email sent to your new address. Click the link to confirm the change.</span>
+                      </div>
+                    )}
+
+                    {editingEmail && (
+                      <div className="mt-2 space-y-2 rounded-lg border border-border bg-muted/30 p-3">
+                        <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                          <Mail className="w-3.5 h-3.5" />
+                          A verification link will be sent to the new address. Your current email stays active until confirmed.
+                        </p>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">New Email Address</Label>
+                          <Input
+                            type="email"
+                            value={newEmail}
+                            onChange={e => setNewEmail(e.target.value)}
+                            placeholder="new@example.com"
+                            className="h-8 text-sm"
+                            autoFocus
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Current Password (to confirm)</Label>
+                          <div className="relative">
+                            <Input
+                              type={showEmailPwd ? "text" : "password"}
+                              value={emailConfirmPwd}
+                              onChange={e => setEmailConfirmPwd(e.target.value)}
+                              placeholder="Your current password"
+                              className="h-8 text-sm pr-8"
+                            />
+                            <button type="button" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowEmailPwd(v => !v)}>
+                              {showEmailPwd ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button size="sm" className="h-7 text-xs" onClick={handleChangeEmail} disabled={changingEmail || !newEmail || !emailConfirmPwd}>
+                            {changingEmail ? "Sending..." : "Send Verification"}
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setEditingEmail(false); setNewEmail(""); setEmailConfirmPwd(""); }}>
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
+                  {/* Mobile field */}
                   {editingMobile ? (
                     <div className="flex gap-2 items-center">
                       <div className="relative">

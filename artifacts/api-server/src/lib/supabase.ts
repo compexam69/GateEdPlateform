@@ -14,13 +14,30 @@ export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   },
 });
 
+export interface AuthUser {
+  id: string;
+  email: string;
+  role: string;
+  emailVerified: boolean;
+  isApproved: boolean;
+}
+
 export async function getUserFromRequest(
   authHeader: string | undefined
-): Promise<{ id: string; email: string; role: string } | null> {
+): Promise<AuthUser | null> {
   if (!authHeader?.startsWith("Bearer ")) return null;
   const token = authHeader.slice(7);
   const { data, error } = await supabase.auth.getUser(token);
   if (error || !data.user) return null;
   const role = data.user.user_metadata?.["role"] ?? "student";
-  return { id: data.user.id, email: data.user.email ?? "", role };
+  const emailVerified = !!data.user.email_confirmed_at;
+  const isAdmin = role === "admin" || role === "super_admin";
+  const isApproved = isAdmin ? true : (data.user.user_metadata?.["is_approved"] === true);
+  return {
+    id: data.user.id,
+    email: data.user.email ?? "",
+    role,
+    emailVerified,
+    isApproved,
+  };
 }
