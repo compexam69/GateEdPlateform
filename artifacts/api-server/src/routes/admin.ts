@@ -200,4 +200,36 @@ router.patch("/admin/gate-config", requireAdmin, async (req: AuthRequest, res) =
   res.json({ message: "Config updated", updated: upserts.map(u => u.key) });
 });
 
+router.get("/admin/lecture-ctr", requireAdmin, async (_req: AuthRequest, res) => {
+  const { data: clicks, error } = await supabase
+    .from("lecture_clicks")
+    .select("user_id, lecture_id, lectures!inner(topic_id, topics!inner(id, title))");
+
+  if (error) { res.status(500).json({ error: error.message }); return; }
+
+  const topicMap = new Map<string, { title: string; clicks: number; uniqueUsers: Set<string> }>();
+
+  for (const row of (clicks ?? []) as unknown as Array<{
+    user_id: string;
+    lecture_id: string;
+    lectures: { topic_id: string; topics: { id: string; title: string } };
+  }>) {
+    const topic = row.lectures?.topics;
+    if (!topic) continue;
+    const topicId = topic.id;
+    if (!topicMap.has(topicId)) topicMap.set(topicId, { title: topic.title, clicks: 0, uniqueUsers: new Set() });
+    const entry = topicMap.get(topicId)!;
+    entry.clicks++;
+    entry.uniqueUsers.add(row.user_id);
+  }
+
+  const result = Array.from(topicMap.entries())
+    .map(([id, v]) => ({ topic_id: id, title: v.title, total_clicks: v.clicks, unique_users: v.uniqueUsers.size }))
+    .sort((a, b) => b.total_clicks - a.total_clicks)
+    .slice(0, 50);
+
+  res.json(result);
+});
+
 export default router;
+

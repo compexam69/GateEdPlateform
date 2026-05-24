@@ -1,26 +1,40 @@
 import { AppLayout } from "@/components/layout/AppLayout";
-import { useState, useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Play, Pause, RotateCcw, Coffee, Brain, Clock, Tag, X } from "lucide-react";
-import { useCreatePomodoroSession } from "@workspace/api-client-react";
+import { RotateCcw, Coffee, Brain, Clock, Tag, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getPomodoroStats, getGetPomodoroStatsUrl } from "@workspace/api-client-react";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
-import {
-  Popover, PopoverContent, PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
+import { useState } from "react";
+import { supabase } from "@/lib/supabase";
+import {
+  usePomodoroStore,
+  POMODORO_DURATIONS,
+  POMODORO_LABELS,
+  type PomodoroMode,
+} from "@/store/pomodoroStore";
+import { playChime } from "@/lib/playChime";
 
-const MODES = {
-  focus: { label: "Focus", duration: 25 * 60, icon: Brain, color: "text-primary", bgColor: "hsl(var(--primary))" },
-  short: { label: "Short Break", duration: 5 * 60, icon: Coffee, color: "text-secondary", bgColor: "hsl(var(--secondary))" },
-  long: { label: "Long Break", duration: 15 * 60, icon: Coffee, color: "text-accent", bgColor: "hsl(var(--accent))" },
-} as const;
+const MODE_ICONS: Record<PomodoroMode, typeof Brain> = {
+  focus: Brain,
+  short: Coffee,
+  long: Coffee,
+};
 
-type ModeKey = keyof typeof MODES;
+const MODE_COLOR: Record<PomodoroMode, string> = {
+  focus: "text-primary",
+  short: "text-secondary",
+  long: "text-accent",
+};
+
+const MODE_BG: Record<PomodoroMode, string> = {
+  focus: "hsl(var(--primary))",
+  short: "hsl(var(--secondary))",
+  long: "hsl(var(--accent))",
+};
 
 interface TopicOption {
   id: string;
@@ -29,25 +43,23 @@ interface TopicOption {
 }
 
 export default function PomodoroPage() {
-  const [mode, setMode] = useState<ModeKey>("focus");
-  const [timeLeft, setTimeLeft] = useState(MODES.focus.duration);
-  const [isRunning, setIsRunning] = useState(false);
-  const [sessionCount, setSessionCount] = useState(0);
-  const startTimeRef = useRef<number | null>(null);
-  const { toast } = useToast();
   const { user } = useAuth();
+  const store = usePomodoroStore();
+  const { mode, timeLeft, isRunning, startTime, sessionCount, selectedTopicId, selectedTopicTitle } = store;
 
   const [topicSearch, setTopicSearch] = useState("");
-  const [selectedTopic, setSelectedTopic] = useState<TopicOption | null>(null);
   const [topicPickerOpen, setTopicPickerOpen] = useState(false);
-
-  const createSession = useCreatePomodoroSession();
 
   const { data: stats, refetch: refetchStats } = useQuery({
     queryKey: [getGetPomodoroStatsUrl()],
     queryFn: () => getPomodoroStats(),
     refetchInterval: 30000,
   });
+
+  // Refetch stats when sessions complete (widget saves them, but page needs fresh data)
+  useEffect(() => {
+    refetchStats();
+  }, [store.sessionCount]);
 
   const { data: topicOptions = [] } = useQuery<TopicOption[]>({
     queryKey: ["topics-for-pomodoro", user?.id, topicSearch],
@@ -57,9 +69,7 @@ export default function PomodoroPage() {
         .select("id, title, chapters!inner(title)")
         .eq("is_active", true)
         .limit(8);
-      if (topicSearch.trim()) {
-        query.ilike("title", `%${topicSearch.trim()}%`);
-      }
+      if (topicSearch.trim()) query.ilike("title", `%${topicSearch.trim()}%`);
       const { data } = await query;
       return (data ?? []).map((t: { id: string; title: string; chapters: { title: string } | { title: string }[] }) => ({
         id: t.id,
@@ -70,57 +80,27 @@ export default function PomodoroPage() {
     enabled: topicPickerOpen,
   });
 
-  const ModeObj = MODES[mode];
-  const progress = ((ModeObj.duration - timeLeft) / ModeObj.duration) * 100;
+  function handleToggle() {
+    if (isRunning) {
+      store.pause();
+    } else {
+      if (!startTime) playChime("start");
+      store.start();
+    }
+  }
+
+  function handleReset() {
+    store.reset();
+  }
+
+  function switchMode(newMode: PomodoroMode) {
+    store.setMode(newMode);
+  }
+
+  const ModeIcon = MODE_ICONS[mode];
   const radius = 120;
   const circumference = 2 * Math.PI * radius;
-
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isRunning && timeLeft > 0) {
-      interval = setInterval(() => setTimeLeft(t => t - 1), 1000);
-    } else if (isRunning && timeLeft === 0) {
-      setIsRunning(false);
-      if (mode === "focus" && startTimeRef.current) {
-        const durationSeconds = ModeObj.duration;
-        createSession.mutate({
-          data: {
-            duration_seconds: durationSeconds,
-            start_time: new Date(startTimeRef.current).toISOString(),
-            end_time: new Date().toISOString(),
-            topic_context: selectedTopic?.id ?? undefined,
-          },
-        }, {
-          onSuccess: () => refetchStats(),
-        });
-        setSessionCount(c => c + 1);
-        toast({ title: "Session Complete!", description: selectedTopic ? `Great work on ${selectedTopic.title}!` : "Great job! Take a break." });
-      }
-      startTimeRef.current = null;
-    }
-    return () => clearInterval(interval);
-  }, [isRunning, timeLeft, mode]);
-
-  function toggleTimer() {
-    if (!isRunning) {
-      if (startTimeRef.current === null) startTimeRef.current = Date.now();
-    }
-    setIsRunning(v => !v);
-  }
-
-  function resetTimer() {
-    setIsRunning(false);
-    setTimeLeft(MODES[mode].duration);
-    startTimeRef.current = null;
-  }
-
-  function switchMode(newMode: ModeKey) {
-    setMode(newMode);
-    setIsRunning(false);
-    setTimeLeft(MODES[newMode].duration);
-    startTimeRef.current = null;
-  }
-
+  const progress = (POMODORO_DURATIONS[mode] - timeLeft) / POMODORO_DURATIONS[mode];
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
 
@@ -134,18 +114,18 @@ export default function PomodoroPage() {
           </div>
 
           <div className="flex justify-center gap-2">
-            {(Object.entries(MODES) as [ModeKey, typeof MODES[ModeKey]][]).map(([key, m]) => {
-              const Icon = m.icon;
+            {(["focus", "short", "long"] as PomodoroMode[]).map((m) => {
+              const Icon = MODE_ICONS[m];
               return (
                 <Button
-                  key={key}
-                  variant={mode === key ? "default" : "outline"}
+                  key={m}
+                  variant={mode === m ? "default" : "outline"}
                   size="sm"
-                  onClick={() => switchMode(key)}
+                  onClick={() => switchMode(m)}
                   className="gap-1.5"
                 >
                   <Icon className="w-3.5 h-3.5" />
-                  {m.label}
+                  {POMODORO_LABELS[m]}
                 </Button>
               );
             })}
@@ -157,14 +137,14 @@ export default function PomodoroPage() {
                 <PopoverTrigger asChild>
                   <button className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-border text-sm text-muted-foreground hover:border-primary hover:text-foreground transition-colors">
                     <Tag className="w-3.5 h-3.5" />
-                    {selectedTopic ? (
-                      <span className="text-foreground font-medium">{selectedTopic.title}</span>
+                    {selectedTopicTitle ? (
+                      <span className="text-foreground font-medium">{selectedTopicTitle}</span>
                     ) : (
                       <span>Tag a topic (optional)</span>
                     )}
-                    {selectedTopic && (
+                    {selectedTopicTitle && (
                       <span
-                        onClick={e => { e.stopPropagation(); setSelectedTopic(null); }}
+                        onClick={(e) => { e.stopPropagation(); store.setSelectedTopic(null, null); }}
                         className="ml-1 hover:text-destructive"
                       >
                         <X className="w-3 h-3" />
@@ -176,7 +156,7 @@ export default function PomodoroPage() {
                   <Input
                     placeholder="Search topics..."
                     value={topicSearch}
-                    onChange={e => setTopicSearch(e.target.value)}
+                    onChange={(e) => setTopicSearch(e.target.value)}
                     className="mb-2 h-8 text-sm"
                     autoFocus
                   />
@@ -184,13 +164,11 @@ export default function PomodoroPage() {
                     {topicOptions.length === 0 ? (
                       <p className="text-xs text-muted-foreground text-center py-3">No topics found</p>
                     ) : (
-                      topicOptions.map(t => (
+                      topicOptions.map((t) => (
                         <button
                           key={t.id}
-                          onClick={() => { setSelectedTopic(t); setTopicPickerOpen(false); setTopicSearch(""); }}
-                          className={`w-full text-left px-3 py-2 rounded-md text-sm hover:bg-muted transition-colors ${
-                            selectedTopic?.id === t.id ? "bg-primary/10 text-primary" : ""
-                          }`}
+                          onClick={() => { store.setSelectedTopic(t.id, t.title); setTopicPickerOpen(false); setTopicSearch(""); }}
+                          className={`w-full text-left px-3 py-2 rounded-md text-sm hover:bg-muted transition-colors ${selectedTopicId === t.id ? "bg-primary/10 text-primary" : ""}`}
                         >
                           <div className="font-medium">{t.title}</div>
                           <div className="text-xs text-muted-foreground">{t.chapter_title}</div>
@@ -210,37 +188,40 @@ export default function PomodoroPage() {
                 <circle
                   cx="130" cy="130" r={radius}
                   fill="none"
-                  stroke={ModeObj.bgColor}
+                  stroke={MODE_BG[mode]}
                   strokeWidth="10"
                   strokeDasharray={circumference}
-                  strokeDashoffset={circumference * (1 - progress / 100)}
+                  strokeDashoffset={circumference * (1 - progress)}
                   className="transition-all duration-1000 ease-linear"
                   strokeLinecap="round"
                 />
               </svg>
               <div className="text-center z-10">
                 <div className="text-6xl font-bold font-mono tracking-tighter">
-                  {minutes.toString().padStart(2, "0")}:{seconds.toString().padStart(2, "0")}
+                  {String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")}
                 </div>
-                <div className={`text-sm font-medium mt-1 ${ModeObj.color}`}>{ModeObj.label}</div>
-                {selectedTopic && mode === "focus" && (
-                  <div className="text-xs text-muted-foreground mt-1 max-w-[160px] truncate">{selectedTopic.title}</div>
+                <div className={`text-sm font-medium mt-1 ${MODE_COLOR[mode]}`}>{POMODORO_LABELS[mode]}</div>
+                {selectedTopicTitle && mode === "focus" && (
+                  <div className="text-xs text-muted-foreground mt-1 max-w-[160px] truncate">{selectedTopicTitle}</div>
                 )}
               </div>
             </div>
 
             <div className="flex items-center gap-4 mt-6">
-              <Button size="icon" variant="outline" className="w-12 h-12 rounded-full" onClick={resetTimer}>
+              <Button size="icon" variant="outline" className="w-12 h-12 rounded-full" onClick={handleReset}>
                 <RotateCcw className="w-5 h-5" />
               </Button>
-              <Button
-                size="icon"
-                className="w-16 h-16 rounded-full shadow-lg hover:scale-105 transition-transform"
-                style={{ backgroundColor: ModeObj.bgColor }}
-                onClick={toggleTimer}
+              <button
+                className="w-16 h-16 rounded-full shadow-lg hover:scale-105 transition-transform flex items-center justify-center"
+                style={{ backgroundColor: MODE_BG[mode] }}
+                onClick={handleToggle}
               >
-                {isRunning ? <Pause className="w-7 h-7 text-white" /> : <Play className="w-7 h-7 ml-0.5 text-white" />}
-              </Button>
+                {isRunning ? (
+                  <svg className="w-7 h-7 text-white fill-white" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg>
+                ) : (
+                  <svg className="w-7 h-7 text-white fill-white ml-0.5" viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" /></svg>
+                )}
+              </button>
               <div className="w-12 h-12" />
             </div>
           </div>
@@ -262,9 +243,7 @@ export default function PomodoroPage() {
             </Card>
             <Card className="bg-card text-center">
               <CardContent className="p-3">
-                <div className="text-2xl font-bold text-warning flex items-center justify-center gap-1">
-                  {stats?.streak_days ?? 0}
-                </div>
+                <div className="text-2xl font-bold text-warning">{stats?.streak_days ?? 0}</div>
                 <div className="text-xs text-muted-foreground mt-0.5">Day Streak</div>
               </CardContent>
             </Card>
@@ -278,6 +257,11 @@ export default function PomodoroPage() {
                   Complete 4 focus sessions per day to maintain your streak.
                   {stats?.streak_days ? ` You're on a ${stats.streak_days}-day streak!` : " Start your first session!"}
                 </p>
+                {isRunning && (
+                  <p className="text-xs text-primary mt-2 font-medium">
+                    Timer continues even when you navigate away.
+                  </p>
+                )}
               </CardContent>
             </Card>
           )}

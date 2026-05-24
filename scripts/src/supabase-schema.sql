@@ -287,6 +287,7 @@ create table if not exists study_tasks (
   target_id    uuid,
   status       task_status not null default 'pending',
   priority     int not null default 0,
+  order_index  int not null default 0,
   due_date     date,
   source       task_source not null default 'manual',
   completed_at timestamptz,
@@ -510,3 +511,7 @@ create policy "notifications_update" on notifications
 drop policy if exists "notifications_insert_service" on notifications;
 create policy "notifications_insert_service" on notifications
   for insert with check (true);
+
+-- ── Migrations (safe to run multiple times on existing DBs) ───────────────────
+-- Add drag-and-drop ordering to study_tasks (run in Supabase SQL Editor if upgrading)
+alter table study_tasks add column if not exists order_index int not null default 0;

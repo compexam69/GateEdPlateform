@@ -10,8 +10,8 @@ router.get("/tasks", requireAuth, async (req: AuthRequest, res) => {
     .from("study_tasks")
     .select("*")
     .eq("user_id", req.user!.id)
-    .order("priority", { ascending: false })
-    .order("created_at", { ascending: false });
+    .order("order_index", { ascending: true })
+    .order("created_at", { ascending: true });
   if (error) { res.status(500).json({ error: error.message }); return; }
   res.json(data ?? []);
 });
@@ -19,18 +19,22 @@ router.get("/tasks", requireAuth, async (req: AuthRequest, res) => {
 router.post("/tasks", requireAuth, async (req: AuthRequest, res) => {
   const { title, description, target_type = "free_text", target_id, priority = 0, due_date } = req.body;
   if (!title) { res.status(400).json({ error: "title required" }); return; }
+
+  const { data: existing } = await supabase
+    .from("study_tasks")
+    .select("order_index")
+    .eq("user_id", req.user!.id)
+    .order("order_index", { ascending: false })
+    .limit(1);
+  const nextOrder = existing?.[0] ? (existing[0].order_index + 1) : 0;
+
   const { data, error } = await supabase
     .from("study_tasks")
     .insert({
       user_id: req.user!.id,
-      title,
-      description,
-      target_type,
-      target_id,
-      priority,
-      due_date,
-      status: "pending",
-      source: "manual",
+      title, description, target_type, target_id, priority,
+      due_date, order_index: nextOrder,
+      status: "pending", source: "manual",
     })
     .select()
     .single();
@@ -47,6 +51,7 @@ router.patch("/tasks/:taskId", requireAuth, async (req: AuthRequest, res) => {
     if (req.body.status === "completed") updates["completed_at"] = new Date().toISOString();
   }
   if (req.body.priority !== undefined) updates["priority"] = req.body.priority;
+  if (req.body.order_index !== undefined) updates["order_index"] = req.body.order_index;
 
   const { data, error } = await supabase
     .from("study_tasks")
@@ -69,11 +74,24 @@ router.delete("/tasks/:taskId", requireAuth, async (req: AuthRequest, res) => {
   res.json({ message: "Deleted" });
 });
 
-// Smart auto-task generation
+router.post("/tasks/reorder", requireAuth, async (req: AuthRequest, res) => {
+  const { orderedIds } = req.body;
+  if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
+    res.status(400).json({ error: "orderedIds array required" });
+    return;
+  }
+  const userId = req.user!.id;
+  await Promise.all(
+    orderedIds.map((id: string, idx: number) =>
+      supabase.from("study_tasks").update({ order_index: idx }).eq("id", id).eq("user_id", userId)
+    )
+  );
+  res.json({ message: "Reordered" });
+});
+
 router.post("/tasks/generate", requireAuth, async (req: AuthRequest, res) => {
   const userId = req.user!.id;
 
-  // Find recent exam attempts (last 3 per topic), compute weak topics
   const { data: attempts } = await supabase
     .from("user_attempts")
     .select("quiz_id, accuracy, submitted_at, quizzes(topic_id, type, title, topics(title, chapter_id, chapters(title, subject_id, subjects(title))))")
@@ -83,14 +101,9 @@ router.post("/tasks/generate", requireAuth, async (req: AuthRequest, res) => {
     .order("submitted_at", { ascending: false })
     .limit(100);
 
-  // Group by topic_id, compute avg accuracy for last 3 attempts
   const topicMap = new Map<string, {
-    topicId: string;
-    topicTitle: string;
-    chapterTitle: string;
-    subjectTitle: string;
-    accuracies: number[];
-    quizType: string;
+    topicId: string; topicTitle: string; chapterTitle: string;
+    subjectTitle: string; accuracies: number[]; quizType: string;
   }>();
 
   for (const attempt of (attempts ?? []) as Array<Record<string, unknown>>) {
@@ -109,96 +122,73 @@ router.post("/tasks/generate", requireAuth, async (req: AuthRequest, res) => {
       topicMap.set(topicId, { topicId, topicTitle, chapterTitle, subjectTitle, accuracies: [], quizType: quiz["type"] as string });
     }
     const entry = topicMap.get(topicId)!;
-    if (entry.accuracies.length < 3) {
-      entry.accuracies.push(attempt["accuracy"] as number);
-    }
+    if (entry.accuracies.length < 3) entry.accuracies.push(attempt["accuracy"] as number);
   }
 
-  // Filter to weak topics (avg accuracy < 60%)
   const weakTopics = Array.from(topicMap.values()).filter(t => {
     const avg = t.accuracies.reduce((s, a) => s + a, 0) / Math.max(t.accuracies.length, 1);
     return avg < 60;
   }).slice(0, 5);
 
   if (weakTopics.length === 0) {
-    // Also try topics with no progress yet
     const { data: allTopics } = await supabase
       .from("topics")
       .select("id, title, chapters(title, subjects(title))")
-      .eq("is_active", true)
-      .limit(5);
+      .eq("is_active", true).limit(5);
 
     const { data: progressData } = await supabase
-      .from("user_topic_progress")
-      .select("topic_id")
-      .eq("user_id", userId);
+      .from("user_topic_progress").select("topic_id").eq("user_id", userId);
 
     const progressSet = new Set((progressData ?? []).map((p: { topic_id: string }) => p.topic_id));
     const unstarted = ((allTopics ?? []) as Array<Record<string, unknown>>)
-      .filter(t => !progressSet.has(t["id"] as string))
-      .slice(0, 3);
+      .filter(t => !progressSet.has(t["id"] as string)).slice(0, 3);
 
     if (unstarted.length === 0) {
       res.json({ created: 0, message: "No weak topics found. Keep up the great work!" });
       return;
     }
 
-    // Delete old auto tasks first
     await supabase.from("study_tasks").delete().eq("user_id", userId).eq("source", "auto").eq("status", "pending");
 
     const newTasks = [];
     for (const topic of unstarted) {
       const chapter = topic["chapters"] as Record<string, unknown> | null;
       const subject = chapter?.["subjects"] as Record<string, unknown> | null;
-      const chapterTitle = chapter?.["title"] as string || "";
-      const subjectTitle = subject?.["title"] as string || "";
-      const { data: task } = await supabase.from("study_tasks").insert({
+      const insertRes1: { data: Record<string, unknown> | null } = await supabase.from("study_tasks").insert({
         user_id: userId,
         title: `Start: ${topic["title"] as string}`,
-        description: `${subjectTitle} › ${chapterTitle} — Watch the lecture to begin`,
-        target_type: "platform_subtopic",
-        target_id: topic["id"] as string,
-        priority: 1,
-        status: "pending",
-        source: "auto",
+        description: `${subject?.["title"] as string || ""} › ${chapter?.["title"] as string || ""} — Watch the lecture to begin`,
+        target_type: "platform_subtopic", target_id: topic["id"] as string,
+        priority: 1, order_index: newTasks.length, status: "pending", source: "auto",
       }).select().single();
-      if (task) newTasks.push(task);
+      if (insertRes1.data) newTasks.push(insertRes1.data);
     }
-
     await createNotification(userId, "Study Plan Updated", `${newTasks.length} new tasks added to your study plan.`, "plan");
     res.json({ created: newTasks.length, tasks: newTasks, message: `${newTasks.length} tasks added to help you get started.` });
     return;
   }
 
-  // Delete old pending auto tasks
   await supabase.from("study_tasks").delete().eq("user_id", userId).eq("source", "auto").eq("status", "pending");
 
   const newTasks = [];
   for (const topic of weakTopics) {
     const avg = topic.accuracies.reduce((s, a) => s + a, 0) / Math.max(topic.accuracies.length, 1);
-    const { data: task } = await supabase.from("study_tasks").insert({
+    const insertRes2: { data: Record<string, unknown> | null } = await supabase.from("study_tasks").insert({
       user_id: userId,
       title: `Revise: ${topic.topicTitle}`,
-      description: `${topic.subjectTitle} › ${topic.chapterTitle} — Avg accuracy: ${Math.round(avg)}%. Redo DPP or Topic Test to improve.`,
-      target_type: "platform_subtopic",
-      target_id: topic.topicId,
-      priority: Math.round((60 - avg) / 10), // higher priority for worse accuracy
-      status: "pending",
-      source: "auto",
+      description: `${topic.subjectTitle} › ${topic.chapterTitle} — Avg accuracy: ${Math.round(avg)}%. Redo DPP or Topic Test.`,
+      target_type: "platform_subtopic", target_id: topic.topicId,
+      priority: Math.round((60 - avg) / 10), order_index: newTasks.length,
+      status: "pending", source: "auto",
     }).select().single();
-    if (task) newTasks.push(task);
+    if (insertRes2.data) newTasks.push(insertRes2.data);
   }
 
-  await createNotification(
-    userId,
-    "Smart Plan Ready",
-    `${newTasks.length} weak topic${newTasks.length !== 1 ? "s" : ""} added to your study plan — ${weakTopics.map(t => t.topicTitle).join(", ")}.`,
-    "plan"
-  );
+  await createNotification(userId, "Smart Plan Ready",
+    `${newTasks.length} weak topic${newTasks.length !== 1 ? "s" : ""} added — ${weakTopics.map(t => t.topicTitle).join(", ")}.`, "plan");
 
   res.json({
-    created: newTasks.length,
-    tasks: newTasks,
+    created: newTasks.length, tasks: newTasks,
     weak_topics: weakTopics.map(t => ({ topicId: t.topicId, title: t.topicTitle, avg_accuracy: Math.round(t.accuracies.reduce((s, a) => s + a, 0) / Math.max(t.accuracies.length, 1)) })),
     message: `${newTasks.length} weak topic${newTasks.length !== 1 ? "s" : ""} added to your study plan.`,
   });

@@ -60,9 +60,9 @@ export default function NotesPage() {
         .eq("user_id", user.id)
         .eq("pdf_upload_unlocked", true);
       if (error || !data) return [];
-      return data.map((row: { chapter_id: string; chapters: { title: string } }) => ({
+      return data.map((row: { chapter_id: string; chapters: { title: string } | { title: string }[] }) => ({
         chapter_id: row.chapter_id,
-        chapter_title: row.chapters.title,
+        chapter_title: Array.isArray(row.chapters) ? (row.chapters[0]?.title ?? "") : (row.chapters as { title: string }).title,
       }));
     },
     enabled: !!user?.id,
