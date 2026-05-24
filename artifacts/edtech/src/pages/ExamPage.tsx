@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Pause, Play, ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
+import { Pause, Play, ChevronLeft, ChevronRight, AlertTriangle, RotateCcw } from "lucide-react";
 import { useStartExam, useSubmitExam } from "@workspace/api-client-react";
 import type { ExamSession, Question } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
@@ -14,6 +14,50 @@ interface QuestionState {
   isMarked: boolean;
   timeSpentMs: number;
   status: QuestionStatus;
+}
+
+interface DraftState {
+  quizId: string;
+  attempt_id: string;
+  questions: Array<{
+    question_id: string;
+    selectedOption: string | null;
+    isMarked: boolean;
+    timeSpentMs: number;
+    status: QuestionStatus;
+  }>;
+  currentIdx: number;
+  timeLeft: number;
+  pauseCount: number;
+  savedAt: number;
+}
+
+function getDraftKey(quizId: string) {
+  return `exam_draft_${quizId}`;
+}
+
+function saveDraft(quizId: string, draft: DraftState) {
+  try {
+    localStorage.setItem(getDraftKey(quizId), JSON.stringify(draft));
+  } catch {}
+}
+
+function loadDraft(quizId: string): DraftState | null {
+  try {
+    const raw = localStorage.getItem(getDraftKey(quizId));
+    if (!raw) return null;
+    const d = JSON.parse(raw) as DraftState;
+    // Expire after 4 hours
+    if (Date.now() - d.savedAt > 4 * 60 * 60 * 1000) {
+      localStorage.removeItem(getDraftKey(quizId));
+      return null;
+    }
+    return d;
+  } catch { return null; }
+}
+
+function clearDraft(quizId: string) {
+  try { localStorage.removeItem(getDraftKey(quizId)); } catch {}
 }
 
 export default function ExamPage() {
@@ -31,54 +75,77 @@ export default function ExamPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showWarning, setShowWarning] = useState<string | null>(null);
+  const [tabSwitchCount, setTabSwitchCount] = useState(0);
+  const [showResumeBanner, setShowResumeBanner] = useState(false);
+  const [draft, setDraft] = useState<DraftState | null>(null);
 
   const questionStartTime = useRef(Date.now());
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const sessionRef = useRef<ExamSession | null>(null);
+  const questionStatesRef = useRef<QuestionState[]>([]);
+  const currentIdxRef = useRef(0);
+  const timeLeftRef = useRef(0);
+  const pauseCountRef = useRef(0);
 
   const startExam = useStartExam();
   const submitExam = useSubmitExam();
 
+  // Keep refs in sync for use inside closures
+  useEffect(() => { sessionRef.current = session; }, [session]);
+  useEffect(() => { questionStatesRef.current = questionStates; }, [questionStates]);
+  useEffect(() => { currentIdxRef.current = currentIdx; }, [currentIdx]);
+  useEffect(() => { timeLeftRef.current = timeLeft; }, [timeLeft]);
+  useEffect(() => { pauseCountRef.current = pauseCount; }, [pauseCount]);
+
+  // Save draft whenever answers change
+  useEffect(() => {
+    if (!quizId || !session || loading) return;
+    const d: DraftState = {
+      quizId,
+      attempt_id: session.attempt_id,
+      questions: questionStates.map(qs => ({
+        question_id: qs.question.id,
+        selectedOption: qs.selectedOption,
+        isMarked: qs.isMarked,
+        timeSpentMs: qs.timeSpentMs,
+        status: qs.status,
+      })),
+      currentIdx,
+      timeLeft,
+      pauseCount,
+      savedAt: Date.now(),
+    };
+    saveDraft(quizId, d);
+  }, [questionStates, currentIdx, timeLeft, pauseCount, quizId, session, loading]);
+
+  // Check for existing draft on mount
   useEffect(() => {
     if (!quizId) return;
-    startExam.mutate(
-      { data: { quiz_id: quizId } },
-      {
-        onSuccess: (data: ExamSession) => {
-          setSession(data);
-          const questions: QuestionState[] = (data.questions ?? []).map((q: Question, i: number) => ({
-            question: q,
-            selectedOption: null,
-            isMarked: false,
-            timeSpentMs: 0,
-            status: i === 0 ? "unanswered" : "not-visited",
-          }));
-          setQuestionStates(questions);
-          setTimeLeft((data.duration_minutes ?? 30) * 60);
-          setLoading(false);
-          questionStartTime.current = Date.now();
-        },
-        onError: (err: unknown) => {
-          setError((err as Error)?.message || "Failed to start exam");
-          setLoading(false);
-        },
-      }
-    );
+    const existing = loadDraft(quizId);
+    if (existing) {
+      setDraft(existing);
+      setShowResumeBanner(true);
+    }
   }, [quizId]);
 
   const handleSubmit = useCallback(async () => {
-    if (!session || submitting) return;
+    const s = sessionRef.current;
+    const qs = questionStatesRef.current;
+    if (!s || submitting) return;
     setSubmitting(true);
     if (timerRef.current) clearInterval(timerRef.current);
 
-    const answers = questionStates.map(qs => ({
-      question_id: qs.question.id,
-      selected_option: qs.selectedOption ?? undefined,
-      time_spent_ms: qs.timeSpentMs,
-      is_marked_for_review: qs.isMarked,
+    const answers = qs.map(q => ({
+      question_id: q.question.id,
+      selected_option: q.selectedOption ?? undefined,
+      time_spent_ms: q.timeSpentMs,
+      is_marked_for_review: q.isMarked,
     }));
 
+    if (quizId) clearDraft(quizId);
+
     submitExam.mutate(
-      { data: { attempt_id: session.attempt_id, answers } },
+      { data: { attempt_id: s.attempt_id, answers } },
       {
         onSuccess: (result: { attempt_id: string }) => {
           setLocation(`/exam/results/${result.attempt_id}`);
@@ -89,8 +156,91 @@ export default function ExamPage() {
         },
       }
     );
-  }, [session, submitting, questionStates, submitExam, setLocation, toast]);
+  }, [submitting, submitExam, setLocation, toast, quizId]);
 
+  function initExam(data: ExamSession, savedDraft?: DraftState) {
+    setSession(data);
+    sessionRef.current = data;
+
+    const baseQuestions: QuestionState[] = (data.questions ?? []).map((q: Question, i: number) => ({
+      question: q,
+      selectedOption: null,
+      isMarked: false,
+      timeSpentMs: 0,
+      status: i === 0 ? "unanswered" : "not-visited",
+    }));
+
+    if (savedDraft) {
+      // Restore saved answers
+      const restored = baseQuestions.map((qs) => {
+        const saved = savedDraft.questions.find(sq => sq.question_id === qs.question.id);
+        if (!saved) return qs;
+        return { ...qs, selectedOption: saved.selectedOption, isMarked: saved.isMarked, timeSpentMs: saved.timeSpentMs, status: saved.status };
+      });
+      setQuestionStates(restored);
+      setCurrentIdx(savedDraft.currentIdx);
+      setTimeLeft(savedDraft.timeLeft);
+      setPauseCount(savedDraft.pauseCount);
+    } else {
+      setQuestionStates(baseQuestions);
+      setTimeLeft((data.duration_minutes ?? 30) * 60);
+    }
+
+    setLoading(false);
+    questionStartTime.current = Date.now();
+  }
+
+  function startFreshExam() {
+    if (!quizId) return;
+    clearDraft(quizId);
+    setShowResumeBanner(false);
+    setDraft(null);
+    startExam.mutate(
+      { data: { quiz_id: quizId } },
+      {
+        onSuccess: (data: ExamSession) => initExam(data),
+        onError: (err: unknown) => {
+          setError((err as Error)?.message || "Failed to start exam");
+          setLoading(false);
+        },
+      }
+    );
+  }
+
+  function resumeFromDraft() {
+    if (!quizId || !draft) return;
+    setShowResumeBanner(false);
+    startExam.mutate(
+      { data: { quiz_id: quizId } },
+      {
+        onSuccess: (data: ExamSession) => initExam(data, draft),
+        onError: (err: unknown) => {
+          setError((err as Error)?.message || "Failed to start exam");
+          setLoading(false);
+        },
+      }
+    );
+  }
+
+  useEffect(() => {
+    if (!quizId) return;
+    const existing = loadDraft(quizId);
+    if (!existing) {
+      // Start fresh immediately if no draft
+      startExam.mutate(
+        { data: { quiz_id: quizId } },
+        {
+          onSuccess: (data: ExamSession) => initExam(data),
+          onError: (err: unknown) => {
+            setError((err as Error)?.message || "Failed to start exam");
+            setLoading(false);
+          },
+        }
+      );
+    }
+  }, [quizId]);
+
+  // Timer
   useEffect(() => {
     if (loading || !session) return;
     timerRef.current = setInterval(() => {
@@ -110,10 +260,55 @@ export default function ExamPage() {
 
   useEffect(() => {
     if (showWarning) {
-      toast({ title: "⏱ Time Warning", description: showWarning, variant: "destructive" });
+      toast({ title: "Time Warning", description: showWarning, variant: "destructive" });
       setShowWarning(null);
     }
   }, [showWarning, toast]);
+
+  // Tab-switch detection
+  useEffect(() => {
+    if (loading) return;
+    const handleVisibility = () => {
+      if (document.hidden) {
+        setTabSwitchCount(c => {
+          const next = c + 1;
+          if (next === 1) {
+            toast({ title: "Tab switch detected", description: "Stay on the exam tab. Further switches will be recorded.", variant: "destructive" });
+          } else if (next >= 3) {
+            toast({ title: "Multiple tab switches", description: `You have switched away ${next} times. This is recorded.`, variant: "destructive" });
+          }
+          return next;
+        });
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [loading, toast]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    if (loading || isPaused) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement)?.tagName === "INPUT" || (e.target as HTMLElement)?.tagName === "TEXTAREA") return;
+      const total = questionStatesRef.current.length;
+      const idx = currentIdxRef.current;
+      if (e.key === "ArrowRight" && idx < total - 1) {
+        goToQuestion(idx + 1);
+      } else if (e.key === "ArrowLeft" && idx > 0) {
+        goToQuestion(idx - 1);
+      } else if (e.key === "m" || e.key === "M") {
+        toggleMark();
+      } else if (e.key === "Enter") {
+        if (idx < total - 1) goToQuestion(idx + 1);
+      } else if (["1", "2", "3", "4"].includes(e.key)) {
+        const optKeys = Object.keys((questionStatesRef.current[idx]?.question?.options as Record<string, string>) ?? {});
+        const opt = optKeys[parseInt(e.key) - 1];
+        if (opt) selectOption(opt);
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [loading, isPaused, currentIdx]);
 
   function updateCurrentTimeSpent() {
     const elapsed = Date.now() - questionStartTime.current;
@@ -126,6 +321,7 @@ export default function ExamPage() {
   function goToQuestion(idx: number) {
     updateCurrentTimeSpent();
     setCurrentIdx(idx);
+    currentIdxRef.current = idx;
     setQuestionStates(prev => prev.map((qs, i) => {
       if (i === idx && qs.status === "not-visited") {
         return { ...qs, status: "unanswered" };
@@ -138,11 +334,7 @@ export default function ExamPage() {
     setQuestionStates(prev => prev.map((qs, i) => {
       if (i !== currentIdx) return qs;
       const isMarked = qs.isMarked;
-      return {
-        ...qs,
-        selectedOption: option,
-        status: isMarked ? "answered-marked" : "answered",
-      };
+      return { ...qs, selectedOption: option, status: isMarked ? "answered-marked" : "answered" };
     }));
   }
 
@@ -190,6 +382,39 @@ export default function ExamPage() {
     "marked": "bg-warning/20 text-warning border-warning/30",
     "answered-marked": "bg-warning/20 text-warning border-warning/30",
   };
+
+  // Resume banner (before loading)
+  if (showResumeBanner && draft) {
+    const savedDate = new Date(draft.savedAt);
+    const answered = draft.questions.filter(q => q.selectedOption).length;
+    return (
+      <div className="flex h-screen items-center justify-center bg-background px-4">
+        <div className="w-full max-w-md space-y-6 text-center">
+          <div className="w-16 h-16 rounded-full bg-warning/10 flex items-center justify-center mx-auto">
+            <RotateCcw className="w-8 h-8 text-warning" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold">Resume Exam?</h2>
+            <p className="text-muted-foreground mt-2 text-sm">
+              You have an unfinished exam saved from{" "}
+              <strong>{savedDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</strong>.
+            </p>
+            <p className="text-muted-foreground text-sm mt-1">
+              {answered} question{answered !== 1 ? "s" : ""} answered · {formatTime(draft.timeLeft)} remaining
+            </p>
+          </div>
+          <div className="flex gap-3 justify-center">
+            <Button variant="outline" onClick={startFreshExam}>
+              Start Fresh
+            </Button>
+            <Button onClick={resumeFromDraft}>
+              Resume Exam
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -239,14 +464,20 @@ export default function ExamPage() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      {/* Header */}
       <header className="h-16 border-b border-border bg-card flex items-center justify-between px-4 sm:px-6 shrink-0">
         <div className="font-bold text-base hidden sm:block truncate max-w-xs">
           {session ? "Exam in Progress" : "Exam"}
         </div>
         <div className="flex items-center gap-4 mx-auto sm:mx-0">
-          <div className={`font-mono text-xl font-bold ${timeLeft < 300 ? "text-destructive" : timeLeft < 600 ? "text-warning" : "text-primary"}`}>
+          <div className={`font-mono text-xl font-bold ${timeLeft < 300 ? "text-destructive animate-pulse" : timeLeft < 600 ? "text-warning" : "text-primary"}`}>
             {formatTime(timeLeft)}
           </div>
+          {tabSwitchCount > 0 && (
+            <span className="text-xs text-destructive font-medium hidden sm:inline">
+              {tabSwitchCount} switch{tabSwitchCount !== 1 ? "es" : ""} detected
+            </span>
+          )}
           <Button variant="outline" size="sm" onClick={handlePause}>
             <Pause className="w-4 h-4 mr-1.5" /> Pause ({2 - pauseCount} left)
           </Button>
@@ -257,6 +488,7 @@ export default function ExamPage() {
       </header>
 
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+        {/* Main question area */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 flex flex-col">
           <div className="flex justify-between items-center mb-5">
             <h2 className="text-lg font-bold">Question {currentIdx + 1} of {questionStates.length}</h2>
@@ -267,7 +499,7 @@ export default function ExamPage() {
                 onChange={toggleMark}
                 className="w-4 h-4 rounded border-border accent-warning"
               />
-              <span className="text-sm text-muted-foreground">Mark for Review</span>
+              <span className="text-sm text-muted-foreground">Mark for Review <span className="text-muted-foreground/60 text-xs">(M)</span></span>
             </label>
           </div>
 
@@ -275,8 +507,8 @@ export default function ExamPage() {
             <p>{qs.question.question_text}</p>
           </div>
 
-          <div className="space-y-3 mt-auto">
-            {Object.entries((qs.question.options as Record<string, string>) ?? {}).map(([key, value]) => {
+          <div className="space-y-3">
+            {Object.entries((qs.question.options as Record<string, string>) ?? {}).map(([key, value], optIdx) => {
               const isSelected = qs.selectedOption === key;
               return (
                 <label
@@ -295,7 +527,8 @@ export default function ExamPage() {
                     className="h-4 w-4 accent-primary"
                   />
                   <span className="font-semibold text-muted-foreground w-5 shrink-0">{key}.</span>
-                  <span>{value}</span>
+                  <span className="flex-1">{value}</span>
+                  <span className="text-xs text-muted-foreground/40 shrink-0">{optIdx + 1}</span>
                 </label>
               );
             })}
@@ -307,7 +540,7 @@ export default function ExamPage() {
               onClick={() => goToQuestion(Math.max(0, currentIdx - 1))}
               disabled={currentIdx === 0}
             >
-              <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+              <ChevronLeft className="w-4 h-4 mr-1" /> Prev
             </Button>
             <div className="flex gap-2">
               <Button variant="secondary" onClick={clearResponse} disabled={!qs.selectedOption}>
@@ -321,8 +554,14 @@ export default function ExamPage() {
               </Button>
             </div>
           </div>
+
+          {/* Keyboard hint */}
+          <p className="text-xs text-muted-foreground/50 text-center mt-4 hidden sm:block">
+            Arrow keys to navigate · 1–4 to select option · M to mark · Enter to save & next
+          </p>
         </main>
 
+        {/* Sidebar palette */}
         <aside className="w-full md:w-72 border-t md:border-t-0 md:border-l border-border bg-card p-4 shrink-0 overflow-y-auto flex flex-col gap-4">
           <div>
             <p className="font-semibold mb-3 text-sm">Question Palette</p>

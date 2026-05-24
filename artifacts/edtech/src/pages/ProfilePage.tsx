@@ -4,12 +4,49 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogOut, User, Camera, Eye, EyeOff, CheckCircle, Shield } from "lucide-react";
+import { LogOut, User, Camera, Eye, EyeOff, CheckCircle, Shield, X } from "lucide-react";
 import { useState, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+
+function getApiBase() {
+  return `${window.location.protocol}//${window.location.hostname}:8080/api`;
+}
+
+async function compressImage(file: File, maxSizeKB = 500, maxDim = 500): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(img, 0, 0, w, h);
+      let quality = 0.9;
+      const tryCompress = () => {
+        canvas.toBlob(blob => {
+          if (!blob) { reject(new Error("Compression failed")); return; }
+          if (blob.size <= maxSizeKB * 1024 || quality <= 0.3) {
+            resolve(blob);
+          } else {
+            quality -= 0.1;
+            tryCompress();
+          }
+        }, "image/jpeg", quality);
+      };
+      tryCompress();
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
 
 export default function ProfilePage() {
   const { user, signOut } = useAuth();
@@ -27,6 +64,8 @@ export default function ProfilePage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [changingPwd, setChangingPwd] = useState(false);
 
+  const [photoUrl, setPhotoUrl] = useState<string | null>(user?.user_metadata?.photo_url || null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const role = user?.user_metadata?.role || "student";
@@ -51,6 +90,71 @@ export default function ProfilePage() {
     }
   }
 
+  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      toast({ title: "Invalid file type", description: "Please upload a JPG, PNG, or WEBP image.", variant: "destructive" });
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Image must be under 2MB.", variant: "destructive" });
+      return;
+    }
+    setUploadingPhoto(true);
+    try {
+      // Compress client-side
+      const compressed = await compressImage(file, 500, 500);
+
+      // Get presigned upload URL from our API
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const urlRes = await fetch(`${getApiBase()}/b2/profile-upload-url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({}),
+      });
+      if (!urlRes.ok) throw new Error("Failed to get upload URL");
+      const { upload_url, storage_path } = await urlRes.json();
+
+      // Upload to B2
+      const uploadRes = await fetch(upload_url, {
+        method: "POST",
+        headers: {
+          Authorization: upload_url, // B2 upload uses the upload auth token separately
+          "Content-Type": "image/jpeg",
+          "X-Bz-File-Name": encodeURIComponent(storage_path),
+          "X-Bz-Content-Sha1": "do_not_verify",
+        },
+        body: compressed,
+      });
+      if (!uploadRes.ok) throw new Error("Upload to storage failed");
+      const uploadData = await uploadRes.json();
+
+      // Store in profiles
+      const photoStorageUrl = storage_path;
+      await supabase.from("profiles").update({ photo_url: photoStorageUrl }).eq("id", user!.id);
+      await supabase.auth.updateUser({ data: { photo_url: photoStorageUrl } });
+
+      // Show local preview
+      const localUrl = URL.createObjectURL(compressed);
+      setPhotoUrl(localUrl);
+      toast({ title: "Photo updated!" });
+    } catch (err: unknown) {
+      toast({ title: "Upload failed", description: (err as Error).message, variant: "destructive" });
+    } finally {
+      setUploadingPhoto(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function handleRemovePhoto() {
+    setPhotoUrl(null);
+    await supabase.from("profiles").update({ photo_url: null }).eq("id", user!.id);
+    await supabase.auth.updateUser({ data: { photo_url: null } });
+    toast({ title: "Photo removed" });
+  }
+
   async function handleChangePassword() {
     if (!currentPwd) { toast({ title: "Enter current password", variant: "destructive" }); return; }
     if (newPwd.length < 8) { toast({ title: "Password too short", description: "At least 8 characters required.", variant: "destructive" }); return; }
@@ -58,7 +162,7 @@ export default function ProfilePage() {
       toast({ title: "Weak password", description: "Must contain uppercase, lowercase, number, and special character.", variant: "destructive" }); return;
     }
     if (newPwd !== confirmPwd) { toast({ title: "Passwords don't match", variant: "destructive" }); return; }
-    if (newPwd === currentPwd) { toast({ title: "Same password", description: "New password must be different from current password.", variant: "destructive" }); return; }
+    if (newPwd === currentPwd) { toast({ title: "Same password", description: "New password must be different.", variant: "destructive" }); return; }
 
     setChangingPwd(true);
     try {
@@ -89,21 +193,45 @@ export default function ProfilePage() {
       <div className="max-w-2xl mx-auto space-y-6">
         <h1 className="text-3xl font-bold tracking-tight">Profile Settings</h1>
 
+        {/* Profile Card */}
         <Card className="bg-card">
           <CardContent className="p-6">
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
               <div className="relative">
-                <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center shrink-0 ring-2 ring-border">
-                  <User className="w-12 h-12 text-muted-foreground" />
+                <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center shrink-0 ring-2 ring-border overflow-hidden">
+                  {photoUrl
+                    ? <img src={photoUrl} alt="Profile" className="w-full h-full object-cover" />
+                    : <User className="w-12 h-12 text-muted-foreground" />}
                 </div>
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center hover:bg-primary/90 transition-colors"
-                  title="Change photo (requires B2 credentials)"
+                  disabled={uploadingPhoto}
+                  className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center hover:bg-primary/90 transition-colors disabled:opacity-60"
+                  title="Change photo"
                 >
                   <Camera className="w-4 h-4 text-white" />
                 </button>
-                <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={() => {}} />
+                {photoUrl && (
+                  <button
+                    onClick={handleRemovePhoto}
+                    className="absolute top-0 right-0 w-6 h-6 rounded-full bg-destructive flex items-center justify-center hover:bg-destructive/90 transition-colors"
+                    title="Remove photo"
+                  >
+                    <X className="w-3 h-3 text-white" />
+                  </button>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={handlePhotoUpload}
+                />
+                {uploadingPhoto && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full">
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  </div>
+                )}
               </div>
 
               <div className="flex-1 text-center sm:text-left space-y-2">
@@ -132,69 +260,45 @@ export default function ProfilePage() {
 
                 <div className="flex items-center gap-2 justify-center sm:justify-start pt-1">
                   {isAdmin && <Shield className="w-3.5 h-3.5 text-primary" />}
-                  <Badge variant="outline" className={isAdmin ? "border-primary text-primary" : ""}>
-                    {roleLabel}
-                  </Badge>
+                  <Badge variant="outline" className={isAdmin ? "border-primary text-primary" : ""}>{roleLabel}</Badge>
                 </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
+        {/* Change Password */}
         <Card>
           <CardHeader><CardTitle>Change Password</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>Current Password</Label>
-              <div className="relative">
-                <Input
-                  type={showCurrent ? "text" : "password"}
-                  value={currentPwd}
-                  onChange={e => setCurrentPwd(e.target.value)}
-                  placeholder="Your current password"
-                  autoComplete="current-password"
-                />
-                <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" onClick={() => setShowCurrent(v => !v)}>
-                  {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
+            {[
+              { label: "Current Password", value: currentPwd, set: setCurrentPwd, show: showCurrent, toggle: () => setShowCurrent(v => !v), placeholder: "Your current password", auto: "current-password" },
+              { label: "New Password", value: newPwd, set: setNewPwd, show: showNew, toggle: () => setShowNew(v => !v), placeholder: "Min 8 chars, mixed case, number, special", auto: "new-password" },
+              { label: "Confirm New Password", value: confirmPwd, set: setConfirmPwd, show: showConfirm, toggle: () => setShowConfirm(v => !v), placeholder: "Repeat new password", auto: "new-password" },
+            ].map(field => (
+              <div key={field.label} className="space-y-1.5">
+                <Label>{field.label}</Label>
+                <div className="relative">
+                  <Input
+                    type={field.show ? "text" : "password"}
+                    value={field.value}
+                    onChange={e => field.set(e.target.value)}
+                    placeholder={field.placeholder}
+                    autoComplete={field.auto}
+                  />
+                  <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={field.toggle}>
+                    {field.show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label>New Password</Label>
-              <div className="relative">
-                <Input
-                  type={showNew ? "text" : "password"}
-                  value={newPwd}
-                  onChange={e => setNewPwd(e.target.value)}
-                  placeholder="Min 8 chars, uppercase, lowercase, number, special"
-                  autoComplete="new-password"
-                />
-                <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" onClick={() => setShowNew(v => !v)}>
-                  {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Confirm New Password</Label>
-              <div className="relative">
-                <Input
-                  type={showConfirm ? "text" : "password"}
-                  value={confirmPwd}
-                  onChange={e => setConfirmPwd(e.target.value)}
-                  placeholder="Repeat new password"
-                  autoComplete="new-password"
-                />
-                <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" onClick={() => setShowConfirm(v => !v)}>
-                  {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
+            ))}
             <Button onClick={handleChangePassword} disabled={changingPwd || !currentPwd || !newPwd || !confirmPwd}>
               {changingPwd ? "Updating..." : "Update Password"}
             </Button>
           </CardContent>
         </Card>
 
+        {/* Account */}
         <Card>
           <CardHeader><CardTitle>Account</CardTitle></CardHeader>
           <CardContent>
