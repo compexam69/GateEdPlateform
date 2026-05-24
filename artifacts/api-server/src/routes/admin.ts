@@ -460,5 +460,73 @@ router.get("/admin/lecture-ctr", requireAdmin, async (_req: AuthRequest, res) =>
   res.json(result);
 });
 
-export default router;
+// ── Rate-limit monitor ────────────────────────────────────────────────────────
+// Maps key prefix → { maxRequests, windowMs, label }
+const RATE_LIMIT_RULES: Record<string, { maxRequests: number; windowMs: number; label: string }> = {
+  "exam-start":  { maxRequests: 5,  windowMs: 60_000,       label: "Exam start (5/min)"        },
+  "register":    { maxRequests: 10, windowMs: 3_600_000,    label: "Registration (10/hr)"       },
+  "resend":      { maxRequests: 3,  windowMs: 3_600_000,    label: "Resend verify email (3/hr)" },
+  "pwd-change":  { maxRequests: 3,  windowMs: 3_600_000,    label: "Password change (3/hr)"     },
+};
 
+router.get("/admin/rate-limits", requireAdmin, async (_req: AuthRequest, res) => {
+  // Fetch all rows from the last 2 hours (covers every window we use)
+  const windowStart = new Date(Date.now() - 2 * 3_600_000).toISOString();
+
+  const { data, error } = await supabase
+    .from("rate_limits")
+    .select("key, created_at")
+    .gte("created_at", windowStart)
+    .order("created_at", { ascending: false });
+
+  if (error) { res.status(500).json({ error: error.message }); return; }
+
+  // Group hits by key
+  const byKey = new Map<string, string[]>();
+  for (const row of (data ?? []) as { key: string; created_at: string }[]) {
+    const hits = byKey.get(row.key) ?? [];
+    hits.push(row.created_at);
+    byKey.set(row.key, hits);
+  }
+
+  const now = Date.now();
+  const entries = Array.from(byKey.entries()).map(([key, timestamps]) => {
+    // Identify which rule applies by matching the key prefix
+    const prefix = Object.keys(RATE_LIMIT_RULES).find(p => key.startsWith(p + ":"));
+    const rule = prefix ? RATE_LIMIT_RULES[prefix] : null;
+
+    // Count only hits within the applicable window
+    const windowMs = rule?.windowMs ?? 3_600_000;
+    const windowStart = new Date(now - windowMs).toISOString();
+    const hitsInWindow = timestamps.filter(t => t >= windowStart);
+
+    const maxRequests = rule?.maxRequests ?? Infinity;
+    const throttled = hitsInWindow.length >= maxRequests;
+
+    // When will the oldest hit in the window drop off (= when the throttle clears)?
+    const oldestInWindow = hitsInWindow[hitsInWindow.length - 1] ?? null;
+    const resetsAt = oldestInWindow
+      ? new Date(new Date(oldestInWindow).getTime() + windowMs).toISOString()
+      : null;
+
+    return {
+      key,
+      type: rule?.label ?? "unknown",
+      hits_in_window: hitsInWindow.length,
+      limit: rule?.maxRequests ?? null,
+      throttled,
+      resets_at: throttled ? resetsAt : null,
+      last_hit_at: timestamps[0] ?? null,
+    };
+  });
+
+  // Sort: throttled first, then by hit count descending
+  entries.sort((a, b) => {
+    if (a.throttled !== b.throttled) return a.throttled ? -1 : 1;
+    return b.hits_in_window - a.hits_in_window;
+  });
+
+  res.json({ total_keys: entries.length, entries });
+});
+
+export default router;
