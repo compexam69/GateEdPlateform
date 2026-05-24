@@ -1,8 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Bell, X, CheckCheck, Info, AlertCircle, Sparkles, UserCheck } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
@@ -46,7 +45,7 @@ export function NotificationBell() {
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  async function fetchNotifications() {
+  const fetchNotifications = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
@@ -58,13 +57,54 @@ export function NotificationBell() {
       }
     } catch {}
     setLoading(false);
-  }
+  }, [user]);
 
   useEffect(() => {
+    if (!user) return;
+
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 60000); // poll every minute
-    return () => clearInterval(interval);
-  }, [user]);
+
+    const channel = supabase
+      .channel(`notifications:${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const newNotif = payload.new as Notification;
+          setNotifications(prev => [newNotif, ...prev]);
+          setUnreadCount(c => c + 1);
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const updated = payload.new as Notification;
+          setNotifications(prev => prev.map(n => n.id === updated.id ? updated : n));
+          if (updated.is_read) {
+            setUnreadCount(c => Math.max(0, c - 1));
+          }
+        }
+      )
+      .subscribe();
+
+    const fallbackInterval = setInterval(fetchNotifications, 5 * 60 * 1000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(fallbackInterval);
+    };
+  }, [user, fetchNotifications]);
 
   useEffect(() => {
     function handleOutsideClick(e: MouseEvent) {

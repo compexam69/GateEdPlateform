@@ -2,8 +2,9 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Sparkles, Trash2, ChevronDown, Loader2, AlertTriangle } from "lucide-react";
+import { Plus, Sparkles, Trash2, ChevronDown, Loader2, AlertTriangle, Calendar } from "lucide-react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import {
   getTasks, getGetTasksUrl,
@@ -18,6 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 
 function getApiBase() {
   return `${window.location.protocol}//${window.location.hostname}:8080/api`;
@@ -50,6 +52,7 @@ export default function TasksPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newPriority, setNewPriority] = useState<0 | 1 | 2 | 3>(0);
+  const [newDueDate, setNewDueDate] = useState("");
   const [filter, setFilter] = useState<"all" | "pending" | "in_progress" | "completed" | "skipped">("all");
   const [generating, setGenerating] = useState(false);
   const [weakTopics, setWeakTopics] = useState<Array<{ topicId: string; title: string; avg_accuracy: number }>>([]);
@@ -61,13 +64,15 @@ export default function TasksPage() {
   });
 
   const createTask = useMutation({
-    mutationFn: async (data: { title: string; priority: number }) => {
+    mutationFn: async (data: { title: string; priority: number; due_date?: string }) => {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
+      const body: Record<string, unknown> = { title: data.title, priority: data.priority, target_type: "free_text" };
+      if (data.due_date) body.due_date = data.due_date;
       const res = await fetch(`${getApiBase()}/tasks`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ title: data.title, priority: data.priority, target_type: "free_text" }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error("Failed to add task");
       return res.json();
@@ -76,6 +81,7 @@ export default function TasksPage() {
       queryClient.invalidateQueries({ queryKey: [getGetTasksUrl()] });
       setNewTitle("");
       setNewPriority(0);
+      setNewDueDate("");
       setShowAdd(false);
       toast({ title: "Task added" });
     },
@@ -99,7 +105,7 @@ export default function TasksPage() {
 
   function handleAddTask() {
     if (!newTitle.trim()) return;
-    createTask.mutate({ title: newTitle.trim(), priority: newPriority });
+    createTask.mutate({ title: newTitle.trim(), priority: newPriority, due_date: newDueDate || undefined });
   }
 
   function handleSetStatus(task: StudyTask, status: string) {
@@ -151,6 +157,8 @@ export default function TasksPage() {
     skipped: (tasks as StudyTask[]).filter(t => t.status === "skipped").length,
   };
 
+  const today = new Date().toISOString().split("T")[0];
+
   return (
     <AppLayout>
       <div className="space-y-6 max-w-3xl mx-auto">
@@ -178,7 +186,6 @@ export default function TasksPage() {
           </div>
         </div>
 
-        {/* Weak topic alert */}
         {showWeak && weakTopics.length > 0 && (
           <Card className="border-warning/40 bg-warning/5">
             <CardContent className="p-4">
@@ -196,7 +203,6 @@ export default function TasksPage() {
           </Card>
         )}
 
-        {/* Filter tabs */}
         <div className="flex gap-1.5 flex-wrap">
           {filterOptions.map(({ key, label }) => (
             <button
@@ -228,6 +234,9 @@ export default function TasksPage() {
             {filtered.map((task: StudyTask) => {
               const statusCfg = STATUS_CONFIG[task.status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.pending;
               const priority = (task as { priority?: number }).priority ?? 0;
+              const dueDate = (task as { due_date?: string }).due_date;
+              const isOverdue = dueDate && dueDate < today && task.status !== "completed" && task.status !== "skipped";
+
               return (
                 <Card
                   key={task.id}
@@ -237,7 +246,6 @@ export default function TasksPage() {
                   )}
                 >
                   <CardContent className="p-4 flex items-start gap-3">
-                    {/* Status dropdown */}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button
@@ -284,6 +292,17 @@ export default function TasksPage() {
                             {PRIORITY_LABELS[priority] || "Low"}
                           </Badge>
                         )}
+                        {dueDate && (
+                          <span className={cn(
+                            "flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border",
+                            isOverdue
+                              ? "text-destructive border-destructive/30 bg-destructive/5"
+                              : "text-muted-foreground border-border bg-muted/30"
+                          )}>
+                            <Calendar className="w-2.5 h-2.5" />
+                            {isOverdue ? "Overdue · " : ""}{format(new Date(dueDate), "MMM d")}
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -309,15 +328,18 @@ export default function TasksPage() {
             <DialogTitle>Add New Task</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
-            <Input
-              placeholder="e.g. Revise Chapter 3 of Physics"
-              value={newTitle}
-              onChange={e => setNewTitle(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter") handleAddTask(); }}
-              autoFocus
-            />
-            <div>
-              <label className="text-sm font-medium mb-2 block">Priority</label>
+            <div className="space-y-1.5">
+              <Label>Task</Label>
+              <Input
+                placeholder="e.g. Revise Chapter 3 of Physics"
+                value={newTitle}
+                onChange={e => setNewTitle(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") handleAddTask(); }}
+                autoFocus
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Priority</Label>
               <div className="flex gap-2">
                 {([0, 1, 2, 3] as const).map(p => (
                   <button
@@ -335,8 +357,19 @@ export default function TasksPage() {
                 ))}
               </div>
             </div>
+            <div className="space-y-1.5">
+              <Label className="flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5" /> Due Date <span className="text-muted-foreground font-normal">(optional)</span>
+              </Label>
+              <Input
+                type="date"
+                value={newDueDate}
+                onChange={e => setNewDueDate(e.target.value)}
+                min={today}
+              />
+            </div>
             <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => { setShowAdd(false); setNewTitle(""); setNewDueDate(""); setNewPriority(0); }}>Cancel</Button>
               <Button onClick={handleAddTask} disabled={!newTitle.trim() || createTask.isPending}>
                 {createTask.isPending ? "Adding..." : "Add Task"}
               </Button>

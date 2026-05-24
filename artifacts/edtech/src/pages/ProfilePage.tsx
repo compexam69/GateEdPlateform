@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogOut, User, Camera, Eye, EyeOff, CheckCircle, Shield, X } from "lucide-react";
+import { LogOut, User, Camera, Eye, EyeOff, CheckCircle, Shield, X, Pencil, Phone } from "lucide-react";
 import { useState, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
@@ -48,6 +48,8 @@ async function compressImage(file: File, maxSizeKB = 500, maxDim = 500): Promise
   });
 }
 
+const MOBILE_REGEX = /^(\+91)[\s-]?[6-9]\d{9}$/;
+
 export default function ProfilePage() {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
@@ -55,6 +57,10 @@ export default function ProfilePage() {
   const [editingName, setEditingName] = useState(false);
   const [newName, setNewName] = useState(user?.user_metadata?.full_name || "");
   const [savingName, setSavingName] = useState(false);
+
+  const [editingMobile, setEditingMobile] = useState(false);
+  const [newMobile, setNewMobile] = useState(user?.user_metadata?.mobile_number || "");
+  const [savingMobile, setSavingMobile] = useState(false);
 
   const [currentPwd, setCurrentPwd] = useState("");
   const [newPwd, setNewPwd] = useState("");
@@ -90,6 +96,30 @@ export default function ProfilePage() {
     }
   }
 
+  async function handleSaveMobile() {
+    const val = newMobile.trim();
+    if (!MOBILE_REGEX.test(val)) {
+      toast({
+        title: "Invalid mobile number",
+        description: "Must be in format +91 followed by 10 digits starting with 6-9.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setSavingMobile(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ data: { mobile_number: val } });
+      if (error) throw error;
+      await supabase.from("profiles").update({ mobile_number: val }).eq("id", user!.id);
+      toast({ title: "Mobile number updated!" });
+      setEditingMobile(false);
+    } catch (err: unknown) {
+      toast({ title: "Error", description: (err as Error).message, variant: "destructive" });
+    } finally {
+      setSavingMobile(false);
+    }
+  }
+
   async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -103,10 +133,8 @@ export default function ProfilePage() {
     }
     setUploadingPhoto(true);
     try {
-      // Compress client-side
       const compressed = await compressImage(file, 500, 500);
 
-      // Get presigned upload URL from our API
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
       const urlRes = await fetch(`${getApiBase()}/b2/profile-upload-url`, {
@@ -117,11 +145,10 @@ export default function ProfilePage() {
       if (!urlRes.ok) throw new Error("Failed to get upload URL");
       const { upload_url, storage_path } = await urlRes.json();
 
-      // Upload to B2
       const uploadRes = await fetch(upload_url, {
         method: "POST",
         headers: {
-          Authorization: upload_url, // B2 upload uses the upload auth token separately
+          Authorization: upload_url,
           "Content-Type": "image/jpeg",
           "X-Bz-File-Name": encodeURIComponent(storage_path),
           "X-Bz-Content-Sha1": "do_not_verify",
@@ -129,14 +156,11 @@ export default function ProfilePage() {
         body: compressed,
       });
       if (!uploadRes.ok) throw new Error("Upload to storage failed");
-      const uploadData = await uploadRes.json();
 
-      // Store in profiles
       const photoStorageUrl = storage_path;
       await supabase.from("profiles").update({ photo_url: photoStorageUrl }).eq("id", user!.id);
       await supabase.auth.updateUser({ data: { photo_url: photoStorageUrl } });
 
-      // Show local preview
       const localUrl = URL.createObjectURL(compressed);
       setPhotoUrl(localUrl);
       toast({ title: "Photo updated!" });
@@ -193,7 +217,6 @@ export default function ProfilePage() {
       <div className="max-w-2xl mx-auto space-y-6">
         <h1 className="text-3xl font-bold tracking-tight">Profile Settings</h1>
 
-        {/* Profile Card */}
         <Card className="bg-card">
           <CardContent className="p-6">
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
@@ -234,7 +257,7 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              <div className="flex-1 text-center sm:text-left space-y-2">
+              <div className="flex-1 text-center sm:text-left space-y-3">
                 {editingName ? (
                   <div className="flex gap-2 items-center">
                     <Input value={newName} onChange={e => setNewName(e.target.value)} className="max-w-xs" autoFocus />
@@ -244,21 +267,53 @@ export default function ProfilePage() {
                 ) : (
                   <div className="flex items-center gap-2 justify-center sm:justify-start">
                     <h2 className="text-2xl font-bold">{user?.user_metadata?.full_name || "Student"}</h2>
-                    <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setNewName(user?.user_metadata?.full_name || ""); setEditingName(true); }}>Edit</Button>
+                    <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => { setNewName(user?.user_metadata?.full_name || ""); setEditingName(true); }}>
+                      <Pencil className="w-3 h-3" />
+                    </Button>
                   </div>
                 )}
 
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <div className="flex items-center gap-2 justify-center sm:justify-start">
                     <p className="text-muted-foreground">{user?.email}</p>
                     {isEmailVerified
                       ? <Badge variant="secondary" className="bg-success/10 text-success text-xs gap-1"><CheckCircle className="w-3 h-3" />Verified</Badge>
                       : <Badge variant="destructive" className="text-xs">Unverified</Badge>}
                   </div>
-                  {maskedMobile && <p className="text-muted-foreground text-sm">{maskedMobile}</p>}
+
+                  {editingMobile ? (
+                    <div className="flex gap-2 items-center">
+                      <div className="relative">
+                        <Phone className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          value={newMobile}
+                          onChange={e => setNewMobile(e.target.value)}
+                          placeholder="+91 9876543210"
+                          className="pl-8 max-w-[200px] text-sm"
+                          autoFocus
+                        />
+                      </div>
+                      <Button size="sm" onClick={handleSaveMobile} disabled={savingMobile}>{savingMobile ? "Saving..." : "Save"}</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setEditingMobile(false)}>Cancel</Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 justify-center sm:justify-start">
+                      <p className="text-muted-foreground text-sm">
+                        {maskedMobile || <span className="italic">No mobile number</span>}
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 px-2 text-xs"
+                        onClick={() => { setNewMobile(user?.user_metadata?.mobile_number || "+91 "); setEditingMobile(true); }}
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
-                <div className="flex items-center gap-2 justify-center sm:justify-start pt-1">
+                <div className="flex items-center gap-2 justify-center sm:justify-start">
                   {isAdmin && <Shield className="w-3.5 h-3.5 text-primary" />}
                   <Badge variant="outline" className={isAdmin ? "border-primary text-primary" : ""}>{roleLabel}</Badge>
                 </div>
@@ -267,7 +322,6 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
-        {/* Change Password */}
         <Card>
           <CardHeader><CardTitle>Change Password</CardTitle></CardHeader>
           <CardContent className="space-y-4">
@@ -298,7 +352,6 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
-        {/* Account */}
         <Card>
           <CardHeader><CardTitle>Account</CardTitle></CardHeader>
           <CardContent>

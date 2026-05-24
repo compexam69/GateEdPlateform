@@ -1,6 +1,6 @@
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
-import { FileText, Download, Trash2, UploadCloud, Lock } from "lucide-react";
+import { FileText, Download, Trash2, UploadCloud, Lock, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -13,6 +13,10 @@ import { useToast } from "@/hooks/use-toast";
 import { useRef, useState } from "react";
 import { Progress } from "@/components/ui/progress";
 import { format } from "date-fns";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/hooks/useAuth";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -20,12 +24,21 @@ function formatBytes(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+interface UnlockedChapter {
+  chapter_id: string;
+  chapter_title: string;
+}
+
 export default function NotesPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [showChapterPicker, setShowChapterPicker] = useState(false);
+  const [selectedChapterId, setSelectedChapterId] = useState<string>("");
 
   const { data: notes = [], isLoading } = useQuery({
     queryKey: [getGetNotesUrl()],
@@ -35,6 +48,24 @@ export default function NotesPage() {
   const { data: quota } = useQuery({
     queryKey: [getGetStorageQuotaUrl()],
     queryFn: () => getStorageQuota(),
+  });
+
+  const { data: unlockedChapters = [], isLoading: chaptersLoading } = useQuery<UnlockedChapter[]>({
+    queryKey: ["unlocked-chapters-for-upload", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from("user_chapter_progress")
+        .select("chapter_id, chapters!inner(title)")
+        .eq("user_id", user.id)
+        .eq("pdf_upload_unlocked", true);
+      if (error || !data) return [];
+      return data.map((row: { chapter_id: string; chapters: { title: string } }) => ({
+        chapter_id: row.chapter_id,
+        chapter_title: row.chapters.title,
+      }));
+    },
+    enabled: !!user?.id,
   });
 
   const deleteNote = useDeleteNote({
@@ -65,6 +96,29 @@ export default function NotesPage() {
 
   const getDownloadUrl = useGetDownloadUrl();
 
+  function handleUploadClick() {
+    if (unlockedChapters.length === 0) {
+      toast({
+        title: "No chapters unlocked",
+        description: "Complete a Chapter Test to unlock PDF uploads for that chapter.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (unlockedChapters.length === 1) {
+      setSelectedChapterId(unlockedChapters[0].chapter_id);
+      fileInputRef.current?.click();
+    } else {
+      setShowChapterPicker(true);
+    }
+  }
+
+  function handleChapterSelected() {
+    if (!selectedChapterId) return;
+    setShowChapterPicker(false);
+    fileInputRef.current?.click();
+  }
+
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -78,10 +132,20 @@ export default function NotesPage() {
       return;
     }
 
+    if (!selectedChapterId) {
+      setPendingFile(file);
+      setShowChapterPicker(true);
+      return;
+    }
+
+    await doUpload(file, selectedChapterId);
+  }
+
+  async function doUpload(file: File, chapterId: string) {
     setUploading(true);
     try {
       const result = await getUploadUrl.mutateAsync({
-        data: { chapter_id: "", filename: file.name, content_type: file.type, size_bytes: file.size },
+        data: { chapter_id: chapterId, filename: file.name, content_type: file.type, size_bytes: file.size },
       });
 
       const uploadResp = await fetch(result.upload_url, {
@@ -106,6 +170,8 @@ export default function NotesPage() {
       }
     } finally {
       setUploading(false);
+      setPendingFile(null);
+      setSelectedChapterId("");
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
@@ -135,7 +201,7 @@ export default function NotesPage() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+            <Button onClick={handleUploadClick} disabled={uploading || chaptersLoading}>
               <UploadCloud className="w-4 h-4 mr-2" />
               {uploading ? "Uploading..." : "Upload PDF"}
             </Button>
@@ -164,10 +230,22 @@ export default function NotesPage() {
           </Card>
         )}
 
-        <div className="rounded-lg border border-warning/30 bg-warning/5 p-3 flex items-start gap-2 text-sm text-warning">
-          <Lock className="w-4 h-4 shrink-0 mt-0.5" />
-          <span>PDF uploads are unlocked chapter by chapter after you attempt the Chapter Test.</span>
-        </div>
+        {unlockedChapters.length === 0 && !chaptersLoading && (
+          <div className="rounded-lg border border-warning/30 bg-warning/5 p-3 flex items-start gap-2 text-sm text-warning">
+            <Lock className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>PDF uploads are unlocked chapter by chapter after you attempt the Chapter Test.</span>
+          </div>
+        )}
+
+        {unlockedChapters.length > 0 && (
+          <div className="rounded-lg border border-success/30 bg-success/5 p-3 flex items-start gap-2 text-sm text-success">
+            <FolderOpen className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>
+              {unlockedChapters.length} chapter{unlockedChapters.length !== 1 ? "s" : ""} unlocked for upload:{" "}
+              {unlockedChapters.map(c => c.chapter_title).join(", ")}
+            </span>
+          </div>
+        )}
 
         {isLoading ? (
           <div className="flex h-32 items-center justify-center">
@@ -226,6 +304,51 @@ export default function NotesPage() {
           </div>
         )}
       </div>
+
+      <Dialog open={showChapterPicker} onOpenChange={setShowChapterPicker}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Select Chapter</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <p className="text-sm text-muted-foreground">Choose which chapter this PDF note belongs to.</p>
+            <div className="space-y-2">
+              <Label>Chapter</Label>
+              <div className="space-y-2">
+                {unlockedChapters.map(ch => (
+                  <button
+                    key={ch.chapter_id}
+                    onClick={() => setSelectedChapterId(ch.chapter_id)}
+                    className={`w-full text-left px-3 py-2.5 rounded-lg border text-sm transition-colors ${
+                      selectedChapterId === ch.chapter_id
+                        ? "border-primary bg-primary/10 text-foreground"
+                        : "border-border hover:border-primary/50 text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {ch.chapter_title}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => { setShowChapterPicker(false); setPendingFile(null); }}>Cancel</Button>
+              <Button
+                onClick={() => {
+                  if (pendingFile && selectedChapterId) {
+                    setShowChapterPicker(false);
+                    doUpload(pendingFile, selectedChapterId);
+                  } else {
+                    handleChapterSelected();
+                  }
+                }}
+                disabled={!selectedChapterId}
+              >
+                Continue
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }

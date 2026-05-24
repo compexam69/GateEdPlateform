@@ -3,11 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { Plus, Trash2, TrendingUp, TrendingDown, Minus, Pencil } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import {
   getExternalTests, getGetExternalTestsUrl,
   useCreateExternalTest, useDeleteExternalTest,
@@ -17,8 +17,13 @@ import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { format } from "date-fns";
+import { supabase } from "@/lib/supabase";
 
-type NewTest = {
+function getApiBase() {
+  return `${window.location.protocol}//${window.location.hostname}:8080/api`;
+}
+
+type TestForm = {
   exam_name: string;
   exam_date: string;
   score_obtained: string;
@@ -28,14 +33,17 @@ type NewTest = {
   notes: string;
 };
 
+const EMPTY_FORM: TestForm = {
+  exam_name: "", exam_date: "", score_obtained: "", total_marks: "",
+  percentile: "", rank: "", notes: "",
+};
+
 export default function TrackerPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState<NewTest>({
-    exam_name: "", exam_date: "", score_obtained: "", total_marks: "",
-    percentile: "", rank: "", notes: "",
-  });
+  const [editingTest, setEditingTest] = useState<ExternalTest | null>(null);
+  const [form, setForm] = useState<TestForm>(EMPTY_FORM);
 
   const { data: tests = [], isLoading } = useQuery({
     queryKey: [getGetExternalTestsUrl()],
@@ -47,11 +55,40 @@ export default function TrackerPage() {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: [getGetExternalTestsUrl()] });
         setShowAdd(false);
-        setForm({ exam_name: "", exam_date: "", score_obtained: "", total_marks: "", percentile: "", rank: "", notes: "" });
+        setForm(EMPTY_FORM);
         toast({ title: "Test logged!" });
       },
       onError: (err: unknown) => toast({ title: "Error", description: (err as Error).message, variant: "destructive" }),
     },
+  });
+
+  const updateTest = useMutation({
+    mutationFn: async ({ testId, data }: { testId: string; data: Partial<TestForm> }) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const res = await fetch(`${getApiBase()}/external-tests/${testId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          exam_name: data.exam_name,
+          exam_date: data.exam_date,
+          score_obtained: Number(data.score_obtained),
+          total_marks: Number(data.total_marks),
+          percentile: data.percentile ? Number(data.percentile) : null,
+          rank: data.rank ? Number(data.rank) : null,
+          notes: data.notes || null,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to update test");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [getGetExternalTestsUrl()] });
+      setEditingTest(null);
+      setForm(EMPTY_FORM);
+      toast({ title: "Test updated!" });
+    },
+    onError: (err: unknown) => toast({ title: "Error", description: (err as Error).message, variant: "destructive" }),
   });
 
   const deleteTest = useDeleteExternalTest({
@@ -63,11 +100,16 @@ export default function TrackerPage() {
     },
   });
 
-  function handleSubmit() {
+  function validateForm() {
     if (!form.exam_name || !form.exam_date || !form.score_obtained || !form.total_marks) {
       toast({ title: "Missing fields", description: "Exam name, date, score and total marks are required.", variant: "destructive" });
-      return;
+      return false;
     }
+    return true;
+  }
+
+  function handleSubmit() {
+    if (!validateForm()) return;
     createTest.mutate({
       data: {
         exam_name: form.exam_name,
@@ -79,6 +121,30 @@ export default function TrackerPage() {
         notes: form.notes || undefined,
       },
     });
+  }
+
+  function handleUpdate() {
+    if (!validateForm() || !editingTest) return;
+    updateTest.mutate({ testId: editingTest.id, data: form });
+  }
+
+  function openEdit(test: ExternalTest) {
+    setEditingTest(test);
+    setForm({
+      exam_name: test.exam_name,
+      exam_date: test.exam_date,
+      score_obtained: String(test.score_obtained),
+      total_marks: String(test.total_marks),
+      percentile: test.percentile != null ? String(test.percentile) : "",
+      rank: test.rank != null ? String(test.rank) : "",
+      notes: test.notes ?? "",
+    });
+  }
+
+  function closeDialog() {
+    setShowAdd(false);
+    setEditingTest(null);
+    setForm(EMPTY_FORM);
   }
 
   const chartData = [...tests]
@@ -99,6 +165,41 @@ export default function TrackerPage() {
     if (curr < prev) return "down";
     return "same";
   };
+
+  const FormFields = () => (
+    <div className="space-y-4 pt-2">
+      <div className="grid grid-cols-2 gap-3">
+        <div className="col-span-2 space-y-1.5">
+          <Label>Exam Name *</Label>
+          <Input placeholder="e.g. Allen AITS #5" value={form.exam_name} onChange={e => setForm(f => ({ ...f, exam_name: e.target.value }))} />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Date *</Label>
+          <Input type="date" value={form.exam_date} onChange={e => setForm(f => ({ ...f, exam_date: e.target.value }))} />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Percentile</Label>
+          <Input type="number" placeholder="e.g. 94.5" value={form.percentile} onChange={e => setForm(f => ({ ...f, percentile: e.target.value }))} />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Score *</Label>
+          <Input type="number" placeholder="Marks scored" value={form.score_obtained} onChange={e => setForm(f => ({ ...f, score_obtained: e.target.value }))} />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Total Marks *</Label>
+          <Input type="number" placeholder="Max marks" value={form.total_marks} onChange={e => setForm(f => ({ ...f, total_marks: e.target.value }))} />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Rank</Label>
+          <Input type="number" placeholder="Your rank" value={form.rank} onChange={e => setForm(f => ({ ...f, rank: e.target.value }))} />
+        </div>
+        <div className="col-span-2 space-y-1.5">
+          <Label>Notes</Label>
+          <Input placeholder="Optional notes..." value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <AppLayout>
@@ -184,14 +285,24 @@ export default function TrackerPage() {
                             {trend === null && <span className="text-muted-foreground text-xs">—</span>}
                           </td>
                           <td className="px-4 py-3">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-muted-foreground hover:text-destructive h-7 w-7"
-                              onClick={() => deleteTest.mutate({ testId: test.id })}
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-muted-foreground hover:text-primary h-7 w-7"
+                                onClick={() => openEdit(test)}
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-muted-foreground hover:text-destructive h-7 w-7"
+                                onClick={() => deleteTest.mutate({ testId: test.id })}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -204,46 +315,28 @@ export default function TrackerPage() {
         )}
       </div>
 
-      <Dialog open={showAdd} onOpenChange={setShowAdd}>
+      <Dialog open={showAdd} onOpenChange={open => { if (!open) closeDialog(); else setShowAdd(true); }}>
         <DialogContent>
           <DialogHeader><DialogTitle>Log External Test</DialogTitle></DialogHeader>
-          <div className="space-y-4 pt-2">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="col-span-2 space-y-1.5">
-                <Label>Exam Name *</Label>
-                <Input placeholder="e.g. Allen AITS #5" value={form.exam_name} onChange={e => setForm(f => ({ ...f, exam_name: e.target.value }))} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Date *</Label>
-                <Input type="date" value={form.exam_date} onChange={e => setForm(f => ({ ...f, exam_date: e.target.value }))} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Percentile</Label>
-                <Input type="number" placeholder="e.g. 94.5" value={form.percentile} onChange={e => setForm(f => ({ ...f, percentile: e.target.value }))} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Score *</Label>
-                <Input type="number" placeholder="Marks scored" value={form.score_obtained} onChange={e => setForm(f => ({ ...f, score_obtained: e.target.value }))} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Total Marks *</Label>
-                <Input type="number" placeholder="Max marks" value={form.total_marks} onChange={e => setForm(f => ({ ...f, total_marks: e.target.value }))} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Rank</Label>
-                <Input type="number" placeholder="Your rank" value={form.rank} onChange={e => setForm(f => ({ ...f, rank: e.target.value }))} />
-              </div>
-              <div className="col-span-2 space-y-1.5">
-                <Label>Notes</Label>
-                <Input placeholder="Optional notes..." value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
-              </div>
-            </div>
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button>
-              <Button onClick={handleSubmit} disabled={createTest.isPending}>
-                {createTest.isPending ? "Saving..." : "Log Test"}
-              </Button>
-            </div>
+          <FormFields />
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={closeDialog}>Cancel</Button>
+            <Button onClick={handleSubmit} disabled={createTest.isPending}>
+              {createTest.isPending ? "Saving..." : "Log Test"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editingTest} onOpenChange={open => { if (!open) closeDialog(); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Edit Test</DialogTitle></DialogHeader>
+          <FormFields />
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={closeDialog}>Cancel</Button>
+            <Button onClick={handleUpdate} disabled={updateTest.isPending}>
+              {updateTest.isPending ? "Saving..." : "Save Changes"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

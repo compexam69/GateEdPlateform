@@ -29,6 +29,23 @@ router.post("/external-tests", requireAuth, async (req: AuthRequest, res) => {
   res.status(201).json(data);
 });
 
+router.patch("/external-tests/:testId", requireAuth, async (req: AuthRequest, res) => {
+  const { exam_name, exam_date, score_obtained, total_marks, percentile, rank, notes } = req.body;
+  if (!exam_name || !exam_date || score_obtained === undefined || !total_marks) {
+    res.status(400).json({ error: "exam_name, exam_date, score_obtained, total_marks required" });
+    return;
+  }
+  const { data, error } = await supabase
+    .from("external_tests")
+    .update({ exam_name, exam_date, score_obtained, total_marks, percentile, rank, notes })
+    .eq("id", req.params["testId"])
+    .eq("user_id", req.user!.id)
+    .select()
+    .single();
+  if (error) { res.status(500).json({ error: error.message }); return; }
+  res.json(data);
+});
+
 router.delete("/external-tests/:testId", requireAuth, async (req: AuthRequest, res) => {
   const { error } = await supabase
     .from("external_tests")
