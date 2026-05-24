@@ -23,7 +23,8 @@ router.get("/dashboard/summary", requireAuth, async (req: AuthRequest, res) => {
       .from("pomodoro_sessions")
       .select("duration_seconds, start_time")
       .eq("user_id", userId)
-      .gte("start_time", new Date(new Date().setHours(0, 0, 0, 0)).toISOString()),
+      .order("start_time", { ascending: false })
+      .limit(200),
   ]);
 
   const allTopics = topicsRes.data ?? [];
@@ -31,11 +32,40 @@ router.get("/dashboard/summary", requireAuth, async (req: AuthRequest, res) => {
     (topicProgressRes.data ?? []).filter((p: { topic_complete: boolean }) => p.topic_complete).map((p: { topic_id: string }) => p.topic_id)
   );
 
-  const todayPomodoro = (pomodoroRes.data ?? []).reduce((sum: number, s: { duration_seconds: number }) => sum + s.duration_seconds, 0);
+  // Calculate today's focus time
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const pomodoroSessions = pomodoroRes.data ?? [];
+  const todayPomodoro = pomodoroSessions
+    .filter((s: { start_time: string }) => new Date(s.start_time) >= todayStart)
+    .reduce((sum: number, s: { duration_seconds: number }) => sum + s.duration_seconds, 0);
+
+  // Calculate focus streak (consecutive calendar days with >= 1 pomodoro session)
+  const sessionDays = new Set(
+    pomodoroSessions.map((s: { start_time: string }) =>
+      new Date(s.start_time).toISOString().split("T")[0]
+    )
+  );
+  let focusStreak = 0;
+  const now = new Date();
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const dayStr = d.toISOString().split("T")[0];
+    if (sessionDays.has(dayStr)) {
+      focusStreak++;
+    } else if (i > 0) {
+      // Allow today to be incomplete — only break streak if yesterday is missing
+      break;
+    }
+  }
 
   const subjects = subjectsRes.data ?? [];
   const subjectsProgress = subjects.map((subject: { id: string; title: string }) => {
-    const subjectTopics = allTopics.filter((t: { chapters: { subject_id: string } | null }) => t.chapters?.subject_id === subject.id);
+    const subjectTopics = (allTopics as Array<{ id: string; chapter_id: string; chapters: Array<{ subject_id: string }> | { subject_id: string } | null }>).filter((t) => {
+      const ch = Array.isArray(t.chapters) ? t.chapters[0] : t.chapters;
+      return ch?.subject_id === subject.id;
+    });
     const completedCount = subjectTopics.filter((t: { id: string }) => completedTopicIds.has(t.id)).length;
     return {
       subject_id: subject.id,
@@ -53,7 +83,7 @@ router.get("/dashboard/summary", requireAuth, async (req: AuthRequest, res) => {
     : null;
 
   res.json({
-    focus_streak_days: 0,
+    focus_streak_days: focusStreak,
     focus_time_today_minutes: Math.floor(todayPomodoro / 60),
     total_topics_complete: completedTopicIds.size,
     total_topics: allTopics.length,

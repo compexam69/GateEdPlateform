@@ -41,9 +41,9 @@ export default function ExamResultPage() {
     );
   }
 
-  const correct = result.answers?.filter((a: { is_correct: boolean }) => a.is_correct).length ?? 0;
-  const incorrect = result.answers?.filter((a: { is_correct: boolean; selected_option: string | null }) => !a.is_correct && a.selected_option).length ?? 0;
-  const skipped = result.answers?.filter((a: { selected_option: string | null }) => !a.selected_option).length ?? 0;
+  const correct = result.answers?.filter((a: unknown) => (a as { is_correct: boolean }).is_correct).length ?? 0;
+  const incorrect = result.answers?.filter((a: unknown) => { const r = a as { is_correct: boolean; selected_option?: string | null }; return !r.is_correct && r.selected_option; }).length ?? 0;
+  const skipped = result.answers?.filter((a: unknown) => !(a as { selected_option?: string | null }).selected_option).length ?? 0;
   const score = result.score ?? 0;
   const totalMarks = result.total_marks ?? 1;
   const accuracy = result.accuracy ?? 0;

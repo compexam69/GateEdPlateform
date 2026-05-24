@@ -59,7 +59,7 @@ function getApiBase() {
   return `${window.location.protocol}//${window.location.hostname}:8080/api`;
 }
 
-async function apiFetch(path: string, options: RequestInit = {}) {
+async function apiFetch(path: string, options: RequestInit = {}): Promise<unknown> {
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
   const res = await fetch(`${getApiBase()}${path}`, {
@@ -450,7 +450,7 @@ function QuestionDialog({ open, quizId, question, onClose, onSaved, saving, setS
   onSaved: () => void;
   saving: boolean;
   setSaving: (v: boolean) => void;
-  apiFetch: typeof apiFetch;
+  apiFetch: (path: string, options?: RequestInit) => Promise<unknown>;
   session: { access_token?: string } | null;
 }) {
   const [form, setForm] = useState({
@@ -575,7 +575,7 @@ function BulkImportDialog({ open, quizId, onClose, onImported, apiFetch }: {
   quizId?: string;
   onClose: () => void;
   onImported: (count: number) => void;
-  apiFetch: typeof apiFetch;
+  apiFetch: (path: string, options?: RequestInit) => Promise<unknown>;
 }) {
   const [json, setJson] = useState("");
   const [importing, setImporting] = useState(false);
@@ -599,7 +599,7 @@ function BulkImportDialog({ open, quizId, onClose, onImported, apiFetch }: {
     if (!Array.isArray(questions)) { setError("JSON must be an array of questions."); return; }
     setImporting(true);
     try {
-      const result = await apiFetch("/questions/bulk-import", { method: "POST", body: JSON.stringify({ quiz_id: quizId, questions }) });
+      const result = await apiFetch("/questions/bulk-import", { method: "POST", body: JSON.stringify({ quiz_id: quizId, questions }) }) as { imported?: number };
       onImported(result.imported ?? questions.length);
     } catch (e: unknown) {
       setError((e as Error).message);
@@ -664,7 +664,7 @@ function QrDialog({ open, questionId, currentUrl, onClose, onSaved, apiFetch }: 
   currentUrl?: string;
   onClose: () => void;
   onSaved: (qrUrl: string, questionId: string) => void;
-  apiFetch: typeof apiFetch;
+  apiFetch: (path: string, options?: RequestInit) => Promise<unknown>;
 }) {
   const [url, setUrl] = useState(currentUrl ?? "");
   const [generating, setGenerating] = useState(false);
@@ -682,9 +682,10 @@ function QrDialog({ open, questionId, currentUrl, onClose, onSaved, apiFetch }: 
         method: "POST",
         body: JSON.stringify({ youtube_url: url, level: "question", reference_id: questionId }),
       });
-      setPreview(result.qr_code_url);
-      await supabase.from("quiz_questions").update({ video_solution_url: url, qr_code_url: result.qr_code_url }).eq("id", questionId);
-      onSaved(result.qr_code_url, questionId);
+      const qrResult = result as { qr_code_url?: string };
+      setPreview(qrResult.qr_code_url ?? null);
+      await supabase.from("quiz_questions").update({ video_solution_url: url, qr_code_url: qrResult.qr_code_url }).eq("id", questionId);
+      onSaved(qrResult.qr_code_url ?? "", questionId);
     } catch (e: unknown) {
       setError((e as Error).message);
     } finally {

@@ -3,21 +3,52 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { CheckCircle, XCircle, Search, Shield, User, Clock } from "lucide-react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { CheckCircle, XCircle, Search, Shield, User, Clock, RotateCcw, ChevronDown } from "lucide-react";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useAdminApproveUser, useAdminRejectUser } from "@workspace/api-client-react";
 import { supabase } from "@/lib/supabase";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const USERS_KEY = ["admin-users"];
+
+function getApiBase() {
+  return `${window.location.protocol}//${window.location.hostname}:8080/api`;
+}
+
+async function apiFetch(path: string, opts: RequestInit = {}) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  const res = await fetch(`${getApiBase()}${path}`, {
+    ...opts,
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...(opts.headers ?? {}) },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error(err.error || "Request failed");
+  }
+  return res.json();
+}
+
+interface ResetDialogState {
+  userId: string;
+  userName: string;
+  scope: "all" | "topic" | "chapter" | "subject";
+}
 
 export default function AdminUsersPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [search, setSearch] = useState("");
+  const [resetDialog, setResetDialog] = useState<ResetDialogState | null>(null);
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: USERS_KEY,
@@ -50,6 +81,19 @@ export default function AdminUsersPage() {
     },
   });
 
+  const resetProgress = useMutation({
+    mutationFn: ({ userId, scope }: { userId: string; scope: string }) =>
+      apiFetch(`/admin/users/${userId}/reset-progress`, {
+        method: "POST",
+        body: JSON.stringify({ scope }),
+      }),
+    onSuccess: () => {
+      toast({ title: "Progress reset successfully" });
+      setResetDialog(null);
+    },
+    onError: (err: unknown) => toast({ title: "Error", description: (err as Error).message, variant: "destructive" }),
+  });
+
   const filtered = users.filter((u: { full_name?: string; email?: string }) =>
     !search ||
     u.full_name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -73,62 +117,114 @@ export default function AdminUsersPage() {
   }
 
   function UserRow({ user }: { user: Record<string, unknown> }) {
+    const userId = String(user.id);
+    const userName = String(user.full_name || "Unknown");
+    const role = String(user.role || "student");
+    const status = String(user.status || "pending_approval");
+
     return (
-      <div className="flex items-center justify-between p-4 border border-border rounded-lg">
+      <div className="flex items-center justify-between p-4 border border-border rounded-lg gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold">{String(user.full_name || "Unknown")}</span>
-            {roleBadge(String(user.role || "student"))}
-            {statusBadge(String(user.status || "pending_approval"))}
+            <span className="font-semibold">{userName}</span>
+            {roleBadge(role)}
+            {statusBadge(status)}
           </div>
           <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground flex-wrap">
             <span>{String(user.email || "")}</span>
             {!!user.mobile_number && <span>{String(user.mobile_number)}</span>}
-            <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{user.created_at ? format(new Date(String(user.created_at)), "MMM d, yyyy") : ""}</span>
+            <span className="flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              {user.created_at ? format(new Date(String(user.created_at)), "MMM d, yyyy") : ""}
+            </span>
           </div>
         </div>
-        {user.status === "pending_approval" && (
-          <div className="flex gap-2 shrink-0 ml-3">
+
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Status actions */}
+          {status === "pending_approval" && (
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-destructive hover:bg-destructive/10 border-destructive/30"
+                onClick={() => reject.mutate({ userId })}
+                disabled={reject.isPending}
+              >
+                <XCircle className="w-4 h-4 mr-1" /> Reject
+              </Button>
+              <Button
+                size="sm"
+                className="bg-success hover:bg-success/90 text-white"
+                onClick={() => approve.mutate({ userId })}
+                disabled={approve.isPending}
+              >
+                <CheckCircle className="w-4 h-4 mr-1" /> Approve
+              </Button>
+            </>
+          )}
+          {status === "active" && role === "student" && (
             <Button
               size="sm"
               variant="outline"
               className="text-destructive hover:bg-destructive/10 border-destructive/30"
-              onClick={() => reject.mutate({ userId: String(user.id) })}
+              onClick={() => reject.mutate({ userId })}
               disabled={reject.isPending}
             >
-              <XCircle className="w-4 h-4 mr-1" /> Reject
+              <XCircle className="w-4 h-4 mr-1" /> Ban
             </Button>
+          )}
+          {status === "suspended" && (
             <Button
               size="sm"
               className="bg-success hover:bg-success/90 text-white"
-              onClick={() => approve.mutate({ userId: String(user.id) })}
+              onClick={() => approve.mutate({ userId })}
               disabled={approve.isPending}
             >
-              <CheckCircle className="w-4 h-4 mr-1" /> Approve
+              <CheckCircle className="w-4 h-4 mr-1" /> Reinstate
             </Button>
-          </div>
-        )}
-        {user.status === "active" && user.role === "student" && (
-          <Button
-            size="sm"
-            variant="outline"
-            className="text-destructive hover:bg-destructive/10 border-destructive/30 shrink-0 ml-3"
-            onClick={() => reject.mutate({ userId: String(user.id) })}
-            disabled={reject.isPending}
-          >
-            <XCircle className="w-4 h-4 mr-1" /> Ban
-          </Button>
-        )}
-        {user.status === "suspended" && (
-          <Button
-            size="sm"
-            className="bg-success hover:bg-success/90 text-white shrink-0 ml-3"
-            onClick={() => approve.mutate({ userId: String(user.id) })}
-            disabled={approve.isPending}
-          >
-            <CheckCircle className="w-4 h-4 mr-1" /> Reinstate
-          </Button>
-        )}
+          )}
+
+          {/* Reset Progress dropdown (students only) */}
+          {role === "student" && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="outline" className="gap-1">
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  Reset
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  className="text-warning focus:text-warning"
+                  onClick={() => setResetDialog({ userId, userName, scope: "topic" })}
+                >
+                  Reset Topic Progress
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="text-warning focus:text-warning"
+                  onClick={() => setResetDialog({ userId, userName, scope: "chapter" })}
+                >
+                  Reset Chapter Progress
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="text-warning focus:text-warning"
+                  onClick={() => setResetDialog({ userId, userName, scope: "subject" })}
+                >
+                  Reset Subject Progress
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => setResetDialog({ userId, userName, scope: "all" })}
+                >
+                  Reset ALL Progress
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
       </div>
     );
   }
@@ -182,6 +278,46 @@ export default function AdminUsersPage() {
           </Tabs>
         )}
       </div>
+
+      {/* Reset Progress Confirmation Dialog */}
+      <Dialog open={!!resetDialog} onOpenChange={v => { if (!v) setResetDialog(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-destructive flex items-center gap-2">
+              <RotateCcw className="w-5 h-5" /> Reset Progress
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-2 space-y-3">
+            <p className="text-sm text-muted-foreground">
+              You are about to reset{" "}
+              <span className="font-medium text-foreground capitalize">
+                {resetDialog?.scope === "all" ? "ALL" : resetDialog?.scope}
+              </span>{" "}
+              progress for{" "}
+              <span className="font-medium text-foreground">{resetDialog?.userName}</span>.
+            </p>
+            {resetDialog?.scope === "all" && (
+              <div className="px-3 py-2 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm font-medium">
+                This will permanently delete all topic, chapter, and subject progress. This cannot be undone.
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetDialog(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              disabled={resetProgress.isPending}
+              onClick={() => {
+                if (resetDialog) {
+                  resetProgress.mutate({ userId: resetDialog.userId, scope: resetDialog.scope });
+                }
+              }}
+            >
+              {resetProgress.isPending ? "Resetting..." : "Confirm Reset"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }

@@ -11,6 +11,7 @@ import tasksRouter from "./tasks";
 import externalTestsRouter from "./external-tests";
 import adminRouter from "./admin";
 import dashboardRouter from "./dashboard";
+import notificationsRouter from "./notifications";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(pomodoroRouter);
 router.use(tasksRouter);
 router.use(externalTestsRouter);
 router.use(adminRouter);
+router.use(notificationsRouter);
 
 export default router;

@@ -20,9 +20,22 @@ router.post("/admin/users/:userId/approve", requireAdmin, async (req: AuthReques
     .eq("id", req.params["userId"]);
   if (error) { res.status(500).json({ error: error.message }); return; }
 
-  await supabase.auth.admin.updateUserById(req.params["userId"]!, {
+  const userId = String(req.params["userId"]);
+  await supabase.auth.admin.updateUserById(userId, {
     user_metadata: { is_approved: true, status: "active" },
   });
+
+  // Create notification for the user (best-effort)
+  try {
+    await supabase.from("notifications").insert({
+      user_id: userId,
+      title: "Account Approved",
+      message: "Your account has been approved. You can now access all study materials.",
+      type: "approval",
+      is_read: false,
+      created_at: new Date().toISOString(),
+    });
+  } catch {}
 
   res.json({ message: "User approved" });
 });
@@ -56,10 +69,11 @@ router.post("/admin/users/:userId/reset-progress", requireAdmin, async (req: Aut
 });
 
 router.get("/admin/analytics", requireAdmin, async (req: AuthRequest, res) => {
-  const [studentsRes, pendingRes, attemptsRes] = await Promise.all([
+  const [studentsRes, pendingRes, attemptsRes, activeRes] = await Promise.all([
     supabase.from("profiles").select("id", { count: "exact" }).eq("role", "student"),
     supabase.from("profiles").select("id", { count: "exact" }).eq("status", "pending_approval"),
     supabase.from("user_attempts").select("accuracy").eq("status", "submitted"),
+    supabase.from("pomodoro_sessions").select("user_id").gte("start_time", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()),
   ]);
 
   const totalStudents = studentsRes.count ?? 0;
@@ -68,11 +82,12 @@ router.get("/admin/analytics", requireAdmin, async (req: AuthRequest, res) => {
   const avgAccuracy = attempts.length > 0
     ? attempts.reduce((s: number, a: { accuracy: number }) => s + a.accuracy, 0) / attempts.length
     : 0;
+  const activeToday = new Set((activeRes.data ?? []).map((s: { user_id: string }) => s.user_id)).size;
 
   res.json({
     total_students: totalStudents,
     pending_approvals: pendingApprovals,
-    active_today: 0,
+    active_today: activeToday,
     total_exams_taken: attempts.length,
     average_accuracy: Math.round(avgAccuracy * 100) / 100,
     low_ctr_lectures: 0,
@@ -109,6 +124,80 @@ router.get("/admin/storage", requireAdmin, async (req: AuthRequest, res) => {
     total_files: allNotes.length,
     top_users: topUsers,
   });
+});
+
+// Gate configuration (system_config table)
+const GATE_CONFIG_KEYS = [
+  "lecture_quiz_passing_score",
+  "topic_test_passing_score",
+  "chapter_test_passing_score",
+  "subject_test_passing_score",
+  "max_quiz_attempts",
+  "max_exam_pauses",
+  "exam_timeout_warning_mins",
+  "per_user_storage_limit_mb",
+  "global_storage_limit_gb",
+  "require_email_verification",
+];
+
+router.get("/admin/gate-config", requireAdmin, async (req: AuthRequest, res) => {
+  const { data, error } = await supabase
+    .from("system_config")
+    .select("key, value")
+    .in("key", GATE_CONFIG_KEYS);
+
+  if (error) {
+    // Return defaults if table doesn't exist
+    if (error.code === "42P01") {
+      res.json({
+        lecture_quiz_passing_score: 60,
+        topic_test_passing_score: 70,
+        chapter_test_passing_score: 60,
+        subject_test_passing_score: 60,
+        max_quiz_attempts: 3,
+        max_exam_pauses: 2,
+        exam_timeout_warning_mins: 5,
+        per_user_storage_limit_mb: 500,
+        global_storage_limit_gb: 9,
+        require_email_verification: true,
+      });
+      return;
+    }
+    res.status(500).json({ error: error.message });
+    return;
+  }
+
+  const config: Record<string, unknown> = {};
+  for (const row of (data ?? []) as { key: string; value: unknown }[]) {
+    config[row.key] = typeof row.value === "object" ? row.value : row.value;
+  }
+  res.json(config);
+});
+
+router.patch("/admin/gate-config", requireAdmin, async (req: AuthRequest, res) => {
+  const updates = req.body as Record<string, unknown>;
+  const adminId = req.user!.id;
+
+  const upserts = Object.entries(updates)
+    .filter(([key]) => GATE_CONFIG_KEYS.includes(key))
+    .map(([key, value]) => ({
+      key,
+      value: value,
+      updated_at: new Date().toISOString(),
+      updated_by: adminId,
+    }));
+
+  if (upserts.length === 0) {
+    res.status(400).json({ error: "No valid config keys provided" });
+    return;
+  }
+
+  const { error } = await supabase
+    .from("system_config")
+    .upsert(upserts, { onConflict: "key" });
+
+  if (error) { res.status(500).json({ error: error.message }); return; }
+  res.json({ message: "Config updated", updated: upserts.map(u => u.key) });
 });
 
 export default router;

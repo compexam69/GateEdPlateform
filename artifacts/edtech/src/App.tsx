@@ -26,6 +26,7 @@ import AdminUsersPage from "@/pages/admin/AdminUsersPage";
 import AdminSubjectsPage from "@/pages/admin/AdminSubjectsPage";
 import AdminAnalyticsPage from "@/pages/admin/AdminAnalyticsPage";
 import AdminQuizzesPage from "@/pages/admin/AdminQuizzesPage";
+import AdminGatePage from "@/pages/admin/AdminGatePage";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient();
@@ -70,6 +71,7 @@ function Router() {
       <Route path="/admin/subjects"><ProtectedRoute requireAdmin><AdminSubjectsPage /></ProtectedRoute></Route>
       <Route path="/admin/quizzes"><ProtectedRoute requireAdmin><AdminQuizzesPage /></ProtectedRoute></Route>
       <Route path="/admin/analytics"><ProtectedRoute requireAdmin><AdminAnalyticsPage /></ProtectedRoute></Route>
+      <Route path="/admin/gate"><ProtectedRoute requireAdmin><AdminGatePage /></ProtectedRoute></Route>
 
       <Route component={NotFound} />
     </Switch>

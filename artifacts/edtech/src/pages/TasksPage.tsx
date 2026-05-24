@@ -1,40 +1,85 @@
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Sparkles, Trash2, X } from "lucide-react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Sparkles, Trash2, ChevronDown, Loader2, AlertTriangle } from "lucide-react";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import {
   getTasks, getGetTasksUrl,
-  useCreateTask, useUpdateTask, useDeleteTask,
+  useUpdateTask, useDeleteTask,
 } from "@workspace/api-client-react";
 import type { StudyTask } from "@workspace/api-client-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { supabase } from "@/lib/supabase";
+import { cn } from "@/lib/utils";
+
+function getApiBase() {
+  return `${window.location.protocol}//${window.location.hostname}:8080/api`;
+}
+
+const STATUS_CONFIG = {
+  pending: { label: "Pending", color: "border-border text-muted-foreground bg-muted/30" },
+  in_progress: { label: "In Progress", color: "border-primary/40 text-primary bg-primary/10" },
+  completed: { label: "Completed", color: "border-success/40 text-success bg-success/10" },
+  skipped: { label: "Skipped", color: "border-muted-foreground/30 text-muted-foreground bg-muted/20 opacity-60" },
+} as const;
+
+const PRIORITY_LABELS: Record<number, string> = {
+  0: "Low",
+  1: "Medium",
+  2: "High",
+  3: "Critical",
+};
+
+function priorityColor(p: number) {
+  if (p >= 3) return "bg-destructive/10 text-destructive border-destructive/20";
+  if (p >= 2) return "bg-warning/10 text-warning border-warning/20";
+  if (p >= 1) return "bg-primary/10 text-primary border-primary/20";
+  return "bg-muted text-muted-foreground border-border";
+}
 
 export default function TasksPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [showAdd, setShowAdd] = useState(false);
   const [newTitle, setNewTitle] = useState("");
-  const [filter, setFilter] = useState<"all" | "pending" | "completed">("all");
+  const [newPriority, setNewPriority] = useState<0 | 1 | 2 | 3>(0);
+  const [filter, setFilter] = useState<"all" | "pending" | "in_progress" | "completed" | "skipped">("all");
+  const [generating, setGenerating] = useState(false);
+  const [weakTopics, setWeakTopics] = useState<Array<{ topicId: string; title: string; avg_accuracy: number }>>([]);
+  const [showWeak, setShowWeak] = useState(false);
 
   const { data: tasks = [], isLoading } = useQuery({
     queryKey: [getGetTasksUrl()],
     queryFn: () => getTasks(),
   });
 
-  const createTask = useCreateTask({
-    mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: [getGetTasksUrl()] });
-        setNewTitle("");
-        setShowAdd(false);
-        toast({ title: "Task added" });
-      },
+  const createTask = useMutation({
+    mutationFn: async (data: { title: string; priority: number }) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const res = await fetch(`${getApiBase()}/tasks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ title: data.title, priority: data.priority, target_type: "free_text" }),
+      });
+      if (!res.ok) throw new Error("Failed to add task");
+      return res.json();
     },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [getGetTasksUrl()] });
+      setNewTitle("");
+      setNewPriority(0);
+      setShowAdd(false);
+      toast({ title: "Task added" });
+    },
+    onError: (err: unknown) => toast({ title: "Error", description: (err as Error).message, variant: "destructive" }),
   });
 
   const updateTask = useUpdateTask({
@@ -54,51 +99,118 @@ export default function TasksPage() {
 
   function handleAddTask() {
     if (!newTitle.trim()) return;
-    createTask.mutate({ data: { title: newTitle.trim(), target_type: "free_text" } });
+    createTask.mutate({ title: newTitle.trim(), priority: newPriority });
   }
 
-  function handleToggle(task: StudyTask) {
-    const newStatus = task.status === "completed" ? "pending" : "completed";
-    updateTask.mutate({ taskId: task.id, data: { status: newStatus } });
+  function handleSetStatus(task: StudyTask, status: string) {
+    updateTask.mutate({ taskId: task.id, data: { status: status as import("@workspace/api-client-react").StudyTaskUpdateStatus } });
   }
 
-  function handleDelete(taskId: string) {
-    deleteTask.mutate({ taskId });
+  async function handleGenerate() {
+    setGenerating(true);
+    setShowWeak(false);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const res = await fetch(`${getApiBase()}/tasks/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      queryClient.invalidateQueries({ queryKey: [getGetTasksUrl()] });
+      if (data.weak_topics) {
+        setWeakTopics(data.weak_topics);
+        setShowWeak(true);
+      }
+      toast({ title: data.created > 0 ? "Smart plan generated!" : "You're on track!", description: data.message });
+    } catch (err: unknown) {
+      toast({ title: "Error", description: (err as Error).message, variant: "destructive" });
+    } finally {
+      setGenerating(false);
+    }
   }
 
-  const filtered = tasks.filter((t: StudyTask) => {
-    if (filter === "pending") return t.status !== "completed";
-    if (filter === "completed") return t.status === "completed";
-    return true;
+  const filterOptions: Array<{ key: typeof filter; label: string }> = [
+    { key: "all", label: "All" },
+    { key: "pending", label: "Pending" },
+    { key: "in_progress", label: "In Progress" },
+    { key: "completed", label: "Completed" },
+    { key: "skipped", label: "Skipped" },
+  ];
+
+  const filtered = (tasks as StudyTask[]).filter((t) => {
+    if (filter === "all") return true;
+    return t.status === filter;
   });
 
-  const pending = tasks.filter((t: StudyTask) => t.status !== "completed").length;
-  const completed = tasks.filter((t: StudyTask) => t.status === "completed").length;
+  const counts = {
+    pending: (tasks as StudyTask[]).filter(t => t.status === "pending").length,
+    in_progress: (tasks as StudyTask[]).filter(t => t.status === "in_progress").length,
+    completed: (tasks as StudyTask[]).filter(t => t.status === "completed").length,
+    skipped: (tasks as StudyTask[]).filter(t => t.status === "skipped").length,
+  };
 
   return (
     <AppLayout>
       <div className="space-y-6 max-w-3xl mx-auto">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Study Planner</h1>
-            <p className="text-muted-foreground mt-1">{pending} pending · {completed} completed</p>
+            <p className="text-muted-foreground mt-1">
+              {counts.pending + counts.in_progress} active · {counts.completed} completed
+            </p>
           </div>
-          <Button onClick={() => setShowAdd(true)}>
-            <Plus className="w-4 h-4 mr-2" /> Add Task
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handleGenerate}
+              disabled={generating}
+              className="gap-2"
+            >
+              {generating
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</>
+                : <><Sparkles className="w-4 h-4 text-accent" /> Smart Plan</>}
+            </Button>
+            <Button onClick={() => setShowAdd(true)}>
+              <Plus className="w-4 h-4 mr-2" /> Add Task
+            </Button>
+          </div>
         </div>
 
-        <div className="flex gap-2">
-          {(["all", "pending", "completed"] as const).map(f => (
-            <Button
-              key={f}
-              size="sm"
-              variant={filter === f ? "default" : "outline"}
-              onClick={() => setFilter(f)}
-              className="capitalize"
+        {/* Weak topic alert */}
+        {showWeak && weakTopics.length > 0 && (
+          <Card className="border-warning/40 bg-warning/5">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-warning">Weak topics identified</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Tasks added for: {weakTopics.map(t => `${t.title} (${t.avg_accuracy}%)`).join(", ")}
+                  </p>
+                </div>
+                <button onClick={() => setShowWeak(false)} className="text-muted-foreground hover:text-foreground text-xs shrink-0">Dismiss</button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Filter tabs */}
+        <div className="flex gap-1.5 flex-wrap">
+          {filterOptions.map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setFilter(key)}
+              className={cn(
+                "px-3 py-1 rounded-full text-xs font-medium transition-colors border",
+                filter === key
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "border-border text-muted-foreground hover:border-primary hover:text-foreground"
+              )}
             >
-              {f}
-            </Button>
+              {label}{key !== "all" && counts[key as keyof typeof counts] > 0 && ` (${counts[key as keyof typeof counts]})`}
+            </button>
           ))}
         </div>
 
@@ -108,43 +220,85 @@ export default function TasksPage() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
-            <p>{filter === "completed" ? "No completed tasks yet." : "No tasks here. Add one above!"}</p>
+            <Sparkles className="w-10 h-10 mx-auto mb-3 opacity-20" />
+            <p className="text-sm">{filter === "completed" ? "No completed tasks yet." : "No tasks here. Add one or generate a smart plan!"}</p>
           </div>
         ) : (
           <div className="space-y-2">
-            {filtered.map((task: StudyTask) => (
-              <Card key={task.id} className={`bg-card transition-opacity ${task.status === "completed" ? "opacity-60" : ""}`}>
-                <CardContent className="p-4 flex items-center gap-3">
-                  <Checkbox
-                    id={`task-${task.id}`}
-                    checked={task.status === "completed"}
-                    onCheckedChange={() => handleToggle(task)}
-                  />
-                  <label
-                    htmlFor={`task-${task.id}`}
-                    className={`flex-1 font-medium cursor-pointer text-sm ${task.status === "completed" ? "line-through text-muted-foreground" : ""}`}
-                  >
-                    {task.title}
-                    {task.description && (
-                      <span className="block text-xs text-muted-foreground font-normal mt-0.5">{task.description}</span>
-                    )}
-                  </label>
-                  {task.source === "auto" && (
-                    <span className="flex items-center gap-1 text-xs font-medium text-accent bg-accent/10 px-2 py-0.5 rounded-full shrink-0">
-                      <Sparkles className="w-3 h-3" /> Auto
-                    </span>
+            {filtered.map((task: StudyTask) => {
+              const statusCfg = STATUS_CONFIG[task.status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.pending;
+              const priority = (task as { priority?: number }).priority ?? 0;
+              return (
+                <Card
+                  key={task.id}
+                  className={cn(
+                    "bg-card transition-opacity",
+                    (task.status === "completed" || task.status === "skipped") && "opacity-60"
                   )}
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="text-muted-foreground hover:text-destructive h-7 w-7 shrink-0"
-                    onClick={() => handleDelete(task.id)}
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
+                >
+                  <CardContent className="p-4 flex items-start gap-3">
+                    {/* Status dropdown */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          className={cn(
+                            "mt-0.5 px-2 py-0.5 rounded-full text-xs font-medium border shrink-0 flex items-center gap-1 transition-colors hover:opacity-80",
+                            statusCfg.color
+                          )}
+                        >
+                          {statusCfg.label}
+                          <ChevronDown className="w-3 h-3" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
+                          <DropdownMenuItem
+                            key={key}
+                            onClick={() => handleSetStatus(task, key)}
+                            className={task.status === key ? "font-medium" : ""}
+                          >
+                            {cfg.label}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    <div className="flex-1 min-w-0">
+                      <p className={cn(
+                        "font-medium text-sm",
+                        (task.status === "completed" || task.status === "skipped") && "line-through text-muted-foreground"
+                      )}>
+                        {task.title}
+                      </p>
+                      {task.description && (
+                        <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{task.description}</p>
+                      )}
+                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                        {task.source === "auto" && (
+                          <span className="flex items-center gap-1 text-[10px] font-medium text-accent bg-accent/10 px-1.5 py-0.5 rounded-full">
+                            <Sparkles className="w-2.5 h-2.5" /> Auto
+                          </span>
+                        )}
+                        {priority > 0 && (
+                          <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 h-4", priorityColor(priority))}>
+                            {PRIORITY_LABELS[priority] || "Low"}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="text-muted-foreground hover:text-destructive h-7 w-7 shrink-0"
+                      onClick={() => deleteTask.mutate({ taskId: task.id })}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>
@@ -162,6 +316,25 @@ export default function TasksPage() {
               onKeyDown={e => { if (e.key === "Enter") handleAddTask(); }}
               autoFocus
             />
+            <div>
+              <label className="text-sm font-medium mb-2 block">Priority</label>
+              <div className="flex gap-2">
+                {([0, 1, 2, 3] as const).map(p => (
+                  <button
+                    key={p}
+                    onClick={() => setNewPriority(p)}
+                    className={cn(
+                      "flex-1 py-1.5 rounded text-xs font-medium border transition-colors",
+                      newPriority === p
+                        ? priorityColor(p) + " ring-1 ring-offset-1 ring-primary"
+                        : "border-border text-muted-foreground hover:border-primary"
+                    )}
+                  >
+                    {PRIORITY_LABELS[p]}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="flex gap-2 justify-end">
               <Button variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button>
               <Button onClick={handleAddTask} disabled={!newTitle.trim() || createTask.isPending}>

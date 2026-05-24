@@ -1,14 +1,15 @@
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Link } from "wouter";
-import { Users, BookOpen, BarChart3, HelpCircle } from "lucide-react";
+import { Users, BookOpen, BarChart3, HelpCircle, Settings2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function AdminPage() {
   const adminSections = [
-    { title: "User Management", desc: "Approve users, manage roles and access.", href: "/admin/users", icon: Users },
+    { title: "User Management", desc: "Approve users, ban/reinstate, and reset progress.", href: "/admin/users", icon: Users },
     { title: "Content Editor", desc: "Manage subjects, chapters, and topics.", href: "/admin/subjects", icon: BookOpen },
     { title: "Quiz & Question Editor", desc: "Create quizzes, add questions, and generate QR video solutions.", href: "/admin/quizzes", icon: HelpCircle },
-    { title: "Analytics", desc: "View platform usage and performance stats.", href: "/admin/analytics", icon: BarChart3 },
+    { title: "Gate Configuration", desc: "Set passing score thresholds, retry limits, and storage caps. No code changes required.", href: "/admin/gate", icon: Settings2 },
+    { title: "Analytics & Storage", desc: "View platform usage, performance stats, and B2 storage monitor.", href: "/admin/analytics", icon: BarChart3 },
   ];
 
   return (
