@@ -1,4 +1,5 @@
 import { AppLayout } from "@/components/layout/AppLayout";
+import { MathText } from "@/components/MathText";
 import { useParams, Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -226,7 +227,7 @@ export default function ExamResultPage() {
                   <Card key={ans.question_id} className={`border-l-4 ${isCorrect ? "border-l-success" : isSkipped ? "border-l-muted-foreground" : "border-l-destructive"}`}>
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between gap-3">
-                        <p className="font-medium text-sm flex-1">{globalIdx + 1}. {q?.question_text || "Question"}</p>
+                        <p className="font-medium text-sm flex-1">{globalIdx + 1}. <MathText text={q?.question_text || "Question"} /></p>
                         {isCorrect
                           ? <span className="text-success flex items-center gap-1 text-xs shrink-0"><CheckCircle className="w-3.5 h-3.5" />Correct</span>
                           : isSkipped
@@ -263,9 +264,9 @@ export default function ExamResultPage() {
               return (
                 <Card key={ans.question_id} className="bg-card">
                   <CardContent className="p-4 space-y-2">
-                    <p className="font-medium text-sm">{idx + 1}. {q?.question_text || "Question"}</p>
+                    <p className="font-medium text-sm">{idx + 1}. <MathText text={q?.question_text || "Question"} /></p>
                     {explanation ? (
-                      <p className="text-sm text-muted-foreground">{explanation}</p>
+                      <p className="text-sm text-muted-foreground"><MathText text={explanation} /></p>
                     ) : (
                       <p className="text-sm text-muted-foreground italic">No explanation available.</p>
                     )}

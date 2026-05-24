@@ -69,7 +69,7 @@ router.post("/exam/submit", requireAuth, async (req: AuthRequest, res) => {
     .eq("quiz_id", attempt.quiz_id);
 
   const questionMap = new Map((questions ?? []).map((q: { id: string; correct_answer: string; explanation: string | null; video_solution_url: string | null; qr_code_url: string | null }) => [q.id, q]));
-  const quiz = attempt.quizzes as { negative_marking: number; passing_score: number };
+  const quiz = attempt.quizzes as { negative_marking: number; passing_score: number; type: string; topic_id?: string; chapter_id?: string; subject_id?: string };
   const negMark = quiz?.negative_marking ?? 0;
   const passingScore = quiz?.passing_score ?? 60;
 
@@ -122,6 +122,26 @@ router.post("/exam/submit", requireAuth, async (req: AuthRequest, res) => {
     })
     .eq("id", attempt_id);
 
+  // ── Progress cascade ──────────────────────────────────────────────────────
+  const quizType = quiz?.type ?? "";
+  const topicId = quiz?.topic_id ?? null;
+  const chapterId = quiz?.chapter_id ?? null;
+  const subjectId = quiz?.subject_id ?? null;
+
+  try {
+    if (topicId) {
+      await handleTopicQuizProgress(userId, topicId, quizType, passed, accuracy);
+    }
+    if (chapterId) {
+      await handleChapterQuizProgress(userId, chapterId, quizType, passed);
+    }
+    if (subjectId) {
+      await handleSubjectQuizProgress(userId, subjectId, quizType, passed);
+    }
+  } catch (cascadeErr) {
+    console.error("Progress cascade error:", cascadeErr);
+  }
+
   res.json({
     attempt_id,
     quiz_id: attempt.quiz_id,
@@ -136,6 +156,228 @@ router.post("/exam/submit", requireAuth, async (req: AuthRequest, res) => {
     submitted_at: new Date().toISOString(),
   });
 });
+
+async function handleTopicQuizProgress(userId: string, topicId: string, quizType: string, passed: boolean, accuracy: number) {
+  const now = new Date().toISOString();
+
+  const { data: existing } = await supabase
+    .from("user_topic_progress")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("topic_id", topicId)
+    .maybeSingle();
+
+  const current = existing ?? {};
+  const updates: Record<string, unknown> = { updated_at: now };
+
+  if (quizType === "lecture_quiz") {
+    if (passed) {
+      updates["lecture_quiz_passed"] = true;
+      updates["lecture_quiz_score"] = accuracy;
+    }
+  } else if (quizType === "dpp") {
+    if (passed) {
+      updates["dpp_completed"] = true;
+      updates["dpp_score"] = accuracy;
+    }
+  } else if (quizType === "pyqs") {
+    if (passed || accuracy >= 0) {
+      updates["pyqs_completed"] = true;
+      updates["pyqs_score"] = accuracy;
+    }
+  } else if (quizType === "topic_test") {
+    if (passed) {
+      updates["topic_test_passed"] = true;
+      updates["topic_test_score"] = accuracy;
+      updates["topic_complete"] = true;
+
+      // Check if all topics in the chapter are now complete
+      const { data: topic } = await supabase
+        .from("topics")
+        .select("chapter_id")
+        .eq("id", topicId)
+        .single();
+
+      if (topic?.chapter_id) {
+        await checkAndUpdateChapterCompletion(userId, topic.chapter_id, now);
+      }
+    } else {
+      updates["topic_test_score"] = accuracy;
+    }
+  }
+
+  if (Object.keys(updates).length > 1) {
+    if (existing) {
+      await supabase
+        .from("user_topic_progress")
+        .update(updates)
+        .eq("user_id", userId)
+        .eq("topic_id", topicId);
+    } else {
+      await supabase
+        .from("user_topic_progress")
+        .insert({ user_id: userId, topic_id: topicId, lecture_clicked: (current as { lecture_clicked?: boolean }).lecture_clicked ?? false, ...updates });
+    }
+  }
+}
+
+async function checkAndUpdateChapterCompletion(userId: string, chapterId: string, now: string) {
+  const { data: allTopics } = await supabase
+    .from("topics")
+    .select("id")
+    .eq("chapter_id", chapterId)
+    .eq("is_active", true);
+
+  if (!allTopics || allTopics.length === 0) return;
+
+  const topicIds = allTopics.map((t: { id: string }) => t.id);
+  const { data: completedTopics } = await supabase
+    .from("user_topic_progress")
+    .select("topic_id")
+    .eq("user_id", userId)
+    .eq("topic_complete", true)
+    .in("topic_id", topicIds);
+
+  const allComplete = (completedTopics?.length ?? 0) >= topicIds.length;
+
+  if (allComplete) {
+    const { data: existing } = await supabase
+      .from("user_chapter_progress")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("chapter_id", chapterId)
+      .maybeSingle();
+
+    if (existing) {
+      await supabase
+        .from("user_chapter_progress")
+        .update({ all_topics_complete: true, updated_at: now })
+        .eq("user_id", userId)
+        .eq("chapter_id", chapterId);
+    } else {
+      await supabase
+        .from("user_chapter_progress")
+        .insert({ user_id: userId, chapter_id: chapterId, all_topics_complete: true, updated_at: now });
+    }
+  }
+}
+
+async function handleChapterQuizProgress(userId: string, chapterId: string, quizType: string, passed: boolean) {
+  if (quizType !== "chapter_test") return;
+  const now = new Date().toISOString();
+
+  const { data: existing } = await supabase
+    .from("user_chapter_progress")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("chapter_id", chapterId)
+    .maybeSingle();
+
+  const updates: Record<string, unknown> = {
+    chapter_test_attempted: true,
+    pdf_upload_unlocked: true,
+    updated_at: now,
+  };
+  if (passed) {
+    updates["chapter_test_passed"] = true;
+
+    // Check if all chapters in subject are complete
+    const { data: chapter } = await supabase
+      .from("chapters")
+      .select("subject_id")
+      .eq("id", chapterId)
+      .single();
+
+    if (chapter?.subject_id) {
+      await checkAndUpdateSubjectCompletion(userId, chapter.subject_id, now);
+    }
+  }
+
+  if (existing) {
+    await supabase
+      .from("user_chapter_progress")
+      .update(updates)
+      .eq("user_id", userId)
+      .eq("chapter_id", chapterId);
+  } else {
+    await supabase
+      .from("user_chapter_progress")
+      .insert({ user_id: userId, chapter_id: chapterId, ...updates });
+  }
+}
+
+async function checkAndUpdateSubjectCompletion(userId: string, subjectId: string, now: string) {
+  const { data: allChapters } = await supabase
+    .from("chapters")
+    .select("id")
+    .eq("subject_id", subjectId)
+    .eq("is_active", true);
+
+  if (!allChapters || allChapters.length === 0) return;
+
+  const chapterIds = allChapters.map((c: { id: string }) => c.id);
+  const { data: passedChapters } = await supabase
+    .from("user_chapter_progress")
+    .select("chapter_id")
+    .eq("user_id", userId)
+    .eq("chapter_test_passed", true)
+    .in("chapter_id", chapterIds);
+
+  const allComplete = (passedChapters?.length ?? 0) >= chapterIds.length;
+
+  if (allComplete) {
+    const { data: existing } = await supabase
+      .from("user_subject_progress")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("subject_id", subjectId)
+      .maybeSingle();
+
+    if (existing) {
+      await supabase
+        .from("user_subject_progress")
+        .update({ all_chapters_complete: true, updated_at: now })
+        .eq("user_id", userId)
+        .eq("subject_id", subjectId);
+    } else {
+      await supabase
+        .from("user_subject_progress")
+        .insert({ user_id: userId, subject_id: subjectId, all_chapters_complete: true, updated_at: now });
+    }
+  }
+}
+
+async function handleSubjectQuizProgress(userId: string, subjectId: string, quizType: string, passed: boolean) {
+  if (quizType !== "subject_test" && quizType !== "grand_test") return;
+  const now = new Date().toISOString();
+
+  const { data: existing } = await supabase
+    .from("user_subject_progress")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("subject_id", subjectId)
+    .maybeSingle();
+
+  const updates: Record<string, unknown> = {
+    subject_test_attempted: true,
+    updated_at: now,
+  };
+  if (passed) {
+    updates["subject_test_passed"] = true;
+  }
+
+  if (existing) {
+    await supabase
+      .from("user_subject_progress")
+      .update(updates)
+      .eq("user_id", userId)
+      .eq("subject_id", subjectId);
+  } else {
+    await supabase
+      .from("user_subject_progress")
+      .insert({ user_id: userId, subject_id: subjectId, ...updates });
+  }
+}
 
 router.get("/exam/results/:resultId", requireAuth, async (req: AuthRequest, res) => {
   const { data: attempt } = await supabase
@@ -215,7 +457,6 @@ router.post("/questions/bulk-import", requireAdmin, async (req: AuthRequest, res
 
 router.post("/qr/generate", requireAdmin, async (req: AuthRequest, res) => {
   const { youtube_url, level, reference_id } = req.body as { youtube_url: string; level: string; reference_id: string };
-  const shortId = Buffer.from(`${level}:${reference_id}`).toString("base64url").slice(0, 16);
   const qr_code_url = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(youtube_url)}`;
   res.json({ qr_code_url, youtube_url });
 });

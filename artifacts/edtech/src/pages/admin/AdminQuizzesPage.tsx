@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Edit, Trash2, ChevronDown, ChevronRight, QrCode, FileJson, BookOpen, HelpCircle, ExternalLink } from "lucide-react";
+import { Plus, Edit, Trash2, ChevronDown, ChevronRight, QrCode, FileJson, BookOpen, HelpCircle, ExternalLink, FileText, Upload } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getSubjects, getGetSubjectsUrl, getChapters, getGetChaptersUrl, getTopics, getGetTopicsUrl } from "@workspace/api-client-react";
 import { supabase } from "@/lib/supabase";
@@ -55,27 +55,7 @@ type Question = {
 
 const QUIZZES_KEY = ["admin-quizzes"];
 
-function getApiBase() {
-  return `${window.location.protocol}//${window.location.hostname}:8080/api`;
-}
-
-async function apiFetch(path: string, options: RequestInit = {}): Promise<unknown> {
-  const { data: { session } } = await supabase.auth.getSession();
-  const token = session?.access_token;
-  const res = await fetch(`${getApiBase()}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers ?? {}),
-    },
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error ?? res.statusText);
-  }
-  return res.json();
-}
+import { apiFetch } from "@/lib/api";
 
 export default function AdminQuizzesPage() {
   const { toast } = useToast();
@@ -180,7 +160,6 @@ export default function AdminQuizzesPage() {
         quizId={bulkDialog.quizId}
         onClose={() => setBulkDialog({ open: false })}
         onImported={(count) => { queryClient.invalidateQueries({ queryKey: ["questions", bulkDialog.quizId] }); setBulkDialog({ open: false }); toast({ title: `${count} questions imported` }); }}
-        apiFetch={apiFetch}
       />
 
       <QrDialog
@@ -442,7 +421,7 @@ function QuizDialog({ open, quiz, onClose, onSaved, saving, setSaving }: {
   );
 }
 
-function QuestionDialog({ open, quizId, question, onClose, onSaved, saving, setSaving, apiFetch, session }: {
+function QuestionDialog({ open, quizId, question, onClose, onSaved, saving, setSaving, apiFetch: _apiFetch, session: _session }: {
   open: boolean;
   quizId?: string;
   question?: Question;
@@ -450,8 +429,8 @@ function QuestionDialog({ open, quizId, question, onClose, onSaved, saving, setS
   onSaved: () => void;
   saving: boolean;
   setSaving: (v: boolean) => void;
-  apiFetch: (path: string, options?: RequestInit) => Promise<unknown>;
-  session: { access_token?: string } | null;
+  apiFetch?: (path: string, options?: RequestInit) => Promise<unknown>;
+  session?: { access_token?: string } | null;
 }) {
   const [form, setForm] = useState({
     question_text: "",
@@ -482,10 +461,30 @@ function QuestionDialog({ open, quizId, question, onClose, onSaved, saving, setS
 
   const f = (k: keyof typeof form, v: unknown) => setForm(prev => ({ ...prev, [k]: v }));
 
+  function isYouTubeUrl(url: string) {
+    return /youtube\.com\/watch|youtu\.be\//.test(url);
+  }
+
   async function handleSave() {
     if (!form.question_text || !form.optA || !form.optB) return;
     setSaving(true);
     try {
+      let qrCodeUrl: string | null = question?.qr_code_url ?? null;
+
+      // Auto-generate QR if YouTube URL is new or changed
+      if (form.video_solution_url && isYouTubeUrl(form.video_solution_url)
+          && form.video_solution_url !== (question?.video_solution_url ?? "")) {
+        try {
+          const result = await apiFetch("/qr/generate", {
+            method: "POST",
+            body: JSON.stringify({ youtube_url: form.video_solution_url, level: "question", reference_id: question?.id ?? "new" }),
+          }) as { qr_code_url?: string };
+          qrCodeUrl = result.qr_code_url ?? null;
+        } catch {
+          // QR generation failure is non-fatal
+        }
+      }
+
       const payload = {
         quiz_id: quizId,
         question_text: form.question_text,
@@ -493,6 +492,7 @@ function QuestionDialog({ open, quizId, question, onClose, onSaved, saving, setS
         correct_answer: form.correct_answer,
         explanation: form.explanation || null,
         video_solution_url: form.video_solution_url || null,
+        qr_code_url: qrCodeUrl,
         difficulty: form.difficulty,
         order_index: form.order_index,
       };
@@ -570,16 +570,42 @@ function QuestionDialog({ open, quizId, question, onClose, onSaved, saving, setS
   );
 }
 
-function BulkImportDialog({ open, quizId, onClose, onImported, apiFetch }: {
+function parseCsvToQuestions(csv: string): unknown[] {
+  const lines = csv.trim().split("\n").map(l => l.trim()).filter(Boolean);
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, ""));
+  return lines.slice(1).map((line, idx) => {
+    const cols = line.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g) ?? [];
+    const clean = (v?: string) => (v ?? "").replace(/^"|"$/g, "").trim();
+    const get = (key: string) => clean(cols[headers.indexOf(key)]);
+    return {
+      question_text: get("question_text") || get("question"),
+      options: {
+        A: get("option_a") || get("A"),
+        B: get("option_b") || get("B"),
+        C: get("option_c") || get("C"),
+        D: get("option_d") || get("D"),
+      },
+      correct_answer: get("correct_answer") || get("answer"),
+      explanation: get("explanation") || undefined,
+      video_solution_url: get("video_solution_url") || undefined,
+      difficulty: parseInt(get("difficulty") || "3", 10) || 3,
+      order_index: idx,
+    };
+  });
+}
+
+function BulkImportDialog({ open, quizId, onClose, onImported }: {
   open: boolean;
   quizId?: string;
   onClose: () => void;
   onImported: (count: number) => void;
-  apiFetch: (path: string, options?: RequestInit) => Promise<unknown>;
 }) {
   const [json, setJson] = useState("");
+  const [csv, setCsv] = useState("");
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState("");
+  const [activeTab, setActiveTab] = useState("json");
 
   const exampleJson = JSON.stringify([
     {
@@ -592,11 +618,20 @@ function BulkImportDialog({ open, quizId, onClose, onImported, apiFetch }: {
     },
   ], null, 2);
 
+  const exampleCsv = `question_text,option_a,option_b,option_c,option_d,correct_answer,explanation,difficulty
+"What is the SI unit of force?","Joule","Newton","Watt","Pascal","B","Force is measured in Newtons (N).",2
+"What is the value of g?","9.8 m/s²","8.9 m/s²","10.8 m/s²","7.9 m/s²","A","Standard gravity is 9.8 m/s².",1`;
+
   async function handleImport() {
     setError("");
     let questions: unknown[];
-    try { questions = JSON.parse(json); } catch { setError("Invalid JSON. Please check the format."); return; }
-    if (!Array.isArray(questions)) { setError("JSON must be an array of questions."); return; }
+    if (activeTab === "json") {
+      try { questions = JSON.parse(json); } catch { setError("Invalid JSON. Please check the format."); return; }
+      if (!Array.isArray(questions)) { setError("JSON must be an array of questions."); return; }
+    } else {
+      questions = parseCsvToQuestions(csv);
+      if (questions.length === 0) { setError("No valid rows found. Check the CSV format."); return; }
+    }
     setImporting(true);
     try {
       const result = await apiFetch("/questions/bulk-import", { method: "POST", body: JSON.stringify({ quiz_id: quizId, questions }) }) as { imported?: number };
@@ -608,6 +643,16 @@ function BulkImportDialog({ open, quizId, onClose, onImported, apiFetch }: {
     }
   }
 
+  function handleCsvFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => setCsv(ev.target?.result as string ?? "");
+    reader.readAsText(file);
+  }
+
+  const inputText = activeTab === "json" ? json : csv;
+
   return (
     <Dialog open={open} onOpenChange={o => !o && onClose()}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -615,12 +660,13 @@ function BulkImportDialog({ open, quizId, onClose, onImported, apiFetch }: {
           <DialogTitle>Bulk Import Questions</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 pt-2">
-          <Tabs defaultValue="paste">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList>
-              <TabsTrigger value="paste">Paste JSON</TabsTrigger>
+              <TabsTrigger value="json"><FileJson className="w-3.5 h-3.5 mr-1.5" />JSON</TabsTrigger>
+              <TabsTrigger value="csv"><FileText className="w-3.5 h-3.5 mr-1.5" />CSV</TabsTrigger>
               <TabsTrigger value="format">Format Guide</TabsTrigger>
             </TabsList>
-            <TabsContent value="paste" className="space-y-3 mt-3">
+            <TabsContent value="json" className="space-y-3 mt-3">
               <Textarea
                 rows={12}
                 value={json}
@@ -628,30 +674,55 @@ function BulkImportDialog({ open, quizId, onClose, onImported, apiFetch }: {
                 placeholder={exampleJson}
                 className="font-mono text-xs"
               />
-              {error && <p className="text-sm text-destructive">{error}</p>}
-              <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={onClose}>Cancel</Button>
-                <Button onClick={handleImport} disabled={importing || !json.trim()}>
-                  {importing ? "Importing..." : "Import Questions"}
-                </Button>
+            </TabsContent>
+            <TabsContent value="csv" className="space-y-3 mt-3">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="csv-file" className="cursor-pointer">
+                  <div className="flex items-center gap-2 px-3 py-2 border border-border rounded-md text-sm hover:bg-muted transition-colors">
+                    <Upload className="w-4 h-4" /> Upload CSV file
+                  </div>
+                </Label>
+                <input id="csv-file" type="file" accept=".csv,text/csv" className="hidden" onChange={handleCsvFile} />
+                <span className="text-xs text-muted-foreground">or paste below</span>
               </div>
+              <Textarea
+                rows={10}
+                value={csv}
+                onChange={e => setCsv(e.target.value)}
+                placeholder={exampleCsv}
+                className="font-mono text-xs"
+              />
+              {csv && (
+                <p className="text-xs text-muted-foreground">
+                  {parseCsvToQuestions(csv).length} questions detected
+                </p>
+              )}
             </TabsContent>
             <TabsContent value="format" className="mt-3">
-              <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">Paste a JSON array. Each object must have:</p>
-                <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground">
-                  <li><code className="text-primary">question_text</code> — string (required)</li>
-                  <li><code className="text-primary">options</code> — object with keys A, B, C, D (required)</li>
-                  <li><code className="text-primary">correct_answer</code> — "A" | "B" | "C" | "D" (required)</li>
-                  <li><code className="text-primary">explanation</code> — string (optional)</li>
-                  <li><code className="text-primary">video_solution_url</code> — YouTube URL (optional)</li>
-                  <li><code className="text-primary">difficulty</code> — 1–5 (optional, default 3)</li>
-                  <li><code className="text-primary">order_index</code> — number (optional)</li>
-                </ul>
-                <pre className="text-xs bg-muted p-3 rounded overflow-auto">{exampleJson}</pre>
+              <div className="space-y-4">
+                <div>
+                  <h4 className="text-sm font-semibold mb-1">JSON format</h4>
+                  <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground">
+                    <li><code className="text-primary">question_text</code>, <code className="text-primary">options</code> &#123;A,B,C,D&#125;, <code className="text-primary">correct_answer</code> — required</li>
+                    <li><code className="text-primary">explanation</code>, <code className="text-primary">video_solution_url</code>, <code className="text-primary">difficulty</code> (1–5) — optional</li>
+                  </ul>
+                  <pre className="text-xs bg-muted p-2 rounded overflow-auto mt-2">{exampleJson}</pre>
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold mb-1">CSV format</h4>
+                  <p className="text-sm text-muted-foreground mb-1">Columns: <code className="text-primary">question_text, option_a, option_b, option_c, option_d, correct_answer, explanation, difficulty</code></p>
+                  <pre className="text-xs bg-muted p-2 rounded overflow-auto">{exampleCsv}</pre>
+                </div>
               </div>
             </TabsContent>
           </Tabs>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button onClick={handleImport} disabled={importing || !inputText.trim()}>
+              {importing ? "Importing..." : "Import Questions"}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

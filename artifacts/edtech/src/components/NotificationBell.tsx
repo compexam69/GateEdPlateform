@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
+import { getApiBase } from "@/lib/api";
 
 interface Notification {
   id: string;
@@ -13,10 +14,6 @@ interface Notification {
   type: string;
   is_read: boolean;
   created_at: string;
-}
-
-function getApiBase() {
-  return `${window.location.protocol}//${window.location.hostname}:8080/api`;
 }
 
 async function apiFetch(path: string, opts: RequestInit = {}) {

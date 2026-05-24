@@ -9,9 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { Settings2, Save, RefreshCw, Info } from "lucide-react";
 import { useState, useEffect } from "react";
 
-function getApiBase() {
-  return `${window.location.protocol}//${window.location.hostname}:8080/api`;
-}
+import { getApiBase } from "@/lib/api";
 
 async function apiFetch(path: string, opts: RequestInit = {}) {
   const { data: { session } } = await supabase.auth.getSession();

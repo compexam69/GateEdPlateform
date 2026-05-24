@@ -1,7 +1,7 @@
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useGetSubject, getGetSubjectQueryKey, useGetChapters, getGetChaptersQueryKey } from "@workspace/api-client-react";
-import { Link, useParams } from "wouter";
-import { BookOpen, ChevronRight, ArrowLeft, Lock, CheckCircle, BookMarked } from "lucide-react";
+import { Link, useParams, useLocation } from "wouter";
+import { BookOpen, ChevronRight, ArrowLeft, CheckCircle, BookMarked, Trophy, Lock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -9,10 +9,13 @@ import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 
 export default function SubjectDetailPage() {
   const { subjectId } = useParams<{ subjectId: string }>();
   const { user } = useAuth();
+  const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   const { data: subject, isLoading: subjectLoading } = useGetSubject(subjectId!, {
     query: { enabled: !!subjectId, queryKey: getGetSubjectQueryKey(subjectId!) }
@@ -73,6 +76,37 @@ export default function SubjectDetailPage() {
     enabled: !!user?.id && !!chapters && chapters.length > 0,
   });
 
+  const { data: subjectProgress } = useQuery({
+    queryKey: ["subject-progress", subjectId, user?.id],
+    queryFn: async () => {
+      if (!user?.id || !subjectId) return null;
+      const { data } = await supabase
+        .from("user_subject_progress")
+        .select("all_chapters_complete, subject_test_attempted, subject_test_passed")
+        .eq("user_id", user.id)
+        .eq("subject_id", subjectId)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!user?.id && !!subjectId,
+  });
+
+  const { data: subjectTest } = useQuery({
+    queryKey: ["subject-test", subjectId],
+    queryFn: async () => {
+      if (!subjectId) return null;
+      const { data } = await supabase
+        .from("quizzes")
+        .select("id, title, passing_score, duration_minutes")
+        .eq("subject_id", subjectId)
+        .eq("type", "subject_test")
+        .eq("is_active", true)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!subjectId,
+  });
+
   const isLoading = subjectLoading || chaptersLoading;
 
   const progressMap = new Map(
@@ -84,6 +118,22 @@ export default function SubjectDetailPage() {
       pdf_upload_unlocked: boolean;
     }>).map(p => [p.chapter_id, p])
   );
+
+  // Subject test is unlocked when all chapters have their chapter_test_passed
+  const chaptersWithPassedTest = (chapterProgress as Array<{ chapter_test_passed: boolean }>)
+    .filter(p => p.chapter_test_passed).length;
+  const allChaptersPassed = chapters.length > 0 && chaptersWithPassedTest >= chapters.length;
+  const subjectTestUnlocked = allChaptersPassed || subjectProgress?.all_chapters_complete;
+  const subjectTestPassed = subjectProgress?.subject_test_passed;
+  const subjectTestAttempted = subjectProgress?.subject_test_attempted;
+
+  function handleStartSubjectTest() {
+    if (!subjectTest) {
+      toast({ title: "No subject test available", description: "Ask your admin to create a Subject Test for this subject.", variant: "destructive" });
+      return;
+    }
+    setLocation(`/exam/${subjectTest.id}`);
+  }
 
   return (
     <AppLayout>
@@ -100,6 +150,56 @@ export default function SubjectDetailPage() {
           </div>
         </div>
 
+        {/* Subject Test Card */}
+        {subjectTestUnlocked && (
+          <Card className={`border-2 ${subjectTestPassed ? "border-success/40 bg-success/5" : "border-accent/40 bg-accent/5"}`}>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-4">
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${subjectTestPassed ? "bg-success/20 text-success" : "bg-accent/20 text-accent"}`}>
+                  <Trophy className="w-6 h-6" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-semibold">Subject Test</h3>
+                    {subjectTestPassed && (
+                      <Badge className="bg-success/10 text-success border-success/20 text-xs">Passed</Badge>
+                    )}
+                    {subjectTestAttempted && !subjectTestPassed && (
+                      <Badge className="bg-warning/10 text-warning border-warning/20 text-xs">Attempted</Badge>
+                    )}
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    {subjectTestPassed
+                      ? "You have mastered this subject!"
+                      : subjectTestAttempted
+                      ? "Retake the Subject Test to improve your score."
+                      : "All chapters passed! Take the Subject Test to prove full subject mastery."}
+                  </p>
+                </div>
+                <Button
+                  onClick={handleStartSubjectTest}
+                  variant={subjectTestPassed ? "outline" : "default"}
+                  className="shrink-0"
+                >
+                  {subjectTestPassed ? "Retake" : subjectTestAttempted ? "Retry" : "Start Test"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Locked subject test hint */}
+        {!subjectTestUnlocked && chapters.length > 0 && (
+          <Card className="border border-dashed border-muted-foreground/30 bg-muted/20">
+            <CardContent className="p-4 flex items-center gap-3">
+              <Lock className="w-5 h-5 text-muted-foreground shrink-0" />
+              <p className="text-sm text-muted-foreground">
+                Pass all {chapters.length} chapter tests to unlock the Subject Test.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         {isLoading ? (
           <div className="flex h-32 items-center justify-center">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
@@ -114,7 +214,7 @@ export default function SubjectDetailPage() {
             {chapters.map((chapter: { id: string; title: string; description?: string }, idx: number) => {
               const prog = progressMap.get(chapter.id);
               const counts = topicCounts[chapter.id] ?? { total: 0, complete: 0 };
-              const isComplete = prog?.all_topics_complete && prog?.chapter_test_passed;
+              const isComplete = prog?.chapter_test_passed;
               const hasProgress = counts.complete > 0;
               const pct = counts.total > 0 ? Math.round((counts.complete / counts.total) * 100) : 0;
 

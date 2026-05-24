@@ -16,9 +16,7 @@ function formatBytes(bytes: number) {
   return `${mb.toFixed(1)} MB`;
 }
 
-function getApiBase() {
-  return `${window.location.protocol}//${window.location.hostname}:8080/api`;
-}
+import { getApiBase } from "@/lib/api";
 
 interface LectureCTR {
   topic_id: string;

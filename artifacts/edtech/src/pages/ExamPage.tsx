@@ -5,6 +5,7 @@ import { Pause, Play, ChevronLeft, ChevronRight, AlertTriangle, RotateCcw } from
 import { useStartExam, useSubmitExam } from "@workspace/api-client-react";
 import type { ExamSession, Question } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
+import { MathText } from "@/components/MathText";
 
 type QuestionStatus = "not-visited" | "unanswered" | "answered" | "marked" | "answered-marked";
 
@@ -504,7 +505,7 @@ export default function ExamPage() {
           </div>
 
           <div className="prose prose-invert max-w-none mb-6 text-base leading-relaxed">
-            <p>{qs.question.question_text}</p>
+            <MathText text={qs.question.question_text} />
           </div>
 
           <div className="space-y-3">
@@ -527,7 +528,7 @@ export default function ExamPage() {
                     className="h-4 w-4 accent-primary"
                   />
                   <span className="font-semibold text-muted-foreground w-5 shrink-0">{key}.</span>
-                  <span className="flex-1">{value}</span>
+                  <span className="flex-1"><MathText text={value} /></span>
                   <span className="text-xs text-muted-foreground/40 shrink-0">{optIdx + 1}</span>
                 </label>
               );

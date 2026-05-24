@@ -25,9 +25,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-function getApiBase() {
-  return `${window.location.protocol}//${window.location.hostname}:8080/api`;
-}
+import { getApiBase } from "@/lib/api";
 
 const STATUS_CONFIG = {
   pending: { label: "Pending", color: "border-border text-muted-foreground bg-muted/30" },

@@ -21,9 +21,7 @@ import { format } from "date-fns";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 
-function getApiBase() {
-  return `${window.location.protocol}//${window.location.hostname}:8080/api`;
-}
+import { getApiBase } from "@/lib/api";
 
 type TestForm = {
   exam_name: string; exam_date: string; score_obtained: string;

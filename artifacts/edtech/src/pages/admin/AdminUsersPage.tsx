@@ -20,9 +20,7 @@ import {
 
 const USERS_KEY = ["admin-users"];
 
-function getApiBase() {
-  return `${window.location.protocol}//${window.location.hostname}:8080/api`;
-}
+import { getApiBase } from "@/lib/api";
 
 async function apiFetch(path: string, opts: RequestInit = {}) {
   const { data: { session } } = await supabase.auth.getSession();

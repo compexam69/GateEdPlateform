@@ -12,9 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 
-function getApiBase() {
-  return `${window.location.protocol}//${window.location.hostname}:8080/api`;
-}
+import { getApiBase } from "@/lib/api";
 
 async function compressImage(file: File, maxSizeKB = 500, maxDim = 500): Promise<Blob> {
   return new Promise((resolve, reject) => {

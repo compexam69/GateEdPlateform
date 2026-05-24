@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
+import { getApiBase } from "@/lib/api";
 
 function useUnreadCount() {
   const { user } = useAuth();
@@ -15,7 +16,7 @@ function useUnreadCount() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
-        const base = `${window.location.protocol}//${window.location.hostname}:8080/api`;
+        const base = getApiBase();
         const res = await globalThis.fetch(`${base}/notifications`, {
           headers: { Authorization: `Bearer ${token}` },
         });
