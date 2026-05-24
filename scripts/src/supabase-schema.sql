@@ -362,56 +362,104 @@ alter table external_tests enable row level security;
 alter table system_config enable row level security;
 
 -- Profiles: users can read own, admins can read all
-create policy if not exists "profiles_own_read" on profiles for select using (auth.uid() = id);
-create policy if not exists "profiles_admin_read" on profiles for select using (
+drop policy if exists "profiles_own_read" on profiles;
+create policy "profiles_own_read" on profiles for select using (auth.uid() = id);
+
+drop policy if exists "profiles_admin_read" on profiles;
+create policy "profiles_admin_read" on profiles for select using (
   exists (select 1 from profiles p where p.id = auth.uid() and p.role in ('admin','super_admin'))
 );
-create policy if not exists "profiles_own_update" on profiles for update using (auth.uid() = id);
+
+drop policy if exists "profiles_own_update" on profiles;
+create policy "profiles_own_update" on profiles for update using (auth.uid() = id);
 
 -- Subjects/Chapters/Topics: all authenticated users can read
-create policy if not exists "subjects_read" on subjects for select using (auth.role() = 'authenticated');
-create policy if not exists "subjects_admin_write" on subjects for all using (
+drop policy if exists "subjects_read" on subjects;
+create policy "subjects_read" on subjects for select using (auth.role() = 'authenticated');
+
+drop policy if exists "subjects_admin_write" on subjects;
+create policy "subjects_admin_write" on subjects for all using (
   exists (select 1 from profiles p where p.id = auth.uid() and p.role in ('admin','super_admin'))
 );
-create policy if not exists "chapters_read" on chapters for select using (auth.role() = 'authenticated');
-create policy if not exists "chapters_admin_write" on chapters for all using (
+
+drop policy if exists "chapters_read" on chapters;
+create policy "chapters_read" on chapters for select using (auth.role() = 'authenticated');
+
+drop policy if exists "chapters_admin_write" on chapters;
+create policy "chapters_admin_write" on chapters for all using (
   exists (select 1 from profiles p where p.id = auth.uid() and p.role in ('admin','super_admin'))
 );
-create policy if not exists "topics_read" on topics for select using (auth.role() = 'authenticated');
-create policy if not exists "topics_admin_write" on topics for all using (
+
+drop policy if exists "topics_read" on topics;
+create policy "topics_read" on topics for select using (auth.role() = 'authenticated');
+
+drop policy if exists "topics_admin_write" on topics;
+create policy "topics_admin_write" on topics for all using (
   exists (select 1 from profiles p where p.id = auth.uid() and p.role in ('admin','super_admin'))
 );
 
 -- Quizzes and questions: all authenticated can read active ones
-create policy if not exists "quizzes_read" on quizzes for select using (auth.role() = 'authenticated' and is_active = true);
-create policy if not exists "quizzes_admin_write" on quizzes for all using (
-  exists (select 1 from profiles p where p.id = auth.uid() and p.role in ('admin','super_admin'))
-);
-create policy if not exists "quiz_questions_read" on quiz_questions for select using (auth.role() = 'authenticated');
-create policy if not exists "quiz_questions_admin_write" on quiz_questions for all using (
+drop policy if exists "quizzes_read" on quizzes;
+create policy "quizzes_read" on quizzes for select using (auth.role() = 'authenticated' and is_active = true);
+
+drop policy if exists "quizzes_admin_write" on quizzes;
+create policy "quizzes_admin_write" on quizzes for all using (
   exists (select 1 from profiles p where p.id = auth.uid() and p.role in ('admin','super_admin'))
 );
 
+drop policy if exists "quiz_questions_read" on quiz_questions;
+create policy "quiz_questions_read" on quiz_questions for select using (auth.role() = 'authenticated');
+
+drop policy if exists "quiz_questions_admin_write" on quiz_questions;
+create policy "quiz_questions_admin_write" on quiz_questions for all using (
+  exists (select 1 from profiles p where p.id = auth.uid() and p.role in ('admin','super_admin'))
+);
+
+-- Lectures
+drop policy if exists "lectures_read" on lectures;
+create policy "lectures_read" on lectures for select using (auth.role() = 'authenticated');
+
+drop policy if exists "lecture_clicks_own" on lecture_clicks;
+create policy "lecture_clicks_own" on lecture_clicks for all using (user_id = auth.uid());
+
 -- Progress: own only
-create policy if not exists "topic_progress_own" on user_topic_progress for all using (user_id = auth.uid());
-create policy if not exists "chapter_progress_own" on user_chapter_progress for all using (user_id = auth.uid());
-create policy if not exists "subject_progress_own" on user_subject_progress for all using (user_id = auth.uid());
-create policy if not exists "attempts_own" on user_attempts for all using (user_id = auth.uid());
-create policy if not exists "answers_own" on user_answers for all using (
+drop policy if exists "topic_progress_own" on user_topic_progress;
+create policy "topic_progress_own" on user_topic_progress for all using (user_id = auth.uid());
+
+drop policy if exists "chapter_progress_own" on user_chapter_progress;
+create policy "chapter_progress_own" on user_chapter_progress for all using (user_id = auth.uid());
+
+drop policy if exists "subject_progress_own" on user_subject_progress;
+create policy "subject_progress_own" on user_subject_progress for all using (user_id = auth.uid());
+
+drop policy if exists "attempts_own" on user_attempts;
+create policy "attempts_own" on user_attempts for all using (user_id = auth.uid());
+
+drop policy if exists "answers_own" on user_answers;
+create policy "answers_own" on user_answers for all using (
   attempt_id in (select id from user_attempts where user_id = auth.uid())
 );
 
 -- Notes: own only
-create policy if not exists "notes_own" on user_notes for all using (user_id = auth.uid());
-create policy if not exists "profile_photos_own" on user_profile_photos for all using (user_id = auth.uid());
+drop policy if exists "notes_own" on user_notes;
+create policy "notes_own" on user_notes for all using (user_id = auth.uid());
+
+drop policy if exists "profile_photos_own" on user_profile_photos;
+create policy "profile_photos_own" on user_profile_photos for all using (user_id = auth.uid());
 
 -- Productivity: own only
-create policy if not exists "pomodoro_own" on pomodoro_sessions for all using (user_id = auth.uid());
-create policy if not exists "tasks_own" on study_tasks for all using (user_id = auth.uid());
-create policy if not exists "ext_tests_own" on external_tests for all using (user_id = auth.uid());
+drop policy if exists "pomodoro_own" on pomodoro_sessions;
+create policy "pomodoro_own" on pomodoro_sessions for all using (user_id = auth.uid());
+
+drop policy if exists "tasks_own" on study_tasks;
+create policy "tasks_own" on study_tasks for all using (user_id = auth.uid());
+
+drop policy if exists "ext_tests_own" on external_tests;
+create policy "ext_tests_own" on external_tests for all using (user_id = auth.uid());
 
 -- System config: read for all, write for admins
-create policy if not exists "system_config_read" on system_config for select using (auth.role() = 'authenticated');
+drop policy if exists "system_config_read" on system_config;
+create policy "system_config_read" on system_config for select using (auth.role() = 'authenticated');
 
 -- ── Seed system_config ──────────────────────────────────────────────────────────
 insert into system_config (key, value) values
