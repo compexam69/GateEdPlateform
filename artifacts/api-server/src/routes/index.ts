@@ -1,8 +1,30 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
+import subjectsRouter from "./subjects";
+import chaptersRouter from "./chapters";
+import topicsRouter from "./topics";
+import progressRouter from "./progress";
+import examsRouter from "./exams";
+import storageRouter from "./storage";
+import pomodoroRouter from "./pomodoro";
+import tasksRouter from "./tasks";
+import externalTestsRouter from "./external-tests";
+import adminRouter from "./admin";
+import dashboardRouter from "./dashboard";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(dashboardRouter);
+router.use(subjectsRouter);
+router.use(chaptersRouter);
+router.use(topicsRouter);
+router.use(progressRouter);
+router.use(examsRouter);
+router.use(storageRouter);
+router.use(pomodoroRouter);
+router.use(tasksRouter);
+router.use(externalTestsRouter);
+router.use(adminRouter);
 
 export default router;

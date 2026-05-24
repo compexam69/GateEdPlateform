@@ -26,3 +26,13 @@ externalPort = 8080
 [[ports]]
 localPort = 8081
 externalPort = 80
+
+[[ports]]
+localPort = 22495
+externalPort = 3000
+
+[userenv]
+
+[userenv.shared]
+VITE_SUPABASE_URL = "https://kczzmthgcvirodrnzqnw.supabase.co"
+VITE_SUPABASE_ANON_KEY = "sb_publishable_cn9Gjrf9_D3e3ZS6W-SBDQ_kIJzcqel"
