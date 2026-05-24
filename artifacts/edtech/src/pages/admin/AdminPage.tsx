@@ -1,6 +1,6 @@
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Link } from "wouter";
-import { Users, BookOpen, BarChart3, HelpCircle, Settings2 } from "lucide-react";
+import { Users, BookOpen, BarChart3, HelpCircle, Settings2, ShieldAlert } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function AdminPage() {
@@ -10,6 +10,7 @@ export default function AdminPage() {
     { title: "Quiz & Question Editor", desc: "Create quizzes, add questions, and generate QR video solutions.", href: "/admin/quizzes", icon: HelpCircle },
     { title: "Gate Configuration", desc: "Set passing score thresholds, retry limits, and storage caps. No code changes required.", href: "/admin/gate", icon: Settings2 },
     { title: "Analytics & Storage", desc: "View platform usage, performance stats, and B2 storage monitor.", href: "/admin/analytics", icon: BarChart3 },
+    { title: "Rate Limit Monitor", desc: "Live view of active rate-limit windows. See who is throttled and when their block clears.", href: "/admin/rate-limits", icon: ShieldAlert },
   ];
 
   return (
