@@ -2,7 +2,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { RotateCcw, Coffee, Brain, Clock, Tag, X } from "lucide-react";
+import { RotateCcw, Coffee, Brain, Clock, Tag, X, Trophy } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getPomodoroStats, getGetPomodoroStatsUrl } from "@workspace/api-client-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -249,6 +249,23 @@ export default function PomodoroPage() {
             </Card>
           </div>
 
+          {/* Focus Master Badge */}
+          {(stats?.streak_days ?? 0) >= 7 && (
+            <Card className="bg-warning/5 border-warning/30">
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-warning/20 flex items-center justify-center shrink-0">
+                  <Trophy className="w-5 h-5 text-warning" />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm text-warning">Focus Master</p>
+                  <p className="text-xs text-muted-foreground">
+                    {stats!.streak_days}-day streak achieved. Outstanding dedication!
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {mode === "focus" && (
             <Card className="bg-card/50 border-dashed">
               <CardContent className="p-4 text-center">
@@ -256,6 +273,9 @@ export default function PomodoroPage() {
                 <p className="text-sm text-muted-foreground">
                   Complete 4 focus sessions per day to maintain your streak.
                   {stats?.streak_days ? ` You're on a ${stats.streak_days}-day streak!` : " Start your first session!"}
+                  {(stats?.streak_days ?? 0) > 0 && (stats?.streak_days ?? 0) < 7 && (
+                    <span className="text-primary"> {7 - stats!.streak_days} more days to earn Focus Master.</span>
+                  )}
                 </p>
                 {isRunning && (
                   <p className="text-xs text-primary mt-2 font-medium">

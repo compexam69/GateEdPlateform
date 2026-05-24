@@ -6,6 +6,7 @@ import { useStartExam, useSubmitExam } from "@workspace/api-client-react";
 import type { ExamSession, Question } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { MathText } from "@/components/MathText";
+import { playChime } from "@/lib/playChime";
 
 type QuestionStatus = "not-visited" | "unanswered" | "answered" | "marked" | "answered-marked";
 
@@ -251,8 +252,8 @@ export default function ExamPage() {
           handleSubmit();
           return 0;
         }
-        if (t === 300) setShowWarning("5 minutes remaining!");
-        if (t === 60) setShowWarning("1 minute remaining!");
+        if (t === 300) { setShowWarning("5 minutes remaining!"); playChime("break"); }
+        if (t === 60) { setShowWarning("1 minute remaining!"); playChime("break"); }
         return t - 1;
       });
     }, 1000);

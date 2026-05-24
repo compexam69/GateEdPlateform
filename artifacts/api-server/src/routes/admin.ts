@@ -4,6 +4,27 @@ import { requireAdmin, type AuthRequest } from "../middlewares/auth";
 
 const router = Router();
 
+async function writeAuditLog(
+  actorId: string,
+  action: string,
+  targetType: string,
+  targetId: string,
+  newValue?: Record<string, unknown>
+) {
+  try {
+    await supabase.from("audit_logs").insert({
+      actor_id: actorId,
+      action,
+      target_type: targetType,
+      target_id: targetId,
+      new_value: newValue ?? null,
+      created_at: new Date().toISOString(),
+    });
+  } catch {
+    // audit log writes are best-effort
+  }
+}
+
 router.get("/admin/users", requireAdmin, async (req: AuthRequest, res) => {
   const { data, error } = await supabase
     .from("profiles")
@@ -14,38 +35,42 @@ router.get("/admin/users", requireAdmin, async (req: AuthRequest, res) => {
 });
 
 router.post("/admin/users/:userId/approve", requireAdmin, async (req: AuthRequest, res) => {
+  const userId = String(req.params["userId"]);
   const { error } = await supabase
     .from("profiles")
     .update({ is_approved: true, status: "active" })
-    .eq("id", req.params["userId"]);
+    .eq("id", userId);
   if (error) { res.status(500).json({ error: error.message }); return; }
 
-  const userId = String(req.params["userId"]);
   await supabase.auth.admin.updateUserById(userId, {
     user_metadata: { is_approved: true, status: "active" },
   });
 
-  // Create notification for the user (best-effort)
-  try {
-    await supabase.from("notifications").insert({
+  // Notification + audit log (best-effort)
+  await Promise.allSettled([
+    supabase.from("notifications").insert({
       user_id: userId,
       title: "Account Approved",
       message: "Your account has been approved. You can now access all study materials.",
       type: "approval",
       is_read: false,
       created_at: new Date().toISOString(),
-    });
-  } catch {}
+    }),
+    writeAuditLog(req.user!.id, "user_approved", "profile", userId, { status: "active" }),
+  ]);
 
   res.json({ message: "User approved" });
 });
 
 router.post("/admin/users/:userId/reject", requireAdmin, async (req: AuthRequest, res) => {
+  const userId = String(req.params["userId"]);
   const { error } = await supabase
     .from("profiles")
     .update({ is_approved: false, status: "suspended" })
-    .eq("id", req.params["userId"]);
+    .eq("id", userId);
   if (error) { res.status(500).json({ error: error.message }); return; }
+
+  await writeAuditLog(req.user!.id, "user_rejected", "profile", userId, { status: "suspended" });
   res.json({ message: "User rejected/banned" });
 });
 
@@ -65,6 +90,7 @@ router.post("/admin/users/:userId/reset-progress", requireAdmin, async (req: Aut
     await supabase.from("user_subject_progress").delete().eq("user_id", userId).eq("subject_id", reference_id);
   }
 
+  await writeAuditLog(req.user!.id, "progress_reset", "profile", userId, { scope, reference_id });
   res.json({ message: "Progress reset" });
 });
 

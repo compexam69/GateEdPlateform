@@ -3,6 +3,7 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { rateLimit } from "./middlewares/rateLimit";
 
 const app: Express = express();
 
@@ -29,6 +30,13 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Strict rate limits on sensitive write endpoints
+app.use("/api/exam/submit", rateLimit(10, 60_000));
+app.use("/api/exam/start", rateLimit(20, 60_000));
+app.use("/api/b2/upload-url", rateLimit(5, 3_600_000));
+app.use("/api/b2/profile-upload-url", rateLimit(5, 3_600_000));
+// General API rate limit: 200 req/min per IP
+app.use("/api", rateLimit(200, 60_000));
 app.use("/api", router);
 
 export default app;
