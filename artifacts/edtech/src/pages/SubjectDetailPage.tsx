@@ -211,7 +211,7 @@ export default function SubjectDetailPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {chapters.map((chapter: { id: string; title: string; description?: string }, idx: number) => {
+            {chapters.map((chapter: { id: string; title: string; description?: string | null }, idx: number) => {
               const prog = progressMap.get(chapter.id);
               const counts = topicCounts[chapter.id] ?? { total: 0, complete: 0 };
               const isComplete = prog?.chapter_test_passed;

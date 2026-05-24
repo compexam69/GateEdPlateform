@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, AlertCircle, BookOpen } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { getApiBase } from "@/lib/api";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -64,8 +65,15 @@ export default function LoginPage() {
     if (!unverifiedEmail) return;
     setResendLoading(true);
     try {
-      const { error } = await supabase.auth.resend({ type: "signup", email: unverifiedEmail });
-      if (error) throw error;
+      const res = await fetch(`${getApiBase()}/auth/verify-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: unverifiedEmail }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to resend email");
+      }
       toast({ title: "Email Sent", description: "Verification email resent. Check your inbox." });
     } catch (error: unknown) {
       toast({ title: "Error", description: (error as Error).message || "Failed to resend email", variant: "destructive" });

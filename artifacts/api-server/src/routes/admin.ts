@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { supabase } from "../lib/supabase";
 import { requireAdmin, type AuthRequest } from "../middlewares/auth";
-import { sendApprovalEmail } from "../lib/email";
+import { sendApprovalEmail, sendStorageAlertEmail } from "../lib/email";
+import { sendPushToUser, sendPushToAll } from "../lib/push";
 
 const router = Router();
 
@@ -54,7 +55,7 @@ router.post("/admin/users/:userId/approve", requireAdmin, async (req: AuthReques
     .eq("id", userId)
     .maybeSingle();
 
-  // Notification + audit log + email (best-effort)
+  // Notification + audit log + email + push (best-effort)
   await Promise.allSettled([
     supabase.from("notifications").insert({
       user_id: userId,
@@ -66,6 +67,12 @@ router.post("/admin/users/:userId/approve", requireAdmin, async (req: AuthReques
     }),
     writeAuditLog(req.user!.id, "user_approved", "profile", userId, { status: "active" }),
     profile ? sendApprovalEmail(profile.email, profile.full_name ?? "Student") : Promise.resolve(),
+    sendPushToUser(userId, {
+      title: "Account Approved",
+      body: "Your account has been approved. Start your learning journey now!",
+      url: "/dashboard",
+      tag: "account-approved",
+    }),
   ]);
 
   res.json({ message: "User approved" });
@@ -134,6 +141,8 @@ router.get("/admin/storage", requireAdmin, async (req: AuthRequest, res) => {
   const allNotes = notes ?? [];
   const totalBytes = allNotes.reduce((s: number, n: { pdf_size_bytes: number }) => s + (n.pdf_size_bytes ?? 0), 0);
   const GLOBAL_LIMIT = 10 * 1024 * 1024 * 1024;
+  const ALERT_THRESHOLD_8GB = 8 * 1024 * 1024 * 1024;
+  const ALERT_THRESHOLD_9GB = 9 * 1024 * 1024 * 1024;
 
   const userMap = new Map<string, number>();
   for (const n of allNotes as { user_id: string; pdf_size_bytes: number }[]) {
@@ -142,8 +151,8 @@ router.get("/admin/storage", requireAdmin, async (req: AuthRequest, res) => {
 
   const { data: profiles } = await supabase
     .from("profiles")
-    .select("id, full_name")
-    .in("id", Array.from(userMap.keys()));
+    .select("id, full_name, email, role")
+    .in("id", userMap.size > 0 ? Array.from(userMap.keys()) : ["00000000-0000-0000-0000-000000000000"]);
 
   const profileMap = new Map((profiles ?? []).map((p: { id: string; full_name: string }) => [p.id, p.full_name]));
 
@@ -151,6 +160,29 @@ router.get("/admin/storage", requireAdmin, async (req: AuthRequest, res) => {
     .sort(([, a], [, b]) => b - a)
     .slice(0, 10)
     .map(([uid, bytes]) => ({ user_id: uid, full_name: profileMap.get(uid) ?? "Unknown", used_bytes: bytes }));
+
+  // Fire storage alert push + email to all admins if above threshold (best-effort, fire-and-forget)
+  if (totalBytes >= ALERT_THRESHOLD_8GB) {
+    const usedGB = (totalBytes / (1024 * 1024 * 1024)).toFixed(1);
+    const limitGB = (GLOBAL_LIMIT / (1024 * 1024 * 1024)).toFixed(0);
+    const alertBody = `Platform storage is at ${usedGB}GB of ${limitGB}GB (${Math.round((totalBytes / GLOBAL_LIMIT) * 100)}%).`;
+    const isCritical = totalBytes >= ALERT_THRESHOLD_9GB;
+    const alertTitle = isCritical ? "Critical: Storage Almost Full" : "Warning: Storage Threshold Reached";
+
+    void (async () => {
+      try {
+        const { data: admins } = await supabase
+          .from("profiles")
+          .select("id, email, full_name")
+          .in("role", ["admin", "super_admin"]);
+        if (!admins) return;
+        for (const admin of admins as { id: string; email: string; full_name: string }[]) {
+          try { await sendPushToUser(admin.id, { title: alertTitle, body: alertBody, url: "/admin/storage", tag: "storage-alert" }); } catch { /* best-effort */ }
+          try { await sendStorageAlertEmail(admin.email, totalBytes / (1024 * 1024 * 1024), GLOBAL_LIMIT / (1024 * 1024 * 1024)); } catch { /* best-effort */ }
+        }
+      } catch { /* best-effort */ }
+    })();
+  }
 
   res.json({
     total_used_bytes: totalBytes,
@@ -233,6 +265,58 @@ router.patch("/admin/gate-config", requireAdmin, async (req: AuthRequest, res) =
 
   if (error) { res.status(500).json({ error: error.message }); return; }
   res.json({ message: "Config updated", updated: upserts.map(u => u.key) });
+});
+
+router.get("/admin/users/:userId/detail", requireAdmin, async (req: AuthRequest, res) => {
+  const userId = String(req.params["userId"]);
+
+  const [profileRes, attemptsRes, notesRes, pomodoroRes] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", userId)
+      .maybeSingle(),
+    supabase
+      .from("user_attempts")
+      .select("id, score, total_marks, accuracy, status, started_at, submitted_at, quizzes(title, type)")
+      .eq("user_id", userId)
+      .order("started_at", { ascending: false })
+      .limit(20),
+    supabase
+      .from("user_notes")
+      .select("id, title, chapter_id, pdf_size_bytes, created_at, chapters(title)")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(20),
+    supabase
+      .from("pomodoro_sessions")
+      .select("id, duration_seconds, topic_context, start_time")
+      .eq("user_id", userId)
+      .order("start_time", { ascending: false })
+      .limit(10),
+  ]);
+
+  if (!profileRes.data) { res.status(404).json({ error: "User not found" }); return; }
+
+  const totalNotesBytes = (notesRes.data ?? []).reduce(
+    (s: number, n: { pdf_size_bytes: number }) => s + (n.pdf_size_bytes ?? 0), 0
+  );
+  const totalPomodoro = (pomodoroRes.data ?? []).reduce(
+    (s: number, p: { duration_seconds: number }) => s + (p.duration_seconds ?? 0), 0
+  );
+
+  res.json({
+    profile: profileRes.data,
+    attempts: attemptsRes.data ?? [],
+    notes: notesRes.data ?? [],
+    pomodoro_sessions: pomodoroRes.data ?? [],
+    stats: {
+      total_attempts: (attemptsRes.data ?? []).length,
+      total_notes: (notesRes.data ?? []).length,
+      total_notes_bytes: totalNotesBytes,
+      total_pomodoro_seconds: totalPomodoro,
+    },
+  });
 });
 
 router.get("/admin/lecture-ctr", requireAdmin, async (_req: AuthRequest, res) => {

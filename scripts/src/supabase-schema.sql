@@ -327,6 +327,40 @@ create table if not exists audit_logs (
   created_at  timestamptz not null default now()
 );
 
+-- attempts_archive: cold storage for old exam attempts (>12 months)
+create table if not exists attempts_archive (
+  id                    uuid primary key default uuid_generate_v4(),
+  original_attempt_id   uuid not null,
+  user_id               uuid not null references profiles(id) on delete cascade,
+  quiz_id               uuid not null,
+  quiz_title            text,
+  quiz_type             text,
+  score                 numeric not null default 0,
+  total_marks           numeric not null default 0,
+  accuracy              numeric not null default 0,
+  time_taken_ms         bigint not null default 0,
+  negative_marks_applied numeric not null default 0,
+  status                text not null default 'submitted',
+  is_correct_summary    jsonb,
+  answers_snapshot      jsonb,
+  started_at            timestamptz not null,
+  submitted_at          timestamptz,
+  archived_at           timestamptz not null default now()
+);
+
+create index if not exists idx_attempts_archive_user on attempts_archive(user_id);
+create index if not exists idx_attempts_archive_archived_at on attempts_archive(archived_at);
+
+alter table attempts_archive enable row level security;
+
+drop policy if exists "archive_own_read" on attempts_archive;
+create policy "archive_own_read" on attempts_archive for select using (auth.uid() = user_id);
+
+drop policy if exists "archive_admin_read" on attempts_archive;
+create policy "archive_admin_read" on attempts_archive for select using (
+  exists (select 1 from profiles p where p.id = auth.uid() and p.role in ('admin','super_admin'))
+);
+
 -- ── Indexes ────────────────────────────────────────────────────────────────────
 create index if not exists idx_chapters_subject on chapters(subject_id);
 create index if not exists idx_topics_chapter on topics(chapter_id);
