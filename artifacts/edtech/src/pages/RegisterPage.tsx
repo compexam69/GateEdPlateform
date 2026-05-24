@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Link, useLocation } from "wouter";
-import { useAuth } from "@/hooks/useAuth";
+import { getApiBase } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -84,7 +84,6 @@ function PasswordStrengthIndicator({ password }: { password: string }) {
 }
 
 export default function RegisterPage() {
-  const { signUp } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -106,18 +105,18 @@ export default function RegisterPage() {
   async function onSubmit(values: FormValues) {
     setLoading(true);
     try {
-      const { error } = await signUp({
-        email: values.email,
-        password: values.password,
-        options: {
-          data: {
-            full_name: values.fullName,
-            mobile_number: `+91${values.mobile}`,
-            role: "student",
-          },
-        },
+      const res = await fetch(`${getApiBase()}/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: values.email,
+          password: values.password,
+          full_name: values.fullName,
+          mobile_number: `+91${values.mobile}`,
+        }),
       });
-      if (error) throw error;
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((json as { error?: string }).error || "Registration failed");
       toast({
         title: "Account created!",
         description: "Please check your email to verify your account. You'll need admin approval to access the platform.",

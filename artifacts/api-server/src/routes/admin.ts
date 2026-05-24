@@ -141,8 +141,7 @@ router.get("/admin/storage", requireAdmin, async (req: AuthRequest, res) => {
   const allNotes = notes ?? [];
   const totalBytes = allNotes.reduce((s: number, n: { pdf_size_bytes: number }) => s + (n.pdf_size_bytes ?? 0), 0);
   const GLOBAL_LIMIT = 10 * 1024 * 1024 * 1024;
-  const ALERT_THRESHOLD_8GB = 8 * 1024 * 1024 * 1024;
-  const ALERT_THRESHOLD_9GB = 9 * 1024 * 1024 * 1024;
+  const ALERT_THRESHOLD = 9.5 * 1024 * 1024 * 1024;
 
   const userMap = new Map<string, number>();
   for (const n of allNotes as { user_id: string; pdf_size_bytes: number }[]) {
@@ -162,12 +161,11 @@ router.get("/admin/storage", requireAdmin, async (req: AuthRequest, res) => {
     .map(([uid, bytes]) => ({ user_id: uid, full_name: profileMap.get(uid) ?? "Unknown", used_bytes: bytes }));
 
   // Fire storage alert push + email to all admins if above threshold (best-effort, fire-and-forget)
-  if (totalBytes >= ALERT_THRESHOLD_8GB) {
+  if (totalBytes >= ALERT_THRESHOLD) {
     const usedGB = (totalBytes / (1024 * 1024 * 1024)).toFixed(1);
     const limitGB = (GLOBAL_LIMIT / (1024 * 1024 * 1024)).toFixed(0);
     const alertBody = `Platform storage is at ${usedGB}GB of ${limitGB}GB (${Math.round((totalBytes / GLOBAL_LIMIT) * 100)}%).`;
-    const isCritical = totalBytes >= ALERT_THRESHOLD_9GB;
-    const alertTitle = isCritical ? "Critical: Storage Almost Full" : "Warning: Storage Threshold Reached";
+    const alertTitle = "Critical: Storage Almost Full";
 
     void (async () => {
       try {

@@ -53,6 +53,9 @@ export default function ExamResultPage() {
   const passed = (result as { passed?: boolean }).passed ?? (accuracy >= 60);
   const scorePercent = Math.round((score / totalMarks) * 100);
   const timeTakenMin = Math.round(timeTakenMs / 60000);
+  const rank = (result as { rank?: number }).rank;
+  const percentile = (result as { percentile?: number }).percentile;
+  const totalAttempts = (result as { total_attempts?: number }).total_attempts ?? 0;
 
   const pieData = [
     { name: "Correct", value: correct, color: "hsl(var(--success))" },
@@ -180,6 +183,12 @@ export default function ExamResultPage() {
               <div className="flex justify-between text-sm"><span className="text-muted-foreground">Skipped</span><span className="font-medium text-muted-foreground">{skipped}</span></div>
               <div className="flex justify-between text-sm"><span className="text-muted-foreground">Avg time / question</span><span className="font-medium">{Math.round(avgTimeMs / 1000)}s</span></div>
               <div className="border-t border-border pt-3 flex justify-between text-sm"><span className="text-muted-foreground">Final Score</span><span className="font-bold text-primary">{score} / {totalMarks}</span></div>
+              {rank !== undefined && totalAttempts > 1 && (
+                <>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Your Rank</span><span className="font-medium">#{rank} of {totalAttempts}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Percentile</span><span className="font-medium text-primary">{percentile}th</span></div>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>

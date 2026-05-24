@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 
-import { getApiBase } from "@/lib/api";
+import { getApiBase, apiFetch } from "@/lib/api";
 
 async function compressImage(file: File, maxSizeKB = 500, maxDim = 500): Promise<Blob> {
   return new Promise((resolve, reject) => {
@@ -214,14 +214,21 @@ export default function ProfilePage() {
     if (newPwd === currentPwd) { toast({ title: "Same password", description: "New password must be different.", variant: "destructive" }); return; }
     setChangingPwd(true);
     try {
-      const { error: reAuthErr } = await supabase.auth.signInWithPassword({ email: user!.email!, password: currentPwd });
-      if (reAuthErr) { toast({ title: "Wrong current password", variant: "destructive" }); setChangingPwd(false); return; }
-      const { error } = await supabase.auth.updateUser({ password: newPwd });
-      if (error) throw error;
+      await apiFetch("/auth/change-password", {
+        method: "POST",
+        body: JSON.stringify({ current_password: currentPwd, new_password: newPwd }),
+      });
       toast({ title: "Password changed successfully!" });
       setCurrentPwd(""); setNewPwd(""); setConfirmPwd("");
     } catch (err: unknown) {
-      toast({ title: "Error", description: (err as Error).message, variant: "destructive" });
+      const msg = (err as Error).message || "Failed to change password";
+      if (msg.includes("429") || msg.toLowerCase().includes("too many")) {
+        toast({ title: "Too many attempts", description: "You can only change your password 3 times per hour.", variant: "destructive" });
+      } else if (msg.toLowerCase().includes("incorrect") || msg.toLowerCase().includes("wrong")) {
+        toast({ title: "Wrong current password", variant: "destructive" });
+      } else {
+        toast({ title: "Error", description: msg, variant: "destructive" });
+      }
     } finally { setChangingPwd(false); }
   }
 

@@ -4,9 +4,29 @@ import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth
 
 const router = Router();
 
+// Per-user exam start rate limiter: max 5 starts/minute/user
+const examStartLimiter = new Map<string, { count: number; resetAt: number }>();
+
 router.post("/exam/start", requireAuth, async (req: AuthRequest, res) => {
   const { quiz_id } = req.body as { quiz_id: string };
   const userId = req.user!.id;
+
+  // Per-user rate check: 5 per 60 seconds
+  const now = Date.now();
+  const limiterKey = userId;
+  const limiterRecord = examStartLimiter.get(limiterKey);
+  if (limiterRecord && now < limiterRecord.resetAt) {
+    if (limiterRecord.count >= 5) {
+      res.status(429).json({
+        error: "Too many quiz attempts. Please wait a minute before trying again.",
+        retryAfter: Math.ceil((limiterRecord.resetAt - now) / 1000),
+      });
+      return;
+    }
+    limiterRecord.count++;
+  } else {
+    examStartLimiter.set(limiterKey, { count: 1, resetAt: now + 60_000 });
+  }
 
   const { data: quiz, error: qErr } = await supabase
     .from("quizzes")
@@ -388,15 +408,37 @@ router.get("/exam/results/:resultId", requireAuth, async (req: AuthRequest, res)
     .single();
   if (!attempt) { res.status(404).json({ error: "Not found" }); return; }
 
-  const { data: answers } = await supabase
-    .from("user_answers")
-    .select("*, quiz_questions(question_text, options, correct_answer, explanation, video_solution_url, qr_code_url)")
-    .eq("attempt_id", req.params["resultId"]);
+  const [answersRes, allAttemptsRes] = await Promise.all([
+    supabase
+      .from("user_answers")
+      .select("*, quiz_questions(question_text, options, correct_answer, explanation, video_solution_url, qr_code_url)")
+      .eq("attempt_id", req.params["resultId"]),
+    supabase
+      .from("user_attempts")
+      .select("accuracy")
+      .eq("quiz_id", attempt.quiz_id)
+      .eq("status", "submitted"),
+  ]);
 
   const quiz = attempt.quizzes as { passing_score: number };
   const passed = attempt.accuracy >= (quiz?.passing_score ?? 60);
 
-  res.json({ ...attempt, passed, answers: answers ?? [] });
+  // Rank & percentile among all submitted attempts for this quiz
+  const allAccuracies = (allAttemptsRes.data ?? []).map((a: { accuracy: number }) => a.accuracy);
+  const totalAttempts = allAccuracies.length;
+  const rank = allAccuracies.filter((a) => a > attempt.accuracy).length + 1;
+  const percentile = totalAttempts > 1
+    ? Math.round(((totalAttempts - rank) / (totalAttempts - 1)) * 100)
+    : 100;
+
+  res.json({
+    ...attempt,
+    passed,
+    answers: answersRes.data ?? [],
+    rank,
+    percentile,
+    total_attempts: totalAttempts,
+  });
 });
 
 router.get("/exam/history", requireAuth, async (req: AuthRequest, res) => {

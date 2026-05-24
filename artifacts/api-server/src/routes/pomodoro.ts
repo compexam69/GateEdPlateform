@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { supabase } from "../lib/supabase";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
+import { sendPushToUser } from "../lib/push";
 
 const router = Router();
 
@@ -17,12 +18,51 @@ router.get("/pomodoro/sessions", requireAuth, async (req: AuthRequest, res) => {
 
 router.post("/pomodoro/sessions", requireAuth, async (req: AuthRequest, res) => {
   const { duration_seconds, topic_context, start_time, end_time } = req.body;
+  const userId = req.user!.id;
+
   const { data, error } = await supabase
     .from("pomodoro_sessions")
-    .insert({ user_id: req.user!.id, duration_seconds, topic_context, start_time, end_time })
+    .insert({ user_id: userId, duration_seconds, topic_context, start_time, end_time })
     .select()
     .single();
   if (error) { res.status(500).json({ error: error.message }); return; }
+
+  // ── Streak-break alert (best-effort, fire-and-forget) ──────────────────────
+  void (async () => {
+    try {
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+      const yesterdayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1).toISOString();
+
+      const { data: recentSessions } = await supabase
+        .from("pomodoro_sessions")
+        .select("start_time")
+        .eq("user_id", userId)
+        .gte("start_time", yesterdayStart)
+        .order("start_time", { ascending: false })
+        .limit(100);
+
+      const sessions = recentSessions ?? [];
+      const todaySessions = sessions.filter((s: { start_time: string }) => s.start_time >= todayStart);
+      const yesterdaySessions = sessions.filter(
+        (s: { start_time: string }) => s.start_time >= yesterdayStart && s.start_time < todayStart
+      );
+
+      // Streak is alive if yesterday had ≥4 sessions; alert when today is at exactly 3 (1 more needed)
+      const streakAlive = yesterdaySessions.length >= 4;
+      if (streakAlive && todaySessions.length === 3) {
+        await sendPushToUser(userId, {
+          title: "Streak about to break",
+          body: "Complete 1 more focus session today to keep your streak alive!",
+          url: "/pomodoro",
+          tag: "streak-break-warning",
+        });
+      }
+    } catch {
+      // best-effort
+    }
+  })();
+
   res.status(201).json(data);
 });
 

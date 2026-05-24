@@ -36,6 +36,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Strict rate limits on sensitive write endpoints
+app.use("/api/auth/register", rateLimit(10, 3_600_000));
 app.use("/api/exam/submit", rateLimit(10, 60_000));
 app.use("/api/exam/start", rateLimit(20, 60_000));
 app.use("/api/b2/upload-url", rateLimit(5, 3_600_000));
