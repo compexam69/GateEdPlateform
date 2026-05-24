@@ -57,6 +57,8 @@ export default function ExamResultPage() {
     { name: "Skipped", value: skipped, color: "hsl(var(--muted-foreground))" },
   ].filter(d => d.value > 0);
 
+  const [answerFilter, setAnswerFilter] = useState<"all" | "incorrect" | "skipped">("all");
+
   const answers = (result.answers ?? []) as Array<{
     question_id: string;
     selected_option: string | null;
@@ -165,32 +167,63 @@ export default function ExamResultPage() {
           </TabsList>
 
           <TabsContent value="answers" className="space-y-3 mt-4">
-            {answers.map((ans, idx) => {
-              const q = ans.quiz_questions;
-              const isCorrect = ans.is_correct;
-              const isSkipped = !ans.selected_option;
-              return (
-                <Card key={ans.question_id} className={`border-l-4 ${isCorrect ? "border-l-success" : isSkipped ? "border-l-muted-foreground" : "border-l-destructive"}`}>
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <p className="font-medium text-sm flex-1">{idx + 1}. {q?.question_text || "Question"}</p>
-                      {isCorrect
-                        ? <span className="text-success flex items-center gap-1 text-xs shrink-0"><CheckCircle className="w-3.5 h-3.5" />Correct</span>
-                        : isSkipped
-                        ? <span className="text-muted-foreground flex items-center gap-1 text-xs shrink-0"><Minus className="w-3.5 h-3.5" />Skipped</span>
-                        : <span className="text-destructive flex items-center gap-1 text-xs shrink-0"><XCircle className="w-3.5 h-3.5" />Wrong</span>}
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
-                      {ans.selected_option && <span>Your answer: <strong className={isCorrect ? "text-success" : "text-destructive"}>{ans.selected_option}</strong></span>}
-                      {!isCorrect && (q?.correct_answer || ans.correct_answer) && (
-                        <span>Correct: <strong className="text-success">{q?.correct_answer || ans.correct_answer}</strong></span>
-                      )}
-                      {ans.time_spent_ms ? <span><Clock className="w-3 h-3 inline" /> {Math.round(ans.time_spent_ms / 1000)}s</span> : null}
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+            <div className="flex gap-2 flex-wrap">
+              {(["all", "incorrect", "skipped"] as const).map(f => (
+                <button
+                  key={f}
+                  onClick={() => setAnswerFilter(f)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${
+                    answerFilter === f
+                      ? f === "all" ? "bg-primary text-primary-foreground border-primary"
+                        : f === "incorrect" ? "bg-destructive text-destructive-foreground border-destructive"
+                        : "bg-muted text-foreground border-muted-foreground"
+                      : "border-border text-muted-foreground hover:border-primary hover:text-foreground"
+                  }`}
+                >
+                  {f === "all" ? `All (${answers.length})` : f === "incorrect" ? `Incorrect (${incorrect})` : `Skipped (${skipped})`}
+                </button>
+              ))}
+            </div>
+            {answers
+              .filter(ans => {
+                if (answerFilter === "incorrect") return !ans.is_correct && !!ans.selected_option;
+                if (answerFilter === "skipped") return !ans.selected_option;
+                return true;
+              })
+              .map((ans, idx) => {
+                const q = ans.quiz_questions;
+                const isCorrect = ans.is_correct;
+                const isSkipped = !ans.selected_option;
+                const globalIdx = answers.indexOf(ans);
+                return (
+                  <Card key={ans.question_id} className={`border-l-4 ${isCorrect ? "border-l-success" : isSkipped ? "border-l-muted-foreground" : "border-l-destructive"}`}>
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="font-medium text-sm flex-1">{globalIdx + 1}. {q?.question_text || "Question"}</p>
+                        {isCorrect
+                          ? <span className="text-success flex items-center gap-1 text-xs shrink-0"><CheckCircle className="w-3.5 h-3.5" />Correct</span>
+                          : isSkipped
+                          ? <span className="text-muted-foreground flex items-center gap-1 text-xs shrink-0"><Minus className="w-3.5 h-3.5" />Skipped</span>
+                          : <span className="text-destructive flex items-center gap-1 text-xs shrink-0"><XCircle className="w-3.5 h-3.5" />Wrong</span>}
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                        {ans.selected_option && <span>Your answer: <strong className={isCorrect ? "text-success" : "text-destructive"}>{ans.selected_option}</strong></span>}
+                        {!isCorrect && (q?.correct_answer || ans.correct_answer) && (
+                          <span>Correct: <strong className="text-success">{q?.correct_answer || ans.correct_answer}</strong></span>
+                        )}
+                        {ans.time_spent_ms ? <span><Clock className="w-3 h-3 inline" /> {Math.round(ans.time_spent_ms / 1000)}s</span> : null}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            {answers.filter(ans => {
+              if (answerFilter === "incorrect") return !ans.is_correct && !!ans.selected_option;
+              if (answerFilter === "skipped") return !ans.selected_option;
+              return true;
+            }).length === 0 && (
+              <p className="text-center text-muted-foreground py-6 text-sm">No questions match this filter.</p>
+            )}
           </TabsContent>
 
           <TabsContent value="solutions" className="space-y-3 mt-4">
