@@ -150,15 +150,15 @@ router.post("/b2/profile-upload-url", requireAuth, async (req: AuthRequest, res)
     // Delete old profile photo from B2 before issuing new upload URL (best-effort)
     const { data: profile } = await supabase
       .from("profiles")
-      .select("photo_url")
+      .select("avatar_url")
       .eq("id", userId)
       .maybeSingle();
 
-    if (profile?.photo_url) {
+    if (profile?.avatar_url) {
       try {
-        const oldFileId = await getB2FileIdByPath(String(profile.photo_url));
+        const oldFileId = await getB2FileIdByPath(String(profile.avatar_url));
         if (oldFileId) {
-          await deleteB2File(String(profile.photo_url), oldFileId);
+          await deleteB2File(String(profile.avatar_url), oldFileId);
         }
       } catch { /* best-effort — do not block the upload */ }
     }
@@ -178,7 +178,7 @@ router.delete("/b2/profile-photo", requireAuth, async (req: AuthRequest, res) =>
     if (fileId) {
       await deleteB2File(storagePath, fileId);
     }
-    await supabase.from("profiles").update({ photo_url: null }).eq("id", userId);
+    await supabase.from("profiles").update({ avatar_url: null }).eq("id", userId);
     res.json({ message: "Profile photo removed" });
   } catch {
     res.status(500).json({ error: "Failed to remove profile photo" });

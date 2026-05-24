@@ -4,8 +4,6 @@ import { requireAuth, type AuthRequest } from "../middlewares/auth";
 
 const router = Router();
 
-const GATE_ORDER = ["lecture", "lecture_quiz", "dpp", "pyqs", "topic_test"] as const;
-
 router.post("/gate/check", requireAuth, async (req: AuthRequest, res) => {
   const { topic_id, step } = req.body as { topic_id: string; step: string };
   const userId = req.user!.id;

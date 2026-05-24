@@ -12,7 +12,6 @@ interface AuthState {
   setAuth: (session: Session | null) => void;
   setSessionExpired: (expired: boolean) => void;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (params: { email: string; password: string; options?: { data?: Record<string, unknown> } }) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -38,16 +37,6 @@ export const useAuth = create<AuthState>((set) => ({
   },
   signIn: async (email, password) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
-    return { error: error as Error | null }
-  },
-  signUp: async ({ email, password, options }) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: options?.data,
-      },
-    })
     return { error: error as Error | null }
   },
   signOut: async () => {

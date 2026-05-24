@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "iEgZaDwwrNiuPi-TfTDEH"
+uri = "file://AUDIT_REPORT.md"
+type = "text"
+title = "Full Production Code Audit Report"

@@ -80,7 +80,7 @@ export default function ProfilePage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [changingPwd, setChangingPwd] = useState(false);
 
-  const [photoUrl, setPhotoUrl] = useState<string | null>(user?.user_metadata?.photo_url || null);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(user?.user_metadata?.avatar_url || null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -185,8 +185,8 @@ export default function ProfilePage() {
         body: compressed,
       });
       if (!uploadRes.ok) throw new Error("Upload to storage failed");
-      await supabase.from("profiles").update({ photo_url: storage_path }).eq("id", user!.id);
-      await supabase.auth.updateUser({ data: { photo_url: storage_path } });
+      await supabase.from("profiles").update({ avatar_url: storage_path }).eq("id", user!.id);
+      await supabase.auth.updateUser({ data: { avatar_url: storage_path } });
       setPhotoUrl(URL.createObjectURL(compressed));
       toast({ title: "Photo updated!" });
     } catch (err: unknown) {
@@ -202,7 +202,7 @@ export default function ProfilePage() {
     try {
       await apiFetch("/b2/profile-photo", { method: "DELETE" });
     } catch { /* best-effort — profile update still proceeds */ }
-    await supabase.auth.updateUser({ data: { photo_url: null } });
+    await supabase.auth.updateUser({ data: { avatar_url: null } });
     toast({ title: "Photo removed" });
   }
 

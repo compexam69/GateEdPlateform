@@ -27,9 +27,16 @@ router.post("/subjects/:subjectId/chapters", requireAdmin, async (req: AuthReque
 });
 
 router.patch("/chapters/:chapterId", requireAdmin, async (req: AuthRequest, res) => {
+  const { title, description, order_index, is_active } = req.body;
+  const updates: Record<string, unknown> = {};
+  if (title !== undefined) updates["title"] = title;
+  if (description !== undefined) updates["description"] = description;
+  if (order_index !== undefined) updates["order_index"] = order_index;
+  if (is_active !== undefined) updates["is_active"] = is_active;
+  if (Object.keys(updates).length === 0) { res.status(400).json({ error: "No valid fields to update" }); return; }
   const { data, error } = await supabase
     .from("chapters")
-    .update(req.body)
+    .update(updates)
     .eq("id", req.params["chapterId"])
     .select()
     .single();

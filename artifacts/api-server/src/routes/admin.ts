@@ -303,7 +303,7 @@ router.get("/admin/gate-config", requireAdmin, async (req: AuthRequest, res) => 
 
   const config: Record<string, unknown> = {};
   for (const row of (data ?? []) as { key: string; value: unknown }[]) {
-    config[row.key] = typeof row.value === "object" ? row.value : row.value;
+    config[row.key] = row.value;
   }
   res.json(config);
 });

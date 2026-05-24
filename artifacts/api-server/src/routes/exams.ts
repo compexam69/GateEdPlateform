@@ -13,8 +13,7 @@ router.post("/exam/start", requireAuth, async (req: AuthRequest, res) => {
 
   // Per-user rate check: 5 per 60 seconds
   const now = Date.now();
-  const limiterKey = userId;
-  const limiterRecord = examStartLimiter.get(limiterKey);
+  const limiterRecord = examStartLimiter.get(userId);
   if (limiterRecord && now < limiterRecord.resetAt) {
     if (limiterRecord.count >= 5) {
       res.status(429).json({
@@ -25,7 +24,7 @@ router.post("/exam/start", requireAuth, async (req: AuthRequest, res) => {
     }
     limiterRecord.count++;
   } else {
-    examStartLimiter.set(limiterKey, { count: 1, resetAt: now + 60_000 });
+    examStartLimiter.set(userId, { count: 1, resetAt: now + 60_000 });
   }
 
   const { data: quiz, error: qErr } = await supabase

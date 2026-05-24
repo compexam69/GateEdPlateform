@@ -1,5 +1,6 @@
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -36,12 +37,13 @@ function RootRoute() {
   const { session, loading } = useAuth();
   const [, setLocation] = useLocation();
 
-  if (loading) return null;
+  useEffect(() => {
+    if (!loading && session) {
+      setLocation("/dashboard");
+    }
+  }, [loading, session, setLocation]);
 
-  if (session) {
-    setLocation("/dashboard");
-    return null;
-  }
+  if (loading || session) return null;
 
   return <OnboardingPage />;
 }
