@@ -118,6 +118,14 @@ export default function TrackerPage() {
       toast({ title: "Missing fields", description: "Exam name, date, score and total marks are required.", variant: "destructive" });
       return false;
     }
+    if (Number(form.total_marks) <= 0) {
+      toast({ title: "Invalid total marks", description: "Total marks must be greater than 0.", variant: "destructive" });
+      return false;
+    }
+    if (Number(form.score_obtained) > Number(form.total_marks)) {
+      toast({ title: "Invalid score", description: "Score obtained cannot exceed total marks.", variant: "destructive" });
+      return false;
+    }
     return true;
   }
 

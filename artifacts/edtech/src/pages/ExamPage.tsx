@@ -267,6 +267,31 @@ export default function ExamPage() {
     }
   }, [showWarning, toast]);
 
+  // Auto-submit on prolonged network disconnect (>10 minutes)
+  useEffect(() => {
+    if (loading || !session) return;
+    let offlineSince: number | null = null;
+
+    const handleOffline = () => { offlineSince = Date.now(); };
+    const handleOnline = () => { offlineSince = null; };
+
+    window.addEventListener("offline", handleOffline);
+    window.addEventListener("online", handleOnline);
+
+    const disconnectCheck = setInterval(() => {
+      if (offlineSince && Date.now() - offlineSince > 10 * 60 * 1000) {
+        toast({ title: "Auto-submitted", description: "Exam submitted after 10 minutes offline.", variant: "destructive" });
+        handleSubmit();
+      }
+    }, 30_000);
+
+    return () => {
+      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("online", handleOnline);
+      clearInterval(disconnectCheck);
+    };
+  }, [loading, session, handleSubmit, toast]);
+
   // Tab-switch detection
   useEffect(() => {
     if (loading) return;
@@ -465,7 +490,12 @@ export default function ExamPage() {
   const notVisited = questionStates.filter(q => q.status === "not-visited").length;
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div
+      className="min-h-screen bg-background flex flex-col select-none"
+      onCopy={e => e.preventDefault()}
+      onPaste={e => e.preventDefault()}
+      onContextMenu={e => e.preventDefault()}
+    >
       {/* Header */}
       <header className="h-16 border-b border-border bg-card flex items-center justify-between px-4 sm:px-6 shrink-0">
         <div className="font-bold text-base hidden sm:block truncate max-w-xs">

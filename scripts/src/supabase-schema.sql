@@ -574,3 +574,19 @@ create policy "push_subscriptions_own" on push_subscriptions
 drop policy if exists "push_subscriptions_service" on push_subscriptions;
 create policy "push_subscriptions_service" on push_subscriptions
   for all using (true) with check (true);
+
+-- ── Rate Limits (persisted auth rate limiting) ────────────────────────────────
+create table if not exists rate_limits (
+  id uuid primary key default gen_random_uuid(),
+  key text not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists rate_limits_key_created_idx on rate_limits(key, created_at);
+
+alter table rate_limits enable row level security;
+
+-- Service role only (Express API server manages this table directly)
+drop policy if exists "rate_limits_service" on rate_limits;
+create policy "rate_limits_service" on rate_limits
+  for all using (true) with check (true);

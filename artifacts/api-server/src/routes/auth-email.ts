@@ -2,32 +2,9 @@ import { Router } from "express";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
 import { sendWelcomeEmail } from "../lib/email";
 import { supabase } from "../lib/supabase";
+import { checkRateLimitDb } from "../middlewares/rateLimitDb";
 
 const router = Router();
-
-// ── Shared rate-limit helper ──────────────────────────────────────────────────
-const resendAttempts = new Map<string, { count: number; resetAt: number }>();
-const registrationAttempts = new Map<string, { count: number; resetAt: number }>();
-const pwdChangeAttempts = new Map<string, { count: number; resetAt: number }>();
-
-function checkRateLimit(
-  store: Map<string, { count: number; resetAt: number }>,
-  key: string,
-  max: number,
-  windowMs: number
-): { allowed: boolean; retryAfterMs: number } {
-  const now = Date.now();
-  const existing = store.get(key);
-  if (!existing || now > existing.resetAt) {
-    store.set(key, { count: 1, resetAt: now + windowMs });
-    return { allowed: true, retryAfterMs: 0 };
-  }
-  if (existing.count >= max) {
-    return { allowed: false, retryAfterMs: existing.resetAt - now };
-  }
-  existing.count++;
-  return { allowed: true, retryAfterMs: 0 };
-}
 
 // ── Welcome email ─────────────────────────────────────────────────────────────
 router.post("/auth/welcome", requireAuth, async (req: AuthRequest, res) => {
@@ -57,7 +34,7 @@ router.post("/auth/verify-email", async (req, res) => {
   }
 
   const normalised = email.toLowerCase().trim();
-  const { allowed, retryAfterMs } = checkRateLimit(resendAttempts, normalised, 3, 60 * 60 * 1000);
+  const { allowed, retryAfterMs } = await checkRateLimitDb(`resend:${normalised}`, 3, 60 * 60 * 1000);
   if (!allowed) {
     res.status(429).json({
       error: "Too many requests. You can request up to 3 verification emails per hour.",
@@ -83,7 +60,7 @@ router.post("/auth/register", async (req, res) => {
     req.socket.remoteAddress ||
     "unknown";
 
-  const { allowed, retryAfterMs } = checkRateLimit(registrationAttempts, ip, 10, 60 * 60 * 1000);
+  const { allowed, retryAfterMs } = await checkRateLimitDb(`register:${ip}`, 10, 60 * 60 * 1000);
   if (!allowed) {
     res.status(429).json({
       error: "Too many registration attempts from this IP. Please try again later.",
@@ -131,7 +108,7 @@ router.post("/auth/change-password", requireAuth, async (req: AuthRequest, res) 
   const userId = req.user!.id;
   const userEmail = req.user!.email!;
 
-  const { allowed, retryAfterMs } = checkRateLimit(pwdChangeAttempts, userId, 3, 60 * 60 * 1000);
+  const { allowed, retryAfterMs } = await checkRateLimitDb(`pwd-change:${userId}`, 3, 60 * 60 * 1000);
   if (!allowed) {
     res.status(429).json({
       error: "Too many password change attempts. Please try again in an hour.",
@@ -160,6 +137,11 @@ router.post("/auth/change-password", requireAuth, async (req: AuthRequest, res) 
     res.status(400).json({
       error: "New password must be at least 8 characters and contain uppercase, lowercase, number, and special character.",
     });
+    return;
+  }
+
+  if (current_password === new_password) {
+    res.status(400).json({ error: "New password cannot be the same as your current password." });
     return;
   }
 

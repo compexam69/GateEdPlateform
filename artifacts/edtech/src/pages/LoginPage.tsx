@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -25,9 +25,20 @@ const loginSchema = z.object({
 });
 
 export default function LoginPage() {
-  const { signIn } = useAuth();
+  const { signIn, sessionExpired, setSessionExpired } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (sessionExpired) {
+      toast({
+        title: "Session expired",
+        description: "Your session has expired. Please sign in again.",
+        variant: "destructive",
+      });
+      setSessionExpired(false);
+    }
+  }, [sessionExpired, setSessionExpired, toast]);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showVerificationBanner, setShowVerificationBanner] = useState(false);

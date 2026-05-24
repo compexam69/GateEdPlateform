@@ -20,6 +20,14 @@ router.post("/external-tests", requireAuth, async (req: AuthRequest, res) => {
     res.status(400).json({ error: "exam_name, exam_date, score_obtained, total_marks required" });
     return;
   }
+  if (Number(total_marks) <= 0) {
+    res.status(400).json({ error: "total_marks must be greater than 0" });
+    return;
+  }
+  if (Number(score_obtained) > Number(total_marks)) {
+    res.status(400).json({ error: "score_obtained cannot exceed total_marks" });
+    return;
+  }
   const { data, error } = await supabase
     .from("external_tests")
     .insert({ user_id: req.user!.id, exam_name, exam_date, score_obtained, total_marks, percentile, rank, notes })
@@ -33,6 +41,14 @@ router.patch("/external-tests/:testId", requireAuth, async (req: AuthRequest, re
   const { exam_name, exam_date, score_obtained, total_marks, percentile, rank, notes } = req.body;
   if (!exam_name || !exam_date || score_obtained === undefined || !total_marks) {
     res.status(400).json({ error: "exam_name, exam_date, score_obtained, total_marks required" });
+    return;
+  }
+  if (Number(total_marks) <= 0) {
+    res.status(400).json({ error: "total_marks must be greater than 0" });
+    return;
+  }
+  if (Number(score_obtained) > Number(total_marks)) {
+    res.status(400).json({ error: "score_obtained cannot exceed total_marks" });
     return;
   }
   const { data, error } = await supabase

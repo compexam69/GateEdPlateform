@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { supabase } from "../lib/supabase";
-import { getUploadPresignedUrl, getDownloadPresignedUrl, deleteB2File, generateStoragePath, generateProfilePhotoPath } from "../lib/b2";
+import { getUploadPresignedUrl, getDownloadPresignedUrl, deleteB2File, getB2FileIdByPath, generateStoragePath, generateProfilePhotoPath } from "../lib/b2";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
 
 const router = Router();
@@ -147,10 +147,41 @@ router.post("/b2/profile-upload-url", requireAuth, async (req: AuthRequest, res)
   const storagePath = generateProfilePhotoPath(userId);
   const expiry = new Date(Date.now() + 15 * 60 * 1000).toISOString();
   try {
+    // Delete old profile photo from B2 before issuing new upload URL (best-effort)
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("photo_url")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (profile?.photo_url) {
+      try {
+        const oldFileId = await getB2FileIdByPath(String(profile.photo_url));
+        if (oldFileId) {
+          await deleteB2File(String(profile.photo_url), oldFileId);
+        }
+      } catch { /* best-effort — do not block the upload */ }
+    }
+
     const { uploadUrl } = await getUploadPresignedUrl(storagePath);
     res.json({ upload_url: uploadUrl, storage_path: storagePath, expires_at: expiry });
   } catch {
     res.status(500).json({ error: "Failed to generate upload URL" });
+  }
+});
+
+router.delete("/b2/profile-photo", requireAuth, async (req: AuthRequest, res) => {
+  const userId = req.user!.id;
+  const storagePath = generateProfilePhotoPath(userId);
+  try {
+    const fileId = await getB2FileIdByPath(storagePath);
+    if (fileId) {
+      await deleteB2File(storagePath, fileId);
+    }
+    await supabase.from("profiles").update({ photo_url: null }).eq("id", userId);
+    res.json({ message: "Profile photo removed" });
+  } catch {
+    res.status(500).json({ error: "Failed to remove profile photo" });
   }
 });
 

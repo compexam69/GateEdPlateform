@@ -12,6 +12,7 @@ import { useAdminApproveUser, useAdminRejectUser } from "@workspace/api-client-r
 import { supabase } from "@/lib/supabase";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -20,6 +21,7 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const USERS_KEY = ["admin-users"];
 
@@ -135,6 +137,8 @@ export default function AdminUsersPage() {
     },
   });
 
+  const { user: currentUser, role: currentRole } = useAuth();
+
   const resetProgress = useMutation({
     mutationFn: ({ userId, scope }: { userId: string; scope: string }) =>
       apiFetch(`/admin/users/${userId}/reset-progress`, {
@@ -144,6 +148,19 @@ export default function AdminUsersPage() {
     onSuccess: () => {
       toast({ title: "Progress reset successfully" });
       setResetDialog(null);
+    },
+    onError: (err: unknown) => toast({ title: "Error", description: (err as Error).message, variant: "destructive" }),
+  });
+
+  const changeRole = useMutation({
+    mutationFn: ({ userId, role }: { userId: string; role: string }) =>
+      apiFetch(`/admin/users/${userId}/role`, {
+        method: "PATCH",
+        body: JSON.stringify({ role }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: USERS_KEY });
+      toast({ title: "Role updated successfully" });
     },
     onError: (err: unknown) => toast({ title: "Error", description: (err as Error).message, variant: "destructive" }),
   });
@@ -248,6 +265,24 @@ export default function AdminUsersPage() {
             >
               <CheckCircle className="w-4 h-4 mr-1" /> Reinstate
             </Button>
+          )}
+
+          {/* Role change (super_admin only, not for self) */}
+          {currentRole === "super_admin" && userId !== currentUser?.id && (
+            <Select
+              value={role}
+              onValueChange={(newRole) => changeRole.mutate({ userId, role: newRole })}
+              disabled={changeRole.isPending}
+            >
+              <SelectTrigger className="h-8 w-[130px] text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="student">Student</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="super_admin">Super Admin</SelectItem>
+              </SelectContent>
+            </Select>
           )}
 
           {/* Reset Progress dropdown (students only) */}

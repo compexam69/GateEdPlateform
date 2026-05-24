@@ -199,7 +199,9 @@ export default function ProfilePage() {
 
   async function handleRemovePhoto() {
     setPhotoUrl(null);
-    await supabase.from("profiles").update({ photo_url: null }).eq("id", user!.id);
+    try {
+      await apiFetch("/b2/profile-photo", { method: "DELETE" });
+    } catch { /* best-effort — profile update still proceeds */ }
     await supabase.auth.updateUser({ data: { photo_url: null } });
     toast({ title: "Photo removed" });
   }

@@ -90,6 +90,75 @@ router.post("/admin/users/:userId/reject", requireAdmin, async (req: AuthRequest
   res.json({ message: "User rejected/banned" });
 });
 
+router.patch("/admin/users/:userId/role", requireAdmin, async (req: AuthRequest, res) => {
+  const targetUserId = String(req.params["userId"]);
+  const actorId = req.user!.id;
+  const { role } = req.body as { role?: string };
+
+  const VALID_ROLES = ["student", "admin", "super_admin"];
+  if (!role || !VALID_ROLES.includes(role)) {
+    res.status(400).json({ error: `role must be one of: ${VALID_ROLES.join(", ")}` });
+    return;
+  }
+
+  if (targetUserId === actorId) {
+    res.status(403).json({ error: "You cannot change your own role." });
+    return;
+  }
+
+  const { data: actorProfile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", actorId)
+    .maybeSingle();
+
+  if (actorProfile?.role !== "super_admin") {
+    res.status(403).json({ error: "Only super admins can change user roles." });
+    return;
+  }
+
+  const { data: targetProfile } = await supabase
+    .from("profiles")
+    .select("role, full_name")
+    .eq("id", targetUserId)
+    .maybeSingle();
+
+  if (!targetProfile) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
+  // Sole super_admin protection: cannot demote the last super_admin
+  if (targetProfile.role === "super_admin" && role !== "super_admin") {
+    const { count } = await supabase
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .eq("role", "super_admin");
+    if ((count ?? 0) <= 1) {
+      res.status(403).json({ error: "Cannot demote the sole super admin. Promote another user first." });
+      return;
+    }
+  }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ role })
+    .eq("id", targetUserId);
+  if (error) { res.status(500).json({ error: error.message }); return; }
+
+  await supabase.auth.admin.updateUserById(targetUserId, {
+    user_metadata: { role },
+  });
+
+  await writeAuditLog(actorId, "role_changed", "profile", targetUserId, {
+    from_role: targetProfile.role,
+    to_role: role,
+    target_name: targetProfile.full_name,
+  });
+
+  res.json({ message: `Role updated to ${role}`, user_id: targetUserId, role });
+});
+
 router.post("/admin/users/:userId/reset-progress", requireAdmin, async (req: AuthRequest, res) => {
   const { scope, reference_id } = req.body as { scope: string; reference_id?: string };
   const userId = String(req.params["userId"]);

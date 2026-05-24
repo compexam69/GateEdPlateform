@@ -76,6 +76,23 @@ export async function deleteB2File(storagePath: string, fileId: string): Promise
   });
 }
 
+export async function getB2FileIdByPath(storagePath: string): Promise<string | null> {
+  await authorizeB2();
+  try {
+    const res = await fetch(`${apiUrl}/b2api/v2/b2_list_file_versions`, {
+      method: "POST",
+      headers: { Authorization: authToken!, "Content-Type": "application/json" },
+      body: JSON.stringify({ bucketId, prefix: storagePath, maxFileCount: 1 }),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { files: { fileId: string; fileName: string }[] };
+    const file = data.files?.find(f => f.fileName === storagePath);
+    return file?.fileId ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export function generateStoragePath(userId: string, chapterId: string, filename: string): string {
   const timestamp = Date.now();
   const safe = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
