@@ -1,0 +1,108 @@
+Your task is to implement all remaining external-service-based features in the existing project.
+
+Remaining Features To Implement:
+
+1. Resend Email Integration
+
+   * Welcome emails
+   * Approval emails
+   * Password reset emails
+   * Proper reusable email service architecture
+   * Environment variable support using:
+     RESEND_API_KEY
+
+2. Sentry Error Monitoring
+
+   * Frontend error tracking
+   * Backend/API error logging
+   * Global error boundary integration
+   * Production-safe monitoring setup
+   * Environment variable support using:
+     SENTRY_DSN
+
+3. Web Push Notifications
+
+   * Browser push notification support
+   * VAPID key pair generation
+   * Push subscription handling
+   * Notification permission flow
+   * Notification sending service
+   * Supabase subscription management table
+   * Environment variables:
+     VAPID_PUBLIC_KEY
+     VAPID_PRIVATE_KEY
+     VAPID_SUBJECT
+
+IMPORTANT:
+I have zero prior knowledge, so guide me in extremely detailed step-by-step format.
+
+For EACH external service:
+
+* Explain what the service does
+* Explain why it is needed
+* Explain whether it is frontend/backend/both
+* Explain free-tier limitations
+* Explain every account setup step
+* Explain where to click
+* Explain what settings to enable/disable
+* Explain what values to copy
+* Explain where to paste credentials
+* Explain how to store environment variables
+* Explain testing process
+* Explain common beginner mistakes
+* Explain security precautions
+
+For Resend:
+
+* Guide me from creating account to generating RESEND_API_KEY
+* Explain domain verification
+* Explain sandbox/testing limitations
+* Explain how to send first test email
+
+For Sentry:
+
+* Guide me from account creation to obtaining SENTRY_DSN
+* Explain project creation
+* Explain frontend/backend SDK installation
+* Explain production monitoring configuration
+* Explain how to verify errors are reaching dashboard
+
+For Web Push Notifications:
+
+* Guide me to generate VAPID key pair
+* Explain service worker setup
+* Explain browser permission flow
+* Explain push subscription storage
+* Explain notification sending architecture
+* Create required Supabase SQL table
+* Explain how to test notifications locally and in production
+
+Implementation Requirements:
+
+* Analyze the entire existing codebase first
+* Reuse existing architecture and coding patterns
+* Avoid duplicate services or redundant files
+* Follow production-ready structure
+* Use modular reusable architecture
+* Add proper TypeScript types
+* Add error handling and logging
+* Add environment variable validation
+* Add setup instructions inside README if needed
+
+IMPORTANT:
+Do NOT implement everything blindly at once.
+First:
+
+1. Analyze existing codebase deeply
+2. Identify where each integration should be added
+3. Explain required setup steps for each service
+4. Ask me for credentials only when needed
+5. Then implement features incrementally in safe modular phases
+
+Also:
+
+* Check for existing notification/email/error-monitoring code
+* Remove redundant implementations if found
+* Ensure compatibility with current Supabase/serverless architecture
+* Ensure implementation works on Replit and Vercel deployment
+* Keep free-tier AI limitations in mind and work in manageable phases

@@ -4,6 +4,11 @@ import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { rateLimit } from "./middlewares/rateLimit";
+import { initSentry, setupSentryErrorHandler } from "./lib/sentry";
+import { initWebPush } from "./lib/push";
+
+initSentry();
+initWebPush();
 
 const app: Express = express();
 
@@ -38,5 +43,8 @@ app.use("/api/b2/profile-upload-url", rateLimit(5, 3_600_000));
 // General API rate limit: 200 req/min per IP
 app.use("/api", rateLimit(200, 60_000));
 app.use("/api", router);
+
+// Sentry error handler — MUST be after all routes
+setupSentryErrorHandler(app);
 
 export default app;

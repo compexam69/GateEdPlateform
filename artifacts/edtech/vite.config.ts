@@ -15,21 +15,13 @@ export default defineConfig({
     tailwindcss(),
     runtimeErrorOverlay(),
     VitePWA({
+      strategies: "injectManifest",
+      srcDir: "src",
+      filename: "sw.ts",
       registerType: "autoUpdate",
       injectRegister: "auto",
-      workbox: {
+      injectManifest: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webp}"],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
-            handler: "NetworkFirst",
-            options: {
-              cacheName: "supabase-cache",
-              expiration: { maxEntries: 50, maxAgeSeconds: 300 },
-            },
-          },
-        ],
-        navigateFallback: null,
       },
       manifest: {
         name: "EdTech Study Platform",
@@ -45,6 +37,9 @@ export default defineConfig({
         icons: [
           { src: "/favicon.svg", sizes: "any", type: "image/svg+xml", purpose: "any maskable" },
         ],
+      },
+      devOptions: {
+        enabled: false,
       },
     }),
     ...(process.env.NODE_ENV !== "production" &&

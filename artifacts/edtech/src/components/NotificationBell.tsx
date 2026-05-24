@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Bell, X, CheckCheck, Info, AlertCircle, Sparkles, UserCheck } from "lucide-react";
+import { Bell, X, CheckCheck, Info, AlertCircle, Sparkles, UserCheck, BellOff, BellRing } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { getApiBase } from "@/lib/api";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 interface Notification {
   id: string;
@@ -41,6 +42,7 @@ export function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const push = usePushNotifications();
 
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
@@ -163,6 +165,32 @@ export function NotificationBell() {
               </button>
             </div>
           </div>
+
+          {push.supported && push.permission !== "denied" && (
+            <div className="px-4 py-2.5 border-b border-border bg-muted/30 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 min-w-0">
+                {push.isSubscribed
+                  ? <BellRing className="w-3.5 h-3.5 text-success shrink-0" />
+                  : <BellOff className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                }
+                <span className="text-xs text-muted-foreground truncate">
+                  {push.isSubscribed ? "Push notifications on" : "Enable push notifications"}
+                </span>
+              </div>
+              <button
+                onClick={() => push.isSubscribed ? push.unsubscribe() : push.subscribe()}
+                disabled={push.loading}
+                className={cn(
+                  "text-xs font-medium px-2.5 py-1 rounded-md shrink-0 transition-colors",
+                  push.isSubscribed
+                    ? "text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    : "text-primary hover:bg-primary/10"
+                )}
+              >
+                {push.loading ? "..." : push.isSubscribed ? "Turn off" : "Turn on"}
+              </button>
+            </div>
+          )}
 
           <div className="max-h-80 overflow-y-auto">
             {loading && notifications.length === 0 ? (

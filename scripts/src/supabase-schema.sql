@@ -515,3 +515,28 @@ create policy "notifications_insert_service" on notifications
 -- ── Migrations (safe to run multiple times on existing DBs) ───────────────────
 -- Add drag-and-drop ordering to study_tasks (run in Supabase SQL Editor if upgrading)
 alter table study_tasks add column if not exists order_index int not null default 0;
+
+-- ── Web Push Subscriptions ────────────────────────────────────────────────────
+create table if not exists push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references profiles(id) on delete cascade,
+  endpoint text not null,
+  keys_p256dh text not null,
+  keys_auth text not null,
+  user_agent text,
+  created_at timestamptz not null default now(),
+  unique(user_id, endpoint)
+);
+
+create index if not exists push_subscriptions_user_id_idx on push_subscriptions(user_id);
+
+alter table push_subscriptions enable row level security;
+
+drop policy if exists "push_subscriptions_own" on push_subscriptions;
+create policy "push_subscriptions_own" on push_subscriptions
+  for all using (auth.uid() = user_id);
+
+-- Service role full access (API server manages subscriptions)
+drop policy if exists "push_subscriptions_service" on push_subscriptions;
+create policy "push_subscriptions_service" on push_subscriptions
+  for all using (true) with check (true);

@@ -28,6 +28,7 @@ import AdminAnalyticsPage from "@/pages/admin/AdminAnalyticsPage";
 import AdminQuizzesPage from "@/pages/admin/AdminQuizzesPage";
 import AdminGatePage from "@/pages/admin/AdminGatePage";
 import NotFound from "@/pages/not-found";
+import { SentryErrorBoundary } from "@/components/SentryErrorBoundary";
 
 const queryClient = new QueryClient();
 
@@ -80,14 +81,16 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
-        </WouterRouter>
-        <Toaster />
-      </TooltipProvider>
-    </QueryClientProvider>
+    <SentryErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <Router />
+          </WouterRouter>
+          <Toaster />
+        </TooltipProvider>
+      </QueryClientProvider>
+    </SentryErrorBoundary>
   );
 }
 

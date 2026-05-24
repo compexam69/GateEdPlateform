@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { supabase } from "../lib/supabase";
 import { requireAdmin, type AuthRequest } from "../middlewares/auth";
+import { sendApprovalEmail } from "../lib/email";
 
 const router = Router();
 
@@ -46,7 +47,14 @@ router.post("/admin/users/:userId/approve", requireAdmin, async (req: AuthReques
     user_metadata: { is_approved: true, status: "active" },
   });
 
-  // Notification + audit log (best-effort)
+  // Fetch user profile for email
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name, email")
+    .eq("id", userId)
+    .maybeSingle();
+
+  // Notification + audit log + email (best-effort)
   await Promise.allSettled([
     supabase.from("notifications").insert({
       user_id: userId,
@@ -57,6 +65,7 @@ router.post("/admin/users/:userId/approve", requireAdmin, async (req: AuthReques
       created_at: new Date().toISOString(),
     }),
     writeAuditLog(req.user!.id, "user_approved", "profile", userId, { status: "active" }),
+    profile ? sendApprovalEmail(profile.email, profile.full_name ?? "Student") : Promise.resolve(),
   ]);
 
   res.json({ message: "User approved" });
@@ -76,7 +85,7 @@ router.post("/admin/users/:userId/reject", requireAdmin, async (req: AuthRequest
 
 router.post("/admin/users/:userId/reset-progress", requireAdmin, async (req: AuthRequest, res) => {
   const { scope, reference_id } = req.body as { scope: string; reference_id?: string };
-  const userId = req.params["userId"];
+  const userId = String(req.params["userId"]);
 
   if (scope === "all") {
     await supabase.from("user_topic_progress").delete().eq("user_id", userId);

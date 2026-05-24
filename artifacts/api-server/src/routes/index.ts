@@ -12,6 +12,8 @@ import externalTestsRouter from "./external-tests";
 import adminRouter from "./admin";
 import dashboardRouter from "./dashboard";
 import notificationsRouter from "./notifications";
+import pushRouter from "./push";
+import authEmailRouter from "./auth-email";
 
 const router: IRouter = Router();
 
@@ -28,5 +30,7 @@ router.use(tasksRouter);
 router.use(externalTestsRouter);
 router.use(adminRouter);
 router.use(notificationsRouter);
+router.use(pushRouter);
+router.use(authEmailRouter);
 
 export default router;

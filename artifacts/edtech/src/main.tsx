@@ -3,6 +3,9 @@ import App from "./App";
 import "./index.css";
 import { setAuthTokenGetter } from "@workspace/api-client-react";
 import { supabase } from "./lib/supabase";
+import { initSentry } from "./lib/sentry";
+
+initSentry();
 
 setAuthTokenGetter(async () => {
   const { data } = await supabase.auth.getSession();
