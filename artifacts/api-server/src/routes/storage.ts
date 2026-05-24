@@ -7,19 +7,6 @@ const router = Router();
 
 const PER_USER_LIMIT = 500 * 1024 * 1024; // 500 MB
 
-// In-memory rate limiters (reset on server restart, adequate for single-instance)
-const pdfUploadLog = new Map<string, number[]>();
-const photoUploadLog = new Map<string, number[]>();
-
-function checkRateLimit(log: Map<string, number[]>, key: string, maxCount: number, windowMs: number): boolean {
-  const now = Date.now();
-  const hits = (log.get(key) ?? []).filter(t => now - t < windowMs);
-  if (hits.length >= maxCount) return false;
-  hits.push(now);
-  log.set(key, hits);
-  return true;
-}
-
 router.get("/notes", requireAuth, async (req: AuthRequest, res) => {
   const { data, error } = await supabase
     .from("user_notes")
@@ -50,12 +37,6 @@ router.delete("/notes/:noteId", requireAuth, async (req: AuthRequest, res) => {
 router.post("/b2/upload-url", requireAuth, async (req: AuthRequest, res) => {
   const { chapter_id, filename, content_type, size_bytes, file_hash } = req.body;
   const userId = req.user!.id;
-
-  // Rate limit: 5 PDF uploads per user per hour
-  if (!checkRateLimit(pdfUploadLog, userId, 5, 60 * 60 * 1000)) {
-    res.status(429).json({ error: "Too many upload requests. Maximum 5 PDF uploads per hour." });
-    return;
-  }
 
   const { data: chapter_progress } = await supabase
     .from("user_chapter_progress")
@@ -137,12 +118,6 @@ router.post("/b2/download-url", requireAuth, async (req: AuthRequest, res) => {
 
 router.post("/b2/profile-upload-url", requireAuth, async (req: AuthRequest, res) => {
   const userId = req.user!.id;
-
-  // Rate limit: 5 profile photo uploads per user per hour
-  if (!checkRateLimit(photoUploadLog, userId, 5, 60 * 60 * 1000)) {
-    res.status(429).json({ error: "Too many upload requests. Maximum 5 photo uploads per hour." });
-    return;
-  }
 
   const storagePath = generateProfilePhotoPath(userId);
   const expiry = new Date(Date.now() + 15 * 60 * 1000).toISOString();

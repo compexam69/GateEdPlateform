@@ -1,30 +1,22 @@
 import { Router } from "express";
 import { supabase } from "../lib/supabase";
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth";
+import { checkRateLimitDb } from "../middlewares/rateLimitDb";
 
 const router = Router();
-
-// Per-user exam start rate limiter: max 5 starts/minute/user
-const examStartLimiter = new Map<string, { count: number; resetAt: number }>();
 
 router.post("/exam/start", requireAuth, async (req: AuthRequest, res) => {
   const { quiz_id } = req.body as { quiz_id: string };
   const userId = req.user!.id;
 
-  // Per-user rate check: 5 per 60 seconds
-  const now = Date.now();
-  const limiterRecord = examStartLimiter.get(userId);
-  if (limiterRecord && now < limiterRecord.resetAt) {
-    if (limiterRecord.count >= 5) {
-      res.status(429).json({
-        error: "Too many quiz attempts. Please wait a minute before trying again.",
-        retryAfter: Math.ceil((limiterRecord.resetAt - now) / 1000),
-      });
-      return;
-    }
-    limiterRecord.count++;
-  } else {
-    examStartLimiter.set(userId, { count: 1, resetAt: now + 60_000 });
+  // Per-user persistent rate check: 5 starts/minute (survives server restarts)
+  const { allowed, retryAfterMs } = await checkRateLimitDb(`exam-start:${userId}`, 5, 60_000);
+  if (!allowed) {
+    res.status(429).json({
+      error: "Too many quiz attempts. Please wait a minute before trying again.",
+      retryAfter: Math.ceil(retryAfterMs / 1000),
+    });
+    return;
   }
 
   const { data: quiz, error: qErr } = await supabase

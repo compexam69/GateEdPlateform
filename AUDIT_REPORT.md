@@ -228,33 +228,34 @@ const limiterRecord = examStartLimiter.get(limiterKey);
 ---
 
 **OpenTelemetry Instrumentation Packages:**  
-15+ `@opentelemetry/instrumentation-*` packages are installed (http, express, pg, redis, mongodb, mysql2, bunyan, connect, fastify, generic-pool, graphql, hapi, ioredis, knex, koa, memcached, winston…). None of them are initialized. The API server bootstraps Sentry with `skipOpenTelemetrySetup: true`. These packages are never touched at runtime.
+15+ `@opentelemetry/instrumentation-*` packages are listed in `api-server/package.json`. Investigation revealed these are **not removable** — `@sentry/node` v10 auto-instruments many frameworks and imports these packages at runtime via dynamic requires. Because esbuild externalizes `@opentelemetry/*` (they are in the `external` array in `build.mjs`), they must be present in `node_modules` at server startup. Removing them causes `ERR_MODULE_NOT_FOUND` at boot.
 
-**Action required:**  
-Either initialize OpenTelemetry properly in a `src/instrumentation.ts` loaded before any other module, OR uninstall all unused `@opentelemetry/instrumentation-*` packages to reduce the install footprint by ~40 MB.
+**Status:** Retained as required Sentry peer dependencies. No action needed.  
+**Genuine cleanup opportunity:** The `@opentelemetry/instrumentation-amqplib`, `instrumentation-kafkajs`, `instrumentation-tedious`, `instrumentation-oracledb` packages (message queues and database drivers not used in this stack) *could* be replaced by configuring Sentry's `integrations` array to opt-out of specific auto-instrumentations. This is a minor optimization for a future sprint.
 
 ---
 
-### A10 — ADVISORY: Three Separate Rate-Limiting Implementations
+### A10 — ADVISORY: Redundant In-Memory Rate Limiters
 
-**Severity:** Advisory — maintainability risk
+**Severity:** Advisory → Fixed
 
-The codebase has three distinct rate-limiting systems:
+The codebase had three rate-limiting implementations:
 
 | Location | Type | Scope | Resets on restart |
 |---|---|---|---|
-| `lib/rateLimit.ts` | In-memory Map | IP-based, global routes | Yes |
-| `lib/rateLimitDb.ts` | Supabase-backed | Email-based, auth routes | No |
-| Inline Map in `exams.ts` | In-memory Map | User ID-based, exam start | Yes |
+| `middlewares/rateLimit.ts` | In-memory Map | IP-based, applied in `app.ts` | Yes |
+| `middlewares/rateLimitDb.ts` | Supabase-backed | User/email-based, auth routes | No |
+| Inline Map in `exams.ts` | In-memory Map | User ID-based, exam start | Yes — **fixed** |
+| Inline Maps in `storage.ts` | In-memory Map | User ID-based, B2 uploads | Yes — **fixed** |
 
-Additionally, `storage.ts` has two more inline Maps (`pdfUploadLog`, `photoUploadLog`) for file upload rate limiting.
+**Changes made:**
 
-**Risks:**
-- Horizontal scaling (multiple instances) will break in-memory limiters — users can bypass them by hitting a different instance.
-- Three implementations mean rate-limit bypass logic could differ subtly between endpoints.
+- **`storage.ts`**: Removed the inline `pdfUploadLog`, `photoUploadLog` Maps and `checkRateLimit` helper entirely. These were redundant — `app.ts` already applies `rateLimit(5, 3_600_000)` via middleware to both `/api/b2/upload-url` and `/api/b2/profile-upload-url` at the same threshold (5/hour). The per-user storage quota check is the real enforcement mechanism anyway.
 
-**Action required (future refactor):**  
-Consolidate all rate limiting onto `rateLimitDb.ts` (the Supabase-backed implementation). This is the only one that survives server restarts and scales horizontally. The exam and file upload rate limits are the highest-risk and should be migrated first.
+- **`exams.ts`**: Migrated from an in-memory `examStartLimiter` Map to `checkRateLimitDb("exam-start:{userId}", 5, 60_000)`. The per-user exam start limit (5 attempts/min) is genuine protection — a student should not be able to rapidly restart exams — and it now persists across server restarts.
+
+**Remaining:**  
+The IP-based `middlewares/rateLimit.ts` is appropriate for global route protection and intentionally stays in-memory (it's a first-line DoS defence, not a business logic rule). This is now the only in-memory rate limiter in the codebase.
 
 ---
 
