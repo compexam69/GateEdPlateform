@@ -110,7 +110,7 @@ export default function ExamResultPage() {
             <Link href="/dashboard"><ArrowLeft className="w-4 h-4" /></Link>
           </Button>
           <div className="flex-1">
-            <h1 className="text-3xl font-bold tracking-tight">Exam Results</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Exam Results</h1>
           </div>
           <Badge variant={passed ? "default" : "destructive"} className={`text-base px-4 py-1 ${passed ? "bg-success text-success-foreground" : ""}`}>
             {passed ? "PASSED" : "FAILED"}
@@ -118,8 +118,8 @@ export default function ExamResultPage() {
         </div>
 
         {/* Score Cards */}
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card className="bg-card col-span-2 md:col-span-1">
+        <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+          <Card className="bg-card">
             <CardContent className="p-4 text-center">
               <div className={`text-4xl font-bold ${passed ? "text-success" : "text-destructive"}`}>{scorePercent}%</div>
               <p className="text-sm text-muted-foreground mt-1">Score ({score}/{totalMarks})</p>

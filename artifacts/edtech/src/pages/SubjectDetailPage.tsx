@@ -138,14 +138,14 @@ export default function SubjectDetailPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex items-center space-x-4">
-          <Button variant="ghost" size="icon" asChild>
+        <div className="flex items-start gap-3">
+          <Button variant="ghost" size="icon" className="shrink-0 mt-0.5" asChild>
             <Link href="/subjects">
               <ArrowLeft className="w-4 h-4" />
             </Link>
           </Button>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">{subject?.title || "Subject"}</h1>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{subject?.title || "Subject"}</h1>
             <p className="text-muted-foreground mt-1">{subject?.description || "Select a chapter to continue"}</p>
           </div>
         </div>

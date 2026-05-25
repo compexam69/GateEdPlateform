@@ -17,7 +17,7 @@ export default function AdminPage() {
     <AppLayout requireAdmin>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Admin Dashboard</h1>
           <p className="text-muted-foreground mt-1">Platform management and configuration.</p>
         </div>
 

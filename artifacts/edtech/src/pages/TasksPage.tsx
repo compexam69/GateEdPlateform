@@ -261,7 +261,7 @@ export default function TasksPage() {
       <div className="space-y-6 max-w-3xl mx-auto">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Study Planner</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Study Planner</h1>
             <p className="text-muted-foreground mt-1">{counts.pending + counts.in_progress} active · {counts.completed} completed</p>
           </div>
           <div className="flex gap-2">

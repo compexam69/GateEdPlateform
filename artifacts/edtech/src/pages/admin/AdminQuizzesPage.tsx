@@ -93,9 +93,9 @@ export default function AdminQuizzesPage() {
   return (
     <AppLayout requireAdmin>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-start justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Quiz & Question Editor</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Quiz & Question Editor</h1>
             <p className="text-muted-foreground mt-1">Create and manage quizzes, questions, and video solutions.</p>
           </div>
           <Button onClick={() => setQuizDialog({ open: true })}>

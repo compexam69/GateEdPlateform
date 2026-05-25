@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Pause, Play, ChevronLeft, ChevronRight, AlertTriangle, RotateCcw } from "lucide-react";
+import { Pause, Play, ChevronLeft, ChevronRight, AlertTriangle, RotateCcw, ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useStartExam, useSubmitExam } from "@workspace/api-client-react";
 import type { ExamSession, Question } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
@@ -39,6 +40,7 @@ export default function ExamPage() {
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
   const [showResumeBanner, setShowResumeBanner] = useState(false);
   const [draft, setDraft] = useState<DraftState | null>(null);
+  const [mobilePaletteOpen, setMobilePaletteOpen] = useState(false);
 
   const questionStartTime = useRef(Date.now());
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -577,10 +579,56 @@ export default function ExamPage() {
           <p className="text-xs text-muted-foreground/50 text-center mt-4 hidden sm:block">
             Arrow keys to navigate · 1–4 to select option · M to mark · Enter to save & next
           </p>
+
+          {/* Mobile Question Palette */}
+          <div className="md:hidden mt-4 border-t border-border pt-3">
+            <button
+              onClick={() => setMobilePaletteOpen(v => !v)}
+              className="w-full flex items-center justify-between text-sm font-medium py-1"
+            >
+              <span className="text-muted-foreground">
+                Palette · <span className={answered === questionStates.length ? "text-success" : "text-foreground"}>{answered}/{questionStates.length}</span> answered
+              </span>
+              <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform duration-200", mobilePaletteOpen && "rotate-180")} />
+            </button>
+            {mobilePaletteOpen && (
+              <div className="mt-3 space-y-4 pb-2">
+                <div className="grid grid-cols-6 gap-1.5">
+                  {questionStates.map((q, i) => (
+                    <button
+                      key={i}
+                      onClick={() => { goToQuestion(i); setMobilePaletteOpen(false); }}
+                      className={cn(
+                        "h-9 rounded text-xs font-medium border transition-all",
+                        statusColor[q.status],
+                        i === currentIdx ? "ring-2 ring-primary ring-offset-1 ring-offset-card" : ""
+                      )}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                  <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-success/20 border border-success/30 shrink-0" /><span>{answered} Answered</span></div>
+                  <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-destructive/20 border border-destructive/30 shrink-0" /><span>{notAnswered} Not Answered</span></div>
+                  <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-warning/20 border border-warning/30 shrink-0" /><span>{markedForReview} Marked</span></div>
+                  <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-muted border border-border shrink-0" /><span>{notVisited} Not Visited</span></div>
+                </div>
+                <Button
+                  variant="destructive"
+                  className="w-full"
+                  onClick={handleSubmit}
+                  disabled={submitting}
+                >
+                  {submitting ? "Submitting..." : `Submit (${answered}/${questionStates.length})`}
+                </Button>
+              </div>
+            )}
+          </div>
         </main>
 
-        {/* Sidebar palette */}
-        <aside className="w-full md:w-72 border-t md:border-t-0 md:border-l border-border bg-card p-4 shrink-0 overflow-y-auto flex flex-col gap-4">
+        {/* Sidebar palette — desktop only */}
+        <aside className="hidden md:flex md:w-72 md:border-l border-border bg-card p-4 shrink-0 overflow-y-auto flex-col gap-4">
           <div>
             <p className="font-semibold mb-3 text-sm">Question Palette</p>
             <div className="grid grid-cols-5 gap-1.5">

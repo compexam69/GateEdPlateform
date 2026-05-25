@@ -114,24 +114,24 @@ export default function DashboardPage() {
     <AppLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
             Welcome back, {user?.user_metadata?.full_name?.split(" ")[0] || "Student"}
           </h1>
           <p className="text-muted-foreground mt-1">Here's your learning overview for today.</p>
         </div>
 
         {/* Stat Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
           {statCards.map((stat) => {
             const Icon = stat.icon;
             return (
               <Card key={stat.title} className="bg-card">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">{stat.title}</CardTitle>
-                  <Icon className={`w-4 h-4 ${stat.color}`} />
+                <CardHeader className="flex flex-row items-center justify-between pb-2 p-4 sm:p-6">
+                  <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground leading-tight">{stat.title}</CardTitle>
+                  <Icon className={`w-4 h-4 ${stat.color} shrink-0`} />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stat.value}</div>
+                <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6 pt-0">
+                  <div className="text-xl sm:text-2xl font-bold">{stat.value}</div>
                 </CardContent>
               </Card>
             );

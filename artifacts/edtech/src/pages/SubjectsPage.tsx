@@ -64,7 +64,7 @@ export default function SubjectsPage() {
     <AppLayout>
       <div className="space-y-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Learning Path</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Learning Path</h1>
           <p className="text-muted-foreground mt-2">Select a subject to begin your mastery journey.</p>
         </div>
 

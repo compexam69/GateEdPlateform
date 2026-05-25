@@ -264,7 +264,7 @@ export default function ProfilePage() {
   return (
     <AppLayout>
       <div className="max-w-2xl mx-auto space-y-6">
-        <h1 className="text-3xl font-bold tracking-tight">Profile Settings</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Profile Settings</h1>
 
         <Card className="bg-card">
           <CardContent className="p-6">

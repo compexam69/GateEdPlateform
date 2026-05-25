@@ -221,9 +221,9 @@ export default function TrackerPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-start justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Test Tracker</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Test Tracker</h1>
             <p className="text-muted-foreground mt-1">Log your external mock tests and track progress.</p>
           </div>
           <Button onClick={() => setShowAdd(true)}><Plus className="w-4 h-4 mr-2" /> Log Test</Button>
@@ -295,7 +295,41 @@ export default function TrackerPage() {
           <Card>
             <CardHeader><CardTitle>External Test History</CardTitle></CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
+              {/* Mobile card view */}
+              <div className="sm:hidden space-y-3">
+                {sortedTestsDesc.map((test: ExternalTest, idx: number) => {
+                  const pct = Math.round((test.score_obtained / test.total_marks) * 100);
+                  const trend = getTrend(idx, sortedTestsDesc);
+                  return (
+                    <div key={test.id} className="p-3 rounded-lg border border-border space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm truncate">{test.exam_name}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{format(new Date(test.exam_date), "MMM d, yyyy")}</p>
+                        </div>
+                        <div className="flex items-center gap-0.5 shrink-0">
+                          {trend === "up" && <TrendingUp className="w-4 h-4 text-success" />}
+                          {trend === "down" && <TrendingDown className="w-4 h-4 text-destructive" />}
+                          {trend === "same" && <Minus className="w-4 h-4 text-muted-foreground" />}
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => openEdit(test)}>
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => deleteTest.mutate({ testId: test.id })}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 text-sm flex-wrap">
+                        <span className="font-medium">{test.score_obtained}/{test.total_marks} <span className="text-muted-foreground">({pct}%)</span></span>
+                        {test.percentile != null && <span className="text-success font-medium">{test.percentile}ile</span>}
+                        {test.rank != null && <span className="text-muted-foreground text-xs">Rank #{test.rank}</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {/* Desktop table view */}
+              <div className="hidden sm:block overflow-x-auto">
                 <table className="w-full text-sm text-left">
                   <thead className="text-xs text-muted-foreground uppercase bg-muted/50">
                     <tr>

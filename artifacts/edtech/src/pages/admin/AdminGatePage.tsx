@@ -108,7 +108,7 @@ export default function AdminGatePage() {
       <div className="space-y-6 max-w-2xl mx-auto">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2">
               <Settings2 className="w-7 h-7 text-primary" />
               Gate Configuration
             </h1>

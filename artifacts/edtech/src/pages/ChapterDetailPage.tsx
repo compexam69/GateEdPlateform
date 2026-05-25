@@ -115,12 +115,12 @@ export default function ChapterDetailPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex items-center space-x-4">
-          <Button variant="ghost" size="icon" onClick={() => window.history.back()}>
+        <div className="flex items-start gap-3">
+          <Button variant="ghost" size="icon" className="shrink-0 mt-0.5" onClick={() => window.history.back()}>
             <ArrowLeft className="w-4 h-4" />
           </Button>
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold tracking-tight">{chapter?.title || "Chapter Topics"}</h1>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{chapter?.title || "Chapter Topics"}</h1>
             <p className="text-muted-foreground mt-1">
               {chapter?.description || "Complete topics in order to unlock the next one."}
             </p>

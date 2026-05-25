@@ -89,7 +89,7 @@ export default function AdminRateLimitsPage() {
       <div className="space-y-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Rate Limit Monitor</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Rate Limit Monitor</h1>
             <p className="text-muted-foreground mt-1">
               Live view of active rate-limit windows. Throttled entries sort first.
             </p>

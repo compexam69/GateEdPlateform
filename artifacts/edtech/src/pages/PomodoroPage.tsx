@@ -215,7 +215,7 @@ export default function PomodoroPage() {
           )}
 
           <div className="flex flex-col items-center">
-            <div className="relative w-64 h-64 flex items-center justify-center">
+            <div className="relative w-56 h-56 sm:w-64 sm:h-64 flex items-center justify-center">
               <svg className="w-full h-full transform -rotate-90 absolute inset-0" viewBox="0 0 260 260">
                 <circle cx="130" cy="130" r={radius} fill="none" stroke="hsl(var(--muted))" strokeWidth="10" />
                 <circle
@@ -230,7 +230,7 @@ export default function PomodoroPage() {
                 />
               </svg>
               <div className="text-center z-10">
-                <div className="text-6xl font-bold font-mono tracking-tighter">
+                <div className="text-5xl sm:text-6xl font-bold font-mono tracking-tighter">
                   {String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")}
                 </div>
                 <div className={`text-sm font-medium mt-1 ${MODE_COLOR[mode]}`}>{POMODORO_LABELS[mode]}</div>

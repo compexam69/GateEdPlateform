@@ -171,22 +171,24 @@ export default function TopicDetailPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex items-center space-x-4">
-          <Button variant="ghost" size="icon" onClick={() => window.history.back()}>
+        <div className="flex items-start gap-3">
+          <Button variant="ghost" size="icon" className="shrink-0 mt-0.5" onClick={() => window.history.back()}>
             <ArrowLeft className="w-4 h-4" />
           </Button>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">{topic?.title || "Topic"}</h1>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{topic?.title || "Topic"}</h1>
+              {topicComplete && (
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-success/10 text-success text-xs sm:text-sm font-medium">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  Completed
+                </div>
+              )}
+            </div>
             <p className="text-muted-foreground mt-1">
               {topic?.description || "Complete each step in order to master this topic."}
             </p>
           </div>
-          {topicComplete && (
-            <div className="ml-auto flex items-center gap-2 px-3 py-1.5 rounded-full bg-success/10 text-success text-sm font-medium">
-              <CheckCircle2 className="w-4 h-4" />
-              Completed
-            </div>
-          )}
         </div>
 
         {progressLoading ? (

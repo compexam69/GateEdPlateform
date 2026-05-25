@@ -208,7 +208,7 @@ export default function NotesPage() {
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Study Notes</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Study Notes</h1>
             <p className="text-muted-foreground mt-1">
               Upload and manage your PDF notes for completed chapters.
             </p>
