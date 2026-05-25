@@ -460,6 +460,146 @@ router.get("/admin/lecture-ctr", requireAdmin, async (_req: AuthRequest, res) =>
   res.json(result);
 });
 
+// ── Admin: create single user ────────────────────────────────────────────────
+router.post("/admin/users/create", requireAdmin, async (req: AuthRequest, res) => {
+  const { full_name, email, password, role, mobile_number, status } = req.body as {
+    full_name?: string;
+    email?: string;
+    password?: string;
+    role?: string;
+    mobile_number?: string;
+    status?: string;
+  };
+
+  if (!full_name || !email || !password) {
+    res.status(400).json({ error: "full_name, email, and password are required." });
+    return;
+  }
+  if (password.length < 8) {
+    res.status(400).json({ error: "Password must be at least 8 characters." });
+    return;
+  }
+
+  const VALID_ROLES = ["student", "admin", "super_admin"];
+  const userRole = role && VALID_ROLES.includes(role) ? role : "student";
+  const userStatus = status === "pending_approval" ? "pending_approval" : "active";
+  const isApproved = userStatus === "active";
+
+  const { data, error } = await supabase.auth.admin.createUser({
+    email: email.toLowerCase().trim(),
+    password,
+    email_confirm: true,
+    user_metadata: {
+      full_name: full_name.trim(),
+      mobile_number: mobile_number ?? null,
+      role: userRole,
+    },
+  });
+
+  if (error) {
+    res.status(400).json({ error: error.message });
+    return;
+  }
+
+  if (data.user) {
+    await supabase
+      .from("profiles")
+      .update({ role: userRole, is_approved: isApproved, status: userStatus })
+      .eq("id", data.user.id);
+
+    await writeAuditLog(req.user!.id, "user_created", "profile", data.user.id, {
+      full_name: full_name.trim(),
+      email: email.toLowerCase().trim(),
+      role: userRole,
+      status: userStatus,
+    });
+  }
+
+  res.status(201).json({ message: "User created", user_id: data.user?.id });
+});
+
+// ── Admin: bulk import users (CSV/JSON) ───────────────────────────────────────
+router.post("/admin/users/bulk-import", requireAdmin, async (req: AuthRequest, res) => {
+  const { users } = req.body as {
+    users?: Array<{
+      full_name: string;
+      email: string;
+      password: string;
+      role?: string;
+      mobile_number?: string;
+      status?: string;
+    }>;
+  };
+
+  if (!Array.isArray(users) || users.length === 0) {
+    res.status(400).json({ error: "users array is required and must not be empty." });
+    return;
+  }
+  if (users.length > 500) {
+    res.status(400).json({ error: "Maximum 500 users per import." });
+    return;
+  }
+
+  const VALID_ROLES = ["student", "admin", "super_admin"];
+  const createdIds: string[] = [];
+  const errors: Array<{ email: string; error: string }> = [];
+
+  for (const u of users) {
+    if (!u.full_name || !u.email || !u.password) {
+      errors.push({ email: u.email ?? "unknown", error: "full_name, email, and password are required." });
+      continue;
+    }
+    if (u.password.length < 8) {
+      errors.push({ email: u.email, error: "Password must be at least 8 characters." });
+      continue;
+    }
+
+    const userRole = u.role && VALID_ROLES.includes(u.role) ? u.role : "student";
+    const userStatus = u.status === "pending_approval" ? "pending_approval" : "active";
+    const isApproved = userStatus === "active";
+
+    try {
+      const { data, error } = await supabase.auth.admin.createUser({
+        email: u.email.toLowerCase().trim(),
+        password: u.password,
+        email_confirm: true,
+        user_metadata: {
+          full_name: u.full_name.trim(),
+          mobile_number: u.mobile_number ?? null,
+          role: userRole,
+        },
+      });
+
+      if (error) {
+        errors.push({ email: u.email, error: error.message });
+        continue;
+      }
+
+      if (data.user) {
+        await supabase
+          .from("profiles")
+          .update({ role: userRole, is_approved: isApproved, status: userStatus })
+          .eq("id", data.user.id);
+        createdIds.push(data.user.id);
+      }
+    } catch (err) {
+      errors.push({ email: u.email, error: String(err) });
+    }
+  }
+
+  await writeAuditLog(req.user!.id, "bulk_user_import", "profile", "bulk", {
+    created: createdIds.length,
+    failed: errors.length,
+  });
+
+  res.json({
+    message: `Import complete: ${createdIds.length} created, ${errors.length} failed.`,
+    created: createdIds.length,
+    failed: errors.length,
+    errors,
+  });
+});
+
 // ── Rate-limit monitor ────────────────────────────────────────────────────────
 // Maps key prefix → { maxRequests, windowMs, label }
 const RATE_LIMIT_RULES: Record<string, { maxRequests: number; windowMs: number; label: string }> = {

@@ -1,16 +1,18 @@
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   CheckCircle, XCircle, Search, Shield, User, Clock, RotateCcw, ChevronDown,
-  Eye, FileText, BookOpen, Timer, TrendingUp,
+  Eye, FileText, BookOpen, Timer, TrendingUp, UserPlus, Upload, Download,
+  AlertCircle, CheckCircle2, Loader2,
 } from "lucide-react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useAdminApproveUser, useAdminRejectUser } from "@workspace/api-client-react";
 import { supabase } from "@/lib/supabase";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
@@ -80,6 +82,31 @@ interface UserDetail {
   };
 }
 
+interface ImportUser {
+  full_name: string;
+  email: string;
+  password: string;
+  role: string;
+  mobile_number: string;
+  status: string;
+  _rowError?: string;
+}
+
+interface ImportResult {
+  created: number;
+  failed: number;
+  errors: Array<{ email: string; error: string }>;
+}
+
+interface CreateUserForm {
+  full_name: string;
+  email: string;
+  password: string;
+  role: string;
+  mobile_number: string;
+  status: string;
+}
+
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -93,12 +120,76 @@ function formatDuration(seconds: number): string {
   return `${m}m`;
 }
 
+function parseCSV(text: string): ImportUser[] {
+  const lines = text.trim().split(/\r?\n/).filter(Boolean);
+  if (lines.length < 2) return [];
+
+  const headers = lines[0].split(",").map(h => h.trim().toLowerCase().replace(/^"|"$/g, ""));
+  const colIndex = (name: string) => headers.indexOf(name);
+
+  const fi = colIndex("full_name");
+  const ei = colIndex("email");
+  const pi = colIndex("password");
+  const ri = colIndex("role");
+  const mi = colIndex("mobile_number");
+  const si = colIndex("status");
+
+  if (fi === -1 || ei === -1 || pi === -1) {
+    throw new Error('CSV must have columns: full_name, email, password (plus optional: role, mobile_number, status)');
+  }
+
+  return lines.slice(1).map(line => {
+    const cols = line.split(",").map(c => c.trim().replace(/^"|"$/g, ""));
+    return {
+      full_name: cols[fi] ?? "",
+      email: cols[ei] ?? "",
+      password: cols[pi] ?? "",
+      role: (ri !== -1 ? cols[ri] : "") || "student",
+      mobile_number: mi !== -1 ? (cols[mi] ?? "") : "",
+      status: (si !== -1 ? cols[si] : "") || "active",
+    };
+  }).filter(u => u.full_name || u.email);
+}
+
+function parseJSON(text: string): ImportUser[] {
+  const parsed = JSON.parse(text);
+  const arr = Array.isArray(parsed) ? parsed : parsed.users;
+  if (!Array.isArray(arr)) throw new Error("JSON must be an array of user objects (or { users: [...] })");
+  return arr.map((u: Record<string, unknown>) => ({
+    full_name: String(u.full_name ?? ""),
+    email: String(u.email ?? ""),
+    password: String(u.password ?? ""),
+    role: String(u.role ?? "student"),
+    mobile_number: String(u.mobile_number ?? ""),
+    status: String(u.status ?? "active"),
+  }));
+}
+
+const CSV_TEMPLATE = `full_name,email,password,role,mobile_number,status
+Riya Sharma,riya@example.com,Pass@1234,student,+919876543210,active
+Arjun Mehta,arjun@example.com,Pass@5678,student,,active`;
+
+const EMPTY_FORM: CreateUserForm = {
+  full_name: "", email: "", password: "", role: "student", mobile_number: "", status: "active",
+};
+
 export default function AdminUsersPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [resetDialog, setResetDialog] = useState<ResetDialogState | null>(null);
   const [detailUserId, setDetailUserId] = useState<string | null>(null);
+
+  // Create user state
+  const [createDialog, setCreateDialog] = useState(false);
+  const [createForm, setCreateForm] = useState<CreateUserForm>(EMPTY_FORM);
+
+  // Import state
+  const [importDialog, setImportDialog] = useState(false);
+  const [importPreview, setImportPreview] = useState<ImportUser[] | null>(null);
+  const [importParseError, setImportParseError] = useState<string | null>(null);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: USERS_KEY,
@@ -165,6 +256,76 @@ export default function AdminUsersPage() {
     onError: (err: unknown) => toast({ title: "Error", description: (err as Error).message, variant: "destructive" }),
   });
 
+  const createUser = useMutation({
+    mutationFn: (form: CreateUserForm) =>
+      apiFetch("/admin/users/create", { method: "POST", body: JSON.stringify(form) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: USERS_KEY });
+      toast({ title: "User created successfully" });
+      setCreateDialog(false);
+      setCreateForm(EMPTY_FORM);
+    },
+    onError: (err: unknown) => toast({ title: "Error", description: (err as Error).message, variant: "destructive" }),
+  });
+
+  const bulkImport = useMutation({
+    mutationFn: (users: ImportUser[]) =>
+      apiFetch("/admin/users/bulk-import", { method: "POST", body: JSON.stringify({ users }) }),
+    onSuccess: (result: ImportResult) => {
+      queryClient.invalidateQueries({ queryKey: USERS_KEY });
+      setImportResult(result);
+      setImportPreview(null);
+    },
+    onError: (err: unknown) => toast({ title: "Import failed", description: (err as Error).message, variant: "destructive" }),
+  });
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportParseError(null);
+    setImportPreview(null);
+    setImportResult(null);
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      try {
+        let parsed: ImportUser[];
+        if (file.name.endsWith(".json")) {
+          parsed = parseJSON(text);
+        } else {
+          parsed = parseCSV(text);
+        }
+        if (parsed.length === 0) {
+          setImportParseError("No valid rows found in the file.");
+          return;
+        }
+        setImportPreview(parsed);
+      } catch (err) {
+        setImportParseError(String((err as Error).message));
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function downloadTemplate() {
+    const blob = new Blob([CSV_TEMPLATE], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "user_import_template.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function resetImportDialog() {
+    setImportDialog(false);
+    setImportPreview(null);
+    setImportParseError(null);
+    setImportResult(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
   const filtered = users.filter((u: { full_name?: string; email?: string }) =>
     !search ||
     u.full_name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -212,7 +373,6 @@ export default function AdminUsersPage() {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          {/* View details button */}
           <Button
             size="sm"
             variant="ghost"
@@ -223,7 +383,6 @@ export default function AdminUsersPage() {
             <Eye className="w-3.5 h-3.5" />
           </Button>
 
-          {/* Status actions */}
           {status === "pending_approval" && (
             <>
               <Button
@@ -267,7 +426,6 @@ export default function AdminUsersPage() {
             </Button>
           )}
 
-          {/* Role change (super_admin only, not for self) */}
           {currentRole === "super_admin" && userId !== currentUser?.id && (
             <Select
               value={role}
@@ -285,7 +443,6 @@ export default function AdminUsersPage() {
             </Select>
           )}
 
-          {/* Reset Progress dropdown (students only) */}
           {role === "student" && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -332,19 +489,28 @@ export default function AdminUsersPage() {
   return (
     <AppLayout requireAdmin>
       <div className="space-y-6">
+        {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
             <p className="text-muted-foreground mt-1">{users.length} total users · {pending.length} pending approval</p>
           </div>
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search by name or email..."
-              className="pl-9 w-64"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search by name or email..."
+                className="pl-9 w-56"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+              />
+            </div>
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => setImportDialog(true)}>
+              <Upload className="w-4 h-4" /> Import Users
+            </Button>
+            <Button size="sm" className="gap-2" onClick={() => setCreateDialog(true)}>
+              <UserPlus className="w-4 h-4" /> Create User
+            </Button>
           </div>
         </div>
 
@@ -379,7 +545,229 @@ export default function AdminUsersPage() {
         )}
       </div>
 
-      {/* Reset Progress Confirmation Dialog */}
+      {/* ── Create User Dialog ──────────────────────────────────────────────── */}
+      <Dialog open={createDialog} onOpenChange={v => { if (!v) { setCreateDialog(false); setCreateForm(EMPTY_FORM); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="w-5 h-5 text-primary" /> Create User
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-1">
+            <p className="text-xs text-muted-foreground">
+              Admin-created users can log in immediately with their email and password — no email verification required.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2 space-y-1.5">
+                <Label htmlFor="cf-name">Full Name <span className="text-destructive">*</span></Label>
+                <Input
+                  id="cf-name"
+                  placeholder="Riya Sharma"
+                  value={createForm.full_name}
+                  onChange={e => setCreateForm(f => ({ ...f, full_name: e.target.value }))}
+                />
+              </div>
+              <div className="col-span-2 space-y-1.5">
+                <Label htmlFor="cf-email">Email <span className="text-destructive">*</span></Label>
+                <Input
+                  id="cf-email"
+                  type="email"
+                  placeholder="riya@example.com"
+                  value={createForm.email}
+                  onChange={e => setCreateForm(f => ({ ...f, email: e.target.value }))}
+                />
+              </div>
+              <div className="col-span-2 space-y-1.5">
+                <Label htmlFor="cf-password">Password <span className="text-destructive">*</span></Label>
+                <Input
+                  id="cf-password"
+                  type="password"
+                  placeholder="Min 8 characters"
+                  value={createForm.password}
+                  onChange={e => setCreateForm(f => ({ ...f, password: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Role</Label>
+                <Select value={createForm.role} onValueChange={v => setCreateForm(f => ({ ...f, role: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="student">Student</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="super_admin">Super Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Status</Label>
+                <Select value={createForm.status} onValueChange={v => setCreateForm(f => ({ ...f, status: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="pending_approval">Pending Approval</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="col-span-2 space-y-1.5">
+                <Label htmlFor="cf-mobile">Mobile Number</Label>
+                <Input
+                  id="cf-mobile"
+                  placeholder="+919876543210 (optional)"
+                  value={createForm.mobile_number}
+                  onChange={e => setCreateForm(f => ({ ...f, mobile_number: e.target.value }))}
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setCreateDialog(false); setCreateForm(EMPTY_FORM); }}>
+              Cancel
+            </Button>
+            <Button
+              disabled={createUser.isPending || !createForm.full_name || !createForm.email || !createForm.password}
+              onClick={() => createUser.mutate(createForm)}
+            >
+              {createUser.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Creating…</> : "Create User"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Import Users Dialog ─────────────────────────────────────────────── */}
+      <Dialog open={importDialog} onOpenChange={v => { if (!v) resetImportDialog(); }}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Upload className="w-5 h-5 text-primary" /> Import Users
+            </DialogTitle>
+          </DialogHeader>
+
+          {/* Result screen */}
+          {importResult ? (
+            <div className="space-y-4 py-2">
+              <div className="flex items-center gap-3">
+                <CheckCircle2 className="w-8 h-8 text-success shrink-0" />
+                <div>
+                  <p className="font-semibold text-lg">Import Complete</p>
+                  <p className="text-sm text-muted-foreground">
+                    <span className="text-success font-medium">{importResult.created} created</span>
+                    {importResult.failed > 0 && <>, <span className="text-destructive font-medium">{importResult.failed} failed</span></>}
+                  </p>
+                </div>
+              </div>
+              {importResult.errors.length > 0 && (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-1 max-h-48 overflow-y-auto">
+                  <p className="text-xs font-semibold text-destructive uppercase tracking-wider mb-2">Failed rows</p>
+                  {importResult.errors.map((e, i) => (
+                    <div key={i} className="text-xs flex gap-2">
+                      <span className="text-muted-foreground font-medium shrink-0">{e.email}</span>
+                      <span className="text-destructive">{e.error}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <DialogFooter>
+                <Button onClick={resetImportDialog}>Done</Button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <div className="space-y-4 py-1">
+              <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-2 text-sm">
+                <p className="font-medium">File format</p>
+                <p className="text-muted-foreground">
+                  Upload a <span className="font-mono text-foreground">.csv</span> or <span className="font-mono text-foreground">.json</span> file.
+                  Required columns: <span className="font-mono text-foreground">full_name</span>, <span className="font-mono text-foreground">email</span>, <span className="font-mono text-foreground">password</span>.
+                  Optional: <span className="font-mono text-foreground">role</span> (student/admin/super_admin), <span className="font-mono text-foreground">mobile_number</span>, <span className="font-mono text-foreground">status</span> (active/pending_approval).
+                </p>
+                <p className="text-muted-foreground text-xs">
+                  Imported users can log in immediately — no email verification required. Maximum 500 users per import.
+                </p>
+                <Button variant="outline" size="sm" className="gap-1.5 mt-1" onClick={downloadTemplate}>
+                  <Download className="w-3.5 h-3.5" /> Download CSV Template
+                </Button>
+              </div>
+
+              {/* File picker */}
+              <div
+                className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                <p className="text-sm font-medium">Click to select file</p>
+                <p className="text-xs text-muted-foreground mt-1">CSV or JSON</p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv,.json"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+              </div>
+
+              {/* Parse error */}
+              {importParseError && (
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{importParseError}</span>
+                </div>
+              )}
+
+              {/* Preview table */}
+              {importPreview && importPreview.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium">{importPreview.length} users ready to import</p>
+                    <Badge variant="outline" className="text-xs">{importPreview.length} rows</Badge>
+                  </div>
+                  <div className="border border-border rounded-lg overflow-hidden">
+                    <div className="overflow-x-auto max-h-60 overflow-y-auto">
+                      <table className="w-full text-xs">
+                        <thead className="bg-muted/40 sticky top-0">
+                          <tr>
+                            {["Full Name", "Email", "Password", "Role", "Status", "Mobile"].map(h => (
+                              <th key={h} className="px-3 py-2 text-left font-medium text-muted-foreground whitespace-nowrap">{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {importPreview.map((u, i) => (
+                            <tr key={i} className="hover:bg-muted/20">
+                              <td className="px-3 py-2 font-medium truncate max-w-[120px]">{u.full_name}</td>
+                              <td className="px-3 py-2 text-muted-foreground truncate max-w-[140px]">{u.email}</td>
+                              <td className="px-3 py-2 text-muted-foreground">{"•".repeat(Math.min(u.password.length, 8))}</td>
+                              <td className="px-3 py-2">
+                                <Badge variant="secondary" className="text-xs capitalize">{u.role || "student"}</Badge>
+                              </td>
+                              <td className="px-3 py-2">
+                                <Badge variant={u.status === "active" ? "outline" : "secondary"} className="text-xs">{u.status || "active"}</Badge>
+                              </td>
+                              <td className="px-3 py-2 text-muted-foreground">{u.mobile_number || "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <DialogFooter className="pt-2">
+                    <Button variant="outline" onClick={resetImportDialog}>Cancel</Button>
+                    <Button
+                      disabled={bulkImport.isPending}
+                      onClick={() => bulkImport.mutate(importPreview)}
+                    >
+                      {bulkImport.isPending
+                        ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Importing…</>
+                        : `Import ${importPreview.length} Users`}
+                    </Button>
+                  </DialogFooter>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Reset Progress Dialog ───────────────────────────────────────────── */}
       <Dialog open={!!resetDialog} onOpenChange={v => { if (!v) setResetDialog(null); }}>
         <DialogContent>
           <DialogHeader>
@@ -419,7 +807,7 @@ export default function AdminUsersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* User Detail Modal */}
+      {/* ── User Detail Modal ───────────────────────────────────────────────── */}
       <Dialog open={!!detailUserId} onOpenChange={v => { if (!v) setDetailUserId(null); }}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
@@ -435,7 +823,6 @@ export default function AdminUsersPage() {
             </div>
           ) : userDetail ? (
             <div className="space-y-5">
-              {/* Stats overview */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {[
                   { icon: TrendingUp, label: "Attempts", value: String(userDetail.stats.total_attempts) },
@@ -453,7 +840,6 @@ export default function AdminUsersPage() {
                 ))}
               </div>
 
-              {/* Recent Attempts */}
               {userDetail.attempts.length > 0 && (
                 <div>
                   <h3 className="text-sm font-semibold mb-2 text-muted-foreground uppercase tracking-wider">Recent Exam Attempts</h3>
@@ -480,7 +866,6 @@ export default function AdminUsersPage() {
                 </div>
               )}
 
-              {/* Notes */}
               {userDetail.notes.length > 0 && (
                 <div>
                   <h3 className="text-sm font-semibold mb-2 text-muted-foreground uppercase tracking-wider">Uploaded Notes</h3>
