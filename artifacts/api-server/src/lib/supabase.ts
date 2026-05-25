@@ -29,10 +29,19 @@ export async function getUserFromRequest(
   const token = authHeader.slice(7);
   const { data, error } = await supabase.auth.getUser(token);
   if (error || !data.user) return null;
-  const role = data.user.user_metadata?.["role"] ?? "student";
+
+  // Always read role and is_approved from the profiles table.
+  // user_metadata is never updated by our trigger — reading it gives wrong values.
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role, is_approved")
+    .eq("id", data.user.id)
+    .single();
+
+  const role = profile?.role ?? "student";
+  const isApproved = profile?.is_approved ?? false;
   const emailVerified = !!data.user.email_confirmed_at;
-  const isAdmin = role === "admin" || role === "super_admin";
-  const isApproved = isAdmin ? true : (data.user.user_metadata?.["is_approved"] === true);
+
   return {
     id: data.user.id,
     email: data.user.email ?? "",

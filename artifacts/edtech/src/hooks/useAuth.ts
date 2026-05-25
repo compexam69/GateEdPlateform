@@ -9,10 +9,22 @@ interface AuthState {
   role: string | null;
   isApproved: boolean;
   sessionExpired: boolean;
-  setAuth: (session: Session | null) => void;
+  setAuth: (session: Session | null) => Promise<void>;
   setSessionExpired: (expired: boolean) => void;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+}
+
+async function fetchProfile(userId: string): Promise<{ role: string | null; isApproved: boolean }> {
+  const { data } = await supabase
+    .from('profiles')
+    .select('role, is_approved')
+    .eq('id', userId)
+    .single()
+  return {
+    role: data?.role ?? null,
+    isApproved: data?.is_approved ?? false,
+  }
 }
 
 export const useAuth = create<AuthState>((set) => ({
@@ -22,12 +34,17 @@ export const useAuth = create<AuthState>((set) => ({
   role: null,
   isApproved: false,
   sessionExpired: false,
-  setAuth: (session) => {
+  setAuth: async (session) => {
+    if (!session?.user) {
+      set({ session: null, user: null, role: null, isApproved: false, loading: false, sessionExpired: false })
+      return
+    }
+    const { role, isApproved } = await fetchProfile(session.user.id)
     set({
       session,
-      user: session?.user || null,
-      role: session?.user?.user_metadata?.role || null,
-      isApproved: session?.user?.user_metadata?.is_approved || false,
+      user: session.user,
+      role,
+      isApproved,
       loading: false,
       sessionExpired: false,
     })
