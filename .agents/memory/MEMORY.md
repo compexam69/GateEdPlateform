@@ -1,0 +1,1 @@
+- [Auth Role Source](auth-role-source.md) — role/is_approved must be read from profiles table, never from user_metadata (trigger only writes to profiles)
