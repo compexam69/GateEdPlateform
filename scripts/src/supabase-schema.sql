@@ -51,14 +51,16 @@ create table if not exists profiles (
 
 -- First user becomes super_admin trigger
 create or replace function handle_new_user()
-returns trigger language plpgsql security definer as $$
+returns trigger language plpgsql security definer
+set search_path = ''
+as $$
 declare
   user_count int;
-  new_role user_role;
-  new_status user_status;
+  new_role public.user_role;
+  new_status public.user_status;
   new_approved boolean;
 begin
-  select count(*) into user_count from profiles;
+  select count(*) into user_count from public.profiles;
   if user_count = 0 then
     new_role := 'super_admin';
     new_status := 'active';
@@ -69,7 +71,7 @@ begin
     new_approved := false;
   end if;
 
-  insert into profiles (id, full_name, mobile_number, email, role, is_approved, status, email_verified)
+  insert into public.profiles (id, full_name, mobile_number, email, role, is_approved, status, email_verified)
   values (
     new.id,
     coalesce(new.raw_user_meta_data->>'full_name', new.email),
@@ -81,11 +83,10 @@ begin
     coalesce((new.email_confirmed_at is not null), false)
   );
 
-  -- Store role in user metadata
-  update auth.users set raw_user_meta_data = 
-    coalesce(raw_user_meta_data, '{}'::jsonb) || 
-    jsonb_build_object('role', new_role::text, 'is_approved', new_approved, 'status', new_status::text)
-  where id = new.id;
+  -- NOTE: Do NOT update auth.users here — GoTrue holds the row lock during
+  -- the INSERT transaction, so any UPDATE on the same row inside this trigger
+  -- causes "tuple concurrently updated" → "Database error creating new user".
+  -- Role/status/is_approved are stored in public.profiles (source of truth).
 
   return new;
 end;
