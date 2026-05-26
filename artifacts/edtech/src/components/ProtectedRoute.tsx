@@ -3,18 +3,22 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 
 export function ProtectedRoute({ children, requireAdmin = false }: { children: React.ReactNode, requireAdmin?: boolean }) {
-  const { session, loading, role } = useAuth();
+  const { session, loading, role, isApproved } = useAuth();
   const [, setLocation] = useLocation();
+
+  const isAdmin = role === "admin" || role === "super_admin";
 
   useEffect(() => {
     if (!loading) {
       if (!session) {
         setLocation("/login");
-      } else if (requireAdmin && role !== "admin" && role !== "super_admin") {
+      } else if (!isApproved && !isAdmin) {
+        setLocation("/pending-approval");
+      } else if (requireAdmin && !isAdmin) {
         setLocation("/dashboard");
       }
     }
-  }, [session, loading, role, requireAdmin, setLocation]);
+  }, [session, loading, role, isApproved, isAdmin, requireAdmin, setLocation]);
 
   if (loading) {
     return (
@@ -25,7 +29,8 @@ export function ProtectedRoute({ children, requireAdmin = false }: { children: R
   }
 
   if (!session) return null;
-  if (requireAdmin && role !== "admin" && role !== "super_admin") return null;
+  if (!isApproved && !isAdmin) return null;
+  if (requireAdmin && !isAdmin) return null;
 
   return <>{children}</>;
 }

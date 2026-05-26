@@ -10,6 +10,7 @@ import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
 import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
 import OnboardingPage from "@/pages/OnboardingPage";
+import PendingApprovalPage from "@/pages/PendingApprovalPage";
 import DashboardPage from "@/pages/DashboardPage";
 import SubjectsPage from "@/pages/SubjectsPage";
 import SubjectDetailPage from "@/pages/SubjectDetailPage";
@@ -56,6 +57,7 @@ function Router() {
       <Route path="/login" component={LoginPage} />
       <Route path="/register" component={RegisterPage} />
       <Route path="/forgot-password" component={ForgotPasswordPage} />
+      <Route path="/pending-approval" component={PendingApprovalPage} />
       
       <Route path="/dashboard"><ProtectedRoute><DashboardPage /></ProtectedRoute></Route>
       <Route path="/subjects"><ProtectedRoute><SubjectsPage /></ProtectedRoute></Route>
