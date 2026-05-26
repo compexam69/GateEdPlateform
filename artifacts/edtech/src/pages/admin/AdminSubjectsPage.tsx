@@ -244,7 +244,7 @@ function SubjectRow({
           {expanded ? <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" /> : <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />}
           <BookOpen className="w-5 h-5 text-primary shrink-0" />
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold">{subject.title}</h3>
+            <h3 className="font-semibold truncate">{subject.title}</h3>
             {subject.description && <p className="text-sm text-muted-foreground truncate">{subject.description}</p>}
           </div>
           <div className="flex gap-1 shrink-0" onClick={e => e.stopPropagation()}>
@@ -294,7 +294,7 @@ function ChapterRow({ chapter, expanded, onToggle, onDelete, onAddTopic, onDelet
     <div className="border border-border rounded-md bg-card">
       <div className="flex items-center gap-3 p-3 cursor-pointer" onClick={onToggle}>
         {expanded ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
-        <span className="font-medium text-sm flex-1">{chapter.title}</span>
+        <span className="font-medium text-sm flex-1 min-w-0 truncate">{chapter.title}</span>
         <div className="flex gap-1 shrink-0" onClick={e => e.stopPropagation()}>
           <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={onDelete}><Trash2 className="w-3 h-3" /></Button>
         </div>
@@ -303,7 +303,7 @@ function ChapterRow({ chapter, expanded, onToggle, onDelete, onAddTopic, onDelet
         <div className="border-t border-border px-4 pb-3 pt-2 space-y-1.5">
           {(topics as Topic[]).map((topic) => (
             <div key={topic.id} className="flex items-center justify-between text-sm text-muted-foreground py-1">
-              <span>• {topic.title}</span>
+              <span className="truncate min-w-0 flex-1">• {topic.title}</span>
               <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => onDeleteTopic(topic.id)}><Trash2 className="w-3 h-3" /></Button>
             </div>
           ))}

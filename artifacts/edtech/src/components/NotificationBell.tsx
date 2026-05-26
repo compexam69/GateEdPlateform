@@ -287,7 +287,7 @@ export function NotificationBell() {
                   <div className="mt-0.5 shrink-0">{typeIcon(n.type)}</div>
                   <div className="flex-1 min-w-0">
                     <p className={cn("text-sm font-medium leading-tight", !n.is_read && "text-foreground")}>{n.title}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{n.message}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 leading-snug break-words">{n.message}</p>
                     <p className="text-[10px] text-muted-foreground/60 mt-1">
                       {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
                     </p>

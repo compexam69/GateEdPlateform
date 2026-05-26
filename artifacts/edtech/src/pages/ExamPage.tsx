@@ -547,7 +547,7 @@ export default function ExamPage() {
                     className="h-4 w-4 accent-primary"
                   />
                   <span className="font-semibold text-muted-foreground w-5 shrink-0">{key}.</span>
-                  <span className="flex-1"><MathText text={value} /></span>
+                  <span className="flex-1 min-w-0"><MathText text={value} /></span>
                   <span className="text-xs text-muted-foreground/40 shrink-0">{optIdx + 1}</span>
                 </label>
               );

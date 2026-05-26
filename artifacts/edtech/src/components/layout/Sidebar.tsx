@@ -60,7 +60,7 @@ export function Sidebar() {
                 : "text-muted-foreground hover:bg-muted hover:text-foreground"
             )}>
               <Icon className="w-4 h-4 shrink-0" />
-              <span>{link.label}</span>
+              <span className="truncate">{link.label}</span>
             </Link>
           );
         })}

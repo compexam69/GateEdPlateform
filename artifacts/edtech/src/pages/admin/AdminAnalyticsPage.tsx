@@ -130,8 +130,8 @@ export default function AdminAnalyticsPage() {
                       </p>
                       <div className="space-y-2">
                         {(storage.top_users as Array<{ user_id: string; full_name: string; used_bytes: number }>).slice(0, 5).map((u) => (
-                          <div key={u.user_id} className="flex items-center justify-between text-sm">
-                            <span className="text-muted-foreground truncate max-w-[200px]">{u.full_name}</span>
+                          <div key={u.user_id} className="flex items-center justify-between gap-2 text-sm min-w-0">
+                            <span className="text-muted-foreground truncate min-w-0">{u.full_name}</span>
                             <div className="flex items-center gap-3 shrink-0">
                               <div className="w-24 bg-muted rounded-full h-1.5">
                                 <div className="bg-primary h-1.5 rounded-full" style={{ width: `${Math.min((u.used_bytes / (storage.limit_bytes ?? 1)) * 100, 100)}%` }} />
@@ -178,7 +178,7 @@ export default function AdminAnalyticsPage() {
                   <tbody>
                     {lectureCtr.map((row) => (
                       <tr key={row.topic_id} className="border-b border-border last:border-0">
-                        <td className="px-4 py-2.5 font-medium">{row.title}</td>
+                        <td className="px-4 py-2.5 font-medium max-w-[220px]"><div className="truncate">{row.title}</div></td>
                         <td className="px-4 py-2.5">
                           <div className="flex items-center gap-2">
                             <div className="flex-1 bg-muted rounded-full h-1.5">

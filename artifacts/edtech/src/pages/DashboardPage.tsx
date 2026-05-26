@@ -250,9 +250,9 @@ export default function DashboardPage() {
                     const pct = sub.topics_total > 0 ? Math.round((sub.topics_complete / sub.topics_total) * 100) : 0;
                     return (
                       <div key={sub.subject_id} className="space-y-1.5">
-                        <div className="flex justify-between text-sm">
-                          <span className="font-medium">{sub.subject_title}</span>
-                          <span className="text-muted-foreground">{sub.topics_complete}/{sub.topics_total} topics</span>
+                        <div className="flex justify-between gap-2 text-sm min-w-0">
+                          <span className="font-medium truncate min-w-0">{sub.subject_title}</span>
+                          <span className="text-muted-foreground shrink-0">{sub.topics_complete}/{sub.topics_total} topics</span>
                         </div>
                         <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                           <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${pct}%` }} />

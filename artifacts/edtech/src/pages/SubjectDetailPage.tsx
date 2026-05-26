@@ -239,7 +239,7 @@ export default function SubjectDetailPage() {
 
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="font-semibold">{chapter.title}</h3>
+                            <h3 className="font-semibold truncate">{chapter.title}</h3>
                             {isComplete && (
                               <Badge variant="outline" className="text-[10px] h-4 px-1.5 border-success/40 text-success bg-success/5">
                                 Complete

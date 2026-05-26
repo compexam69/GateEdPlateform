@@ -214,7 +214,7 @@ function QuizRow({ quiz, expanded, onToggle, onEdit, onDelete, onAddQuestion, on
           <HelpCircle className="w-5 h-5 text-primary shrink-0" />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-semibold">{quiz.title}</span>
+              <span className="font-semibold truncate">{quiz.title}</span>
               <Badge variant="outline" className="text-xs">{typeLabel}</Badge>
               {!quiz.is_active && <Badge variant="secondary" className="text-xs">Inactive</Badge>}
             </div>
@@ -251,7 +251,7 @@ function QuizRow({ quiz, expanded, onToggle, onEdit, onDelete, onAddQuestion, on
                     <div className="flex items-start gap-3">
                       <span className="text-xs text-muted-foreground font-medium mt-0.5 shrink-0 w-5">{idx + 1}.</span>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium leading-snug">{q.question_text}</p>
+                        <p className="text-sm font-medium leading-snug break-words">{q.question_text}</p>
                         <div className="mt-1.5 grid grid-cols-2 gap-1">
                           {Object.entries(q.options ?? {}).map(([key, val]) => (
                             <span key={key} className={`text-xs px-2 py-0.5 rounded ${key === q.correct_answer ? "bg-success/20 text-success font-semibold" : "text-muted-foreground"}`}>

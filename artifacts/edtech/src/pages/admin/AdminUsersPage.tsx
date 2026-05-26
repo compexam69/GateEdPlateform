@@ -389,7 +389,7 @@ export default function AdminUsersPage() {
       <div className="flex items-center justify-between p-4 border border-border rounded-lg gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold">{userName}</span>
+            <span className="font-semibold truncate">{userName}</span>
             {roleBadge(role)}
             {statusBadge(status)}
           </div>
@@ -402,7 +402,7 @@ export default function AdminUsersPage() {
             </div>
           ) : (
             <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground flex-wrap">
-              {!!user.email && <span>{String(user.email)}</span>}
+              {!!user.email && <span className="break-all">{String(user.email)}</span>}
               {!!user.mobile_number && <span>{String(user.mobile_number)}</span>}
               {!!user.created_at && (
                 <span className="flex items-center gap-1">

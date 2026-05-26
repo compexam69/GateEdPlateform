@@ -203,8 +203,8 @@ export default function PomodoroPage() {
                           onClick={() => { store.setSelectedTopic(t.id, t.title); setTopicPickerOpen(false); setTopicSearch(""); }}
                           className={`w-full text-left px-3 py-2 rounded-md text-sm hover:bg-muted transition-colors ${selectedTopicId === t.id ? "bg-primary/10 text-primary" : ""}`}
                         >
-                          <div className="font-medium">{t.title}</div>
-                          <div className="text-xs text-muted-foreground">{t.chapter_title}</div>
+                          <div className="font-medium truncate">{t.title}</div>
+                          <div className="text-xs text-muted-foreground truncate">{t.chapter_title}</div>
                         </button>
                       ))
                     )}

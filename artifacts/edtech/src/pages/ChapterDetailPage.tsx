@@ -120,7 +120,7 @@ export default function ChapterDetailPage() {
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div className="flex-1 min-w-0">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{chapter?.title || "Chapter Topics"}</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight line-clamp-2">{chapter?.title || "Chapter Topics"}</h1>
             <p className="text-muted-foreground mt-1">
               {chapter?.description || "Complete topics in order to unlock the next one."}
             </p>

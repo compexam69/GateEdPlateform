@@ -165,7 +165,7 @@ export default function SubjectsPage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              <p className="font-semibold">{quiz.title}</p>
+                              <p className="font-semibold truncate">{quiz.title}</p>
                               <Badge variant="outline" className="text-[10px] border-warning text-warning shrink-0">
                                 {quiz.type === "grand_test" ? "Grand Test" : "Multi-Subject"}
                               </Badge>

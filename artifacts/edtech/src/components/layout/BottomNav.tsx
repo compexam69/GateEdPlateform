@@ -82,7 +82,7 @@ export function BottomNav() {
               )}
             >
               <Icon className="w-5 h-5" />
-              <span className="text-[10px] font-medium">{link.label}</span>
+              <span className="text-[10px] font-medium truncate w-full text-center">{link.label}</span>
             </Link>
           );
         })}
@@ -133,7 +133,7 @@ export function BottomNav() {
                       )}
                     >
                       <Icon className="w-6 h-6" />
-                      <span className="text-xs font-medium text-center leading-tight">
+                      <span className="text-xs font-medium text-center leading-tight truncate w-full">
                         {link.label}
                       </span>
                     </div>
