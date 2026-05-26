@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import {
   CheckCircle, XCircle, Search, Shield, User, Clock, RotateCcw, ChevronDown,
   Eye, FileText, BookOpen, Timer, TrendingUp, UserPlus, Upload, Download,
-  AlertCircle, CheckCircle2, Loader2,
+  AlertCircle, CheckCircle2, Loader2, Pencil,
 } from "lucide-react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useAdminApproveUser, useAdminRejectUser } from "@workspace/api-client-react";
@@ -47,6 +47,24 @@ interface ResetDialogState {
   userId: string;
   userName: string;
   scope: "all" | "topic" | "chapter" | "subject";
+}
+
+interface EditProfileDialogState {
+  userId: string;
+  userName: string;
+  targetRole: string;
+  current: { full_name: string; email: string; mobile_number: string };
+}
+
+/**
+ * Mirrors the backend canActorEditTarget logic.
+ * super_admin → can edit student and admin
+ * admin       → can edit student ONLY
+ */
+function canActorEditTarget(actorRole: string, targetRole: string): boolean {
+  if (actorRole === "super_admin") return targetRole === "student" || targetRole === "admin";
+  if (actorRole === "admin") return targetRole === "student";
+  return false;
 }
 
 interface UserDetail {
@@ -179,6 +197,8 @@ export default function AdminUsersPage() {
   const [search, setSearch] = useState("");
   const [resetDialog, setResetDialog] = useState<ResetDialogState | null>(null);
   const [detailUserId, setDetailUserId] = useState<string | null>(null);
+  const [editProfileDialog, setEditProfileDialog] = useState<EditProfileDialogState | null>(null);
+  const [editForm, setEditForm] = useState({ full_name: "", email: "", mobile_number: "" });
 
   // Create user state
   const [createDialog, setCreateDialog] = useState(false);
@@ -254,6 +274,17 @@ export default function AdminUsersPage() {
       toast({ title: "Role updated successfully" });
     },
     onError: (err: unknown) => toast({ title: "Error", description: (err as Error).message, variant: "destructive" }),
+  });
+
+  const editProfile = useMutation({
+    mutationFn: ({ userId, body }: { userId: string; body: Record<string, string> }) =>
+      apiFetch(`/admin/users/${userId}/profile`, { method: "PATCH", body: JSON.stringify(body) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: USERS_KEY });
+      toast({ title: "Profile updated successfully" });
+      setEditProfileDialog(null);
+    },
+    onError: (err: unknown) => toast({ title: "Update failed", description: (err as Error).message, variant: "destructive" }),
   });
 
   const createUser = useMutation({
@@ -382,6 +413,35 @@ export default function AdminUsersPage() {
           >
             <Eye className="w-3.5 h-3.5" />
           </Button>
+
+          {/* Edit profile button — only visible when actor has permission to edit this target */}
+          {userId !== currentUser?.id && canActorEditTarget(currentRole ?? "", role) && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="gap-1"
+              title="Edit profile fields"
+              onClick={() => {
+                setEditProfileDialog({
+                  userId,
+                  userName,
+                  targetRole: role,
+                  current: {
+                    full_name: String(user.full_name ?? ""),
+                    email: String(user.email ?? ""),
+                    mobile_number: String(user.mobile_number ?? ""),
+                  },
+                });
+                setEditForm({
+                  full_name: String(user.full_name ?? ""),
+                  email: String(user.email ?? ""),
+                  mobile_number: String(user.mobile_number ?? ""),
+                });
+              }}
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </Button>
+          )}
 
           {status === "pending_approval" && (
             <>
@@ -802,6 +862,90 @@ export default function AdminUsersPage() {
               }}
             >
               {resetProgress.isPending ? "Resetting..." : "Confirm Reset"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Edit Profile Dialog ─────────────────────────────────────────────── */}
+      <Dialog open={!!editProfileDialog} onOpenChange={v => { if (!v) setEditProfileDialog(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="w-5 h-5 text-primary" /> Edit Profile
+            </DialogTitle>
+          </DialogHeader>
+          {editProfileDialog && (
+            <div className="space-y-4 py-1">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                Editing{" "}
+                <span className="font-medium text-foreground">{editProfileDialog.userName}</span>
+                {roleBadge(editProfileDialog.targetRole)}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="ep-name">Full Name</Label>
+                <Input
+                  id="ep-name"
+                  placeholder="Full name"
+                  value={editForm.full_name}
+                  onChange={e => setEditForm(f => ({ ...f, full_name: e.target.value }))}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="ep-mobile">Mobile Number</Label>
+                <Input
+                  id="ep-mobile"
+                  placeholder="+919876543210"
+                  value={editForm.mobile_number}
+                  onChange={e => setEditForm(f => ({ ...f, mobile_number: e.target.value }))}
+                />
+              </div>
+
+              {/* Email is only editable by super_admin */}
+              {currentRole === "super_admin" && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="ep-email">
+                    Email{" "}
+                    <span className="text-xs text-muted-foreground font-normal">(super admin only)</span>
+                  </Label>
+                  <Input
+                    id="ep-email"
+                    type="email"
+                    placeholder="user@example.com"
+                    value={editForm.email}
+                    onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
+                  />
+                </div>
+              )}
+
+              <div className="rounded-lg bg-muted/30 border border-border px-3 py-2 text-xs text-muted-foreground">
+                Changes are logged to the audit trail including previous and updated values.
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditProfileDialog(null)}>Cancel</Button>
+            <Button
+              disabled={editProfile.isPending || !editForm.full_name.trim()}
+              onClick={() => {
+                if (!editProfileDialog) return;
+                const body: Record<string, string> = {};
+                if (editForm.full_name.trim() !== editProfileDialog.current.full_name)
+                  body["full_name"] = editForm.full_name.trim();
+                if (editForm.mobile_number !== editProfileDialog.current.mobile_number)
+                  body["mobile_number"] = editForm.mobile_number;
+                if (currentRole === "super_admin" && editForm.email !== editProfileDialog.current.email)
+                  body["email"] = editForm.email;
+                if (Object.keys(body).length === 0) {
+                  setEditProfileDialog(null);
+                  return;
+                }
+                editProfile.mutate({ userId: editProfileDialog.userId, body });
+              }}
+            >
+              {editProfile.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving…</> : "Save Changes"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,0 +1,138 @@
+🟢 Checkpoint 5: Role-Based Profile Edit Permission Fix
+
+Goal: Correct the role hierarchy and permission system for editing Name, Email, and Mobile fields to ensure proper access control between Regular Users, Admins, and Super Admins.
+
+Context: In the previous implementation:
+
+* Regular users (students/users) were correctly restricted from editing their Name, Email, and Mobile Number.
+* Admins were given permission to edit user details through the Admin Dashboard.
+* However, Admins were also incorrectly given permission to edit the details of other Admins and Super Admins.
+
+New Requirement:
+
+* Super Admin is the highest authority in the system.
+* Super Admin can edit:
+
+  * Regular Users (Students)
+  * Admins
+  * Other Super Admins (if intentionally allowed)
+* Admins can edit:
+
+  * Only Regular Users (Students)
+* Admins must NOT be able to edit:
+
+  * Other Admins
+  * Super Admins
+  * Their own protected fields (unless explicitly allowed)
+* Regular Users cannot edit protected fields at all.
+
+Instructions:
+
+1. Analyze Existing Permission System:
+
+* Review:
+
+  * Role-based access logic
+  * Admin Dashboard user management
+  * Backend authorization logic
+  * RLS policies
+  * API validation
+  * UI permission rendering
+* Identify where Admin users are incorrectly receiving elevated edit permissions.
+
+2. Implement Correct Role Hierarchy:
+
+* Enforce the following permission matrix:
+
+  Regular User:
+
+  * Cannot edit Name, Email, or Mobile
+
+  Admin:
+
+  * Can edit only Regular Users
+  * Cannot edit Admins
+  * Cannot edit Super Admins
+
+  Super Admin:
+
+  * Can edit Regular Users
+  * Can edit Admins
+  * Can manage higher-level permissions if allowed
+
+* Ensure permission enforcement exists at:
+
+  * Frontend/UI level
+  * Backend/API level
+  * Database/RLS level
+
+3. Update Admin Dashboard Behavior:
+
+* Hide edit actions/buttons for unauthorized targets.
+* Prevent Admin users from seeing edit controls for Admin/Super Admin accounts.
+* Ensure unauthorized API calls are blocked even if manually triggered.
+
+4. Security & Validation:
+
+* Prevent privilege escalation attempts.
+* Ensure role checks are validated server-side, not only in the UI.
+* Add proper unauthorized access error handling/messages.
+* Ensure audit logs capture:
+
+  * Who edited whom
+  * Previous vs updated values
+  * Timestamp and acting role
+
+5. Testing & Validation:
+
+* Test all role combinations:
+
+  * Regular User → Regular User
+  * Admin → Regular User
+  * Admin → Admin
+  * Admin → Super Admin
+  * Super Admin → Admin
+  * Super Admin → Regular User
+* Verify:
+
+  * Unauthorized edits fail properly
+  * Authorized edits succeed
+  * UI permissions update correctly
+  * No hidden API bypass exists
+
+6. Database / SQL / RLS Changes:
+
+* If any SQL, RLS policy, role permission, trigger, or backend changes are required:
+
+  * Clearly explain every required change.
+  * Provide updated SQL separately.
+  * Mention exactly where and how to run it.
+  * Mention whether existing permissions/data may be affected.
+* Explicitly state if no SQL changes are required.
+
+7. Checkpoint Requirement:
+
+* After completing and verifying this correction:
+
+  * Create a proper checkpoint/commit before starting the next feature.
+  * Ensure all role-based permissions are fully tested and stable.
+  * Provide an implementation summary including:
+
+    * Files modified
+    * Permission logic changes
+    * RLS/SQL updates
+    * Security improvements
+    * Remaining limitations/issues (if any)
+
+Acceptance Criteria:
+
+* [ ] Regular Users cannot edit Name, Email, or Mobile fields.
+* [ ] Admins can edit only Regular Users.
+* [ ] Admins cannot edit Admins or Super Admins.
+* [ ] Super Admins can edit Regular Users and Admins.
+* [ ] Unauthorized edit attempts are blocked at frontend, backend, and database levels.
+* [ ] Admin Dashboard hides unauthorized edit controls.
+* [ ] Audit logs track all profile changes correctly.
+* [ ] No privilege escalation or API bypass exists.
+* [ ] Checkpoint/commit is created after successful implementation and testing.
+* [ ] Any required SQL/RLS changes are clearly documented separately.

@@ -594,6 +594,19 @@ export interface ResetProgressInput {
   reference_id?: string | null;
 }
 
+/**
+ * Fields for admin to edit a target user's profile.
+Admin can only provide full_name and mobile_number (for students).
+Super admin can additionally provide email (for students and admins).
+
+ */
+export interface AdminUpdateProfileInput {
+  /** @minLength 1 */
+  full_name?: string;
+  mobile_number?: string;
+  email?: string;
+}
+
 export interface AdminAnalytics {
   total_students: number;
   pending_approvals: number;

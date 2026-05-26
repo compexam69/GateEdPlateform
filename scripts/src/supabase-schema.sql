@@ -488,6 +488,20 @@ as $$
   );
 $$;
 
+-- Helper: is the calling user specifically a super_admin?
+create or replace function is_super_admin()
+returns boolean language sql security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1 from public.profiles
+    where id = auth.uid() and role = 'super_admin'
+  );
+$$;
+
+-- Add old_value column to audit_logs for before/after change tracking
+alter table audit_logs add column if not exists old_value jsonb;
+
 -- ── profiles ─────────────────────────────────
 drop policy if exists "profiles_own_read"    on profiles;
 drop policy if exists "profiles_admin_read"  on profiles;
@@ -497,7 +511,15 @@ drop policy if exists "profiles_admin_update" on profiles;
 create policy "profiles_own_read"    on profiles for select using (auth.uid() = id);
 create policy "profiles_admin_read"  on profiles for select using (is_admin());
 create policy "profiles_own_update"  on profiles for update using (auth.uid() = id);
-create policy "profiles_admin_update" on profiles for update using (is_admin());
+-- Admins can only update student profiles; super_admins can update any profile.
+-- NOTE: `role` in the expression below refers to the TARGET row's role column.
+create policy "profiles_admin_update" on profiles for update using (
+  is_super_admin()
+  or (
+    is_admin()
+    and role = 'student'
+  )
+);
 
 -- ── subjects / chapters / topics / lectures ───
 drop policy if exists "subjects_read"         on subjects;

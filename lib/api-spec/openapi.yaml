@@ -885,6 +885,40 @@ paths:
                 items:
                   $ref: "#/components/schemas/UserProfile"
 
+  /admin/users/{userId}/profile:
+    patch:
+      operationId: adminUpdateUserProfile
+      tags: [admin]
+      summary: Edit a user's name, mobile, or email (role-gated)
+      description: |
+        Admins can edit name and mobile for student accounts only.
+        Super admins can edit name, mobile, and email for student and admin accounts.
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminUpdateProfileInput"
+      responses:
+        "200":
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          description: No valid fields provided
+        "403":
+          description: Forbidden — actor cannot edit this target's role
+        "404":
+          description: User not found
+
   /admin/users/{userId}/approve:
     post:
       operationId: adminApproveUser
@@ -1781,6 +1815,22 @@ components:
         reference_id:
           type: ["string", "null"]
       required: [scope]
+
+    AdminUpdateProfileInput:
+      type: object
+      description: |
+        Fields for admin to edit a target user's profile.
+        Admin can only provide full_name and mobile_number (for students).
+        Super admin can additionally provide email (for students and admins).
+      properties:
+        full_name:
+          type: string
+          minLength: 1
+        mobile_number:
+          type: string
+        email:
+          type: string
+          format: email
 
     AdminAnalytics:
       type: object

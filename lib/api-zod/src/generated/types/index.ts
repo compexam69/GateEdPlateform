@@ -8,6 +8,7 @@
 
 export * from './adminAnalytics';
 export * from './adminStorageStats';
+export * from './adminUpdateProfileInput';
 export * from './answerInput';
 export * from './answerResult';
 export * from './bulkImportResult';

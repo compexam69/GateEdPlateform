@@ -11,7 +11,8 @@ async function writeAuditLog(
   action: string,
   targetType: string,
   targetId: string,
-  newValue?: Record<string, unknown>
+  newValue?: Record<string, unknown>,
+  oldValue?: Record<string, unknown>
 ) {
   try {
     await supabase.from("audit_logs").insert({
@@ -20,11 +21,25 @@ async function writeAuditLog(
       target_type: targetType,
       target_id: targetId,
       new_value: newValue ?? null,
+      old_value: oldValue ?? null,
       created_at: new Date().toISOString(),
     });
   } catch {
     // audit log writes are best-effort
   }
+}
+
+/**
+ * Role hierarchy: super_admin > admin > student
+ * Returns true if the actor is permitted to edit the target's profile fields.
+ *   super_admin → can edit student, admin (and other super_admin)
+ *   admin       → can edit student ONLY
+ *   student     → cannot edit anyone
+ */
+function canActorEditTarget(actorRole: string, targetRole: string): boolean {
+  if (actorRole === "super_admin") return true;
+  if (actorRole === "admin") return targetRole === "student";
+  return false;
 }
 
 router.get("/admin/users", requireAdmin, async (req: AuthRequest, res) => {
@@ -88,6 +103,118 @@ router.post("/admin/users/:userId/reject", requireAdmin, async (req: AuthRequest
 
   await writeAuditLog(req.user!.id, "user_rejected", "profile", userId, { status: "suspended" });
   res.json({ message: "User rejected/banned" });
+});
+
+// ── Admin: edit a user's profile fields (name, mobile, email) ────────────────
+router.patch("/admin/users/:userId/profile", requireAdmin, async (req: AuthRequest, res) => {
+  const targetUserId = String(req.params["userId"]);
+  const actorId = req.user!.id;
+
+  if (targetUserId === actorId) {
+    res.status(403).json({ error: "Use your own profile page to edit your own details." });
+    return;
+  }
+
+  // Fetch actor's role from DB (authoritative source, not JWT metadata)
+  const { data: actorProfile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", actorId)
+    .maybeSingle();
+
+  const actorRole = actorProfile?.role ?? "";
+
+  // Fetch target profile for hierarchy check + snapshot
+  const { data: targetProfile } = await supabase
+    .from("profiles")
+    .select("role, full_name, mobile_number, email")
+    .eq("id", targetUserId)
+    .maybeSingle();
+
+  if (!targetProfile) {
+    res.status(404).json({ error: "User not found." });
+    return;
+  }
+
+  if (!canActorEditTarget(actorRole, targetProfile.role)) {
+    res.status(403).json({
+      error: actorRole === "admin"
+        ? "Admins can only edit student accounts. Editing admin or super admin profiles requires super admin privileges."
+        : "Insufficient privileges to edit this user.",
+    });
+    return;
+  }
+
+  const { full_name, mobile_number, email } = req.body as {
+    full_name?: string;
+    mobile_number?: string;
+    email?: string;
+  };
+
+  // Only super_admin can change email (requires Supabase Auth operation)
+  if (email !== undefined && actorRole !== "super_admin") {
+    res.status(403).json({ error: "Only super admins can change a user's email address." });
+    return;
+  }
+
+  // Build update payload — only include fields that were provided
+  const profileUpdates: Record<string, string> = {};
+  if (full_name !== undefined && full_name.trim()) profileUpdates["full_name"] = full_name.trim();
+  if (mobile_number !== undefined) profileUpdates["mobile_number"] = mobile_number.trim();
+
+  if (Object.keys(profileUpdates).length === 0 && email === undefined) {
+    res.status(400).json({ error: "No valid fields provided for update." });
+    return;
+  }
+
+  // Snapshot old values for audit trail
+  const oldSnapshot: Record<string, unknown> = {
+    full_name: targetProfile.full_name,
+    mobile_number: targetProfile.mobile_number,
+    email: targetProfile.email,
+  };
+  const newSnapshot: Record<string, unknown> = { ...profileUpdates };
+
+  // Apply profile table update
+  if (Object.keys(profileUpdates).length > 0) {
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .update(profileUpdates)
+      .eq("id", targetUserId);
+    if (profileError) { res.status(500).json({ error: profileError.message }); return; }
+  }
+
+  // Apply email change via Supabase Auth admin API (super_admin only)
+  if (email !== undefined) {
+    const cleanEmail = email.toLowerCase().trim();
+    const { error: emailError } = await supabase.auth.admin.updateUserById(targetUserId, {
+      email: cleanEmail,
+    });
+    if (emailError) { res.status(400).json({ error: emailError.message }); return; }
+
+    // Sync email into profiles table
+    await supabase.from("profiles").update({ email: cleanEmail }).eq("id", targetUserId);
+    newSnapshot["email"] = cleanEmail;
+  }
+
+  // Sync name/mobile into auth user_metadata for consistency
+  if (full_name !== undefined || mobile_number !== undefined) {
+    const metaUpdate: Record<string, string> = {};
+    if (full_name !== undefined) metaUpdate["full_name"] = full_name.trim();
+    if (mobile_number !== undefined) metaUpdate["mobile_number"] = mobile_number.trim();
+    await supabase.auth.admin.updateUserById(targetUserId, { user_metadata: metaUpdate });
+  }
+
+  await writeAuditLog(
+    actorId,
+    "profile_edited",
+    "profile",
+    targetUserId,
+    newSnapshot,
+    oldSnapshot
+  );
+
+  res.json({ message: "Profile updated successfully." });
 });
 
 router.patch("/admin/users/:userId/role", requireAdmin, async (req: AuthRequest, res) => {

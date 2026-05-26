@@ -754,6 +754,30 @@ export const AdminGetUsersResponse = zod.array(AdminGetUsersResponseItem)
 
 
 /**
+ * Admins can edit name and mobile for student accounts only.
+Super admins can edit name, mobile, and email for student and admin accounts.
+
+ * @summary Edit a user's name, mobile, or email (role-gated)
+ */
+export const AdminUpdateUserProfileParams = zod.object({
+  "userId": zod.coerce.string()
+})
+
+
+
+
+export const AdminUpdateUserProfileBody = zod.object({
+  "full_name": zod.string().min(1).optional(),
+  "mobile_number": zod.string().optional(),
+  "email": zod.string().email().optional()
+}).describe('Fields for admin to edit a target user\'s profile.\nAdmin can only provide full_name and mobile_number (for students).\nSuper admin can additionally provide email (for students and admins).\n')
+
+export const AdminUpdateUserProfileResponse = zod.object({
+  "message": zod.string()
+})
+
+
+/**
  * @summary Approve a pending user
  */
 export const AdminApproveUserParams = zod.object({

@@ -22,6 +22,7 @@ import type {
 import type {
   AdminAnalytics,
   AdminStorageStats,
+  AdminUpdateProfileInput,
   BulkImportResult,
   BulkQuestionsInput,
   Chapter,
@@ -3381,6 +3382,81 @@ export function useAdminGetUsers<TData = Awaited<ReturnType<typeof adminGetUsers
 
 
 
+
+export const getAdminUpdateUserProfileUrl = (userId: string,) => {
+
+
+
+
+  return `/api/admin/users/${userId}/profile`
+}
+
+/**
+ * Admins can edit name and mobile for student accounts only.
+Super admins can edit name, mobile, and email for student and admin accounts.
+
+ * @summary Edit a user's name, mobile, or email (role-gated)
+ */
+export const adminUpdateUserProfile = async (userId: string,
+    adminUpdateProfileInput: AdminUpdateProfileInput, options?: RequestInit): Promise<MessageResponse> => {
+
+  return customFetch<MessageResponse>(getAdminUpdateUserProfileUrl(userId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      adminUpdateProfileInput,)
+  }
+);}
+
+
+
+
+export const getAdminUpdateUserProfileMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUpdateUserProfile>>, TError,{userId: string;data: BodyType<AdminUpdateProfileInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminUpdateUserProfile>>, TError,{userId: string;data: BodyType<AdminUpdateProfileInput>}, TContext> => {
+
+const mutationKey = ['adminUpdateUserProfile'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminUpdateUserProfile>>, {userId: string;data: BodyType<AdminUpdateProfileInput>}> = (props) => {
+          const {userId,data} = props ?? {};
+
+          return  adminUpdateUserProfile(userId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminUpdateUserProfileMutationResult = NonNullable<Awaited<ReturnType<typeof adminUpdateUserProfile>>>
+    export type AdminUpdateUserProfileMutationBody = BodyType<AdminUpdateProfileInput>
+    export type AdminUpdateUserProfileMutationError = ErrorType<void>
+
+    /**
+ * @summary Edit a user's name, mobile, or email (role-gated)
+ */
+export const useAdminUpdateUserProfile = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUpdateUserProfile>>, TError,{userId: string;data: BodyType<AdminUpdateProfileInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminUpdateUserProfile>>,
+        TError,
+        {userId: string;data: BodyType<AdminUpdateProfileInput>},
+        TContext
+      > => {
+      return useMutation(getAdminUpdateUserProfileMutationOptions(options));
+    }
 
 export const getAdminApproveUserUrl = (userId: string,) => {
 
