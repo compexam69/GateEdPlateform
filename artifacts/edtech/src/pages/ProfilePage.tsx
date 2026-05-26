@@ -295,7 +295,7 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              <div className="flex-1 text-center sm:text-left space-y-3">
+              <div className="flex-1 min-w-0 w-full text-center sm:text-left space-y-3">
                 {editingName && canEditOwnProfile ? (
                   <div className="flex gap-2 items-center">
                     <Input value={newName} onChange={e => setNewName(e.target.value)} className="max-w-xs" autoFocus />
@@ -303,10 +303,10 @@ export default function ProfilePage() {
                     <Button size="sm" variant="ghost" onClick={() => setEditingName(false)}>Cancel</Button>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2 justify-center sm:justify-start">
-                    <h2 className="text-2xl font-bold">{user?.user_metadata?.full_name || "Student"}</h2>
+                  <div className="flex items-center gap-2 justify-center sm:justify-start min-w-0">
+                    <h2 className="text-2xl font-bold truncate min-w-0">{user?.user_metadata?.full_name || "Student"}</h2>
                     {canEditOwnProfile && (
-                      <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => { setNewName(user?.user_metadata?.full_name || ""); setEditingName(true); }}>
+                      <Button size="sm" variant="ghost" className="h-7 px-2 shrink-0" onClick={() => { setNewName(user?.user_metadata?.full_name || ""); setEditingName(true); }}>
                         <Pencil className="w-3 h-3" />
                       </Button>
                     )}
@@ -316,13 +316,13 @@ export default function ProfilePage() {
                 <div className="space-y-1.5">
                   {/* Email field */}
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2 justify-center sm:justify-start">
-                      <p className="text-muted-foreground">{user?.email}</p>
+                    <div className="flex items-center gap-2 justify-center sm:justify-start min-w-0">
+                      <p className="text-muted-foreground text-sm truncate min-w-0 flex-1">{user?.email}</p>
                       {isEmailVerified
-                        ? <Badge variant="secondary" className="bg-success/10 text-success text-xs gap-1"><CheckCircle className="w-3 h-3" />Verified</Badge>
-                        : <Badge variant="destructive" className="text-xs">Unverified</Badge>}
+                        ? <Badge variant="secondary" className="bg-success/10 text-success text-xs gap-1 shrink-0"><CheckCircle className="w-3 h-3" />Verified</Badge>
+                        : <Badge variant="destructive" className="text-xs shrink-0">Unverified</Badge>}
                       {canEditOwnProfile && (
-                        <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => { setEditingEmail(true); setEmailChangeSuccess(false); }}>
+                        <Button size="sm" variant="ghost" className="h-6 px-2 text-xs shrink-0" onClick={() => { setEditingEmail(true); setEmailChangeSuccess(false); }}>
                           <Pencil className="w-3 h-3" />
                         </Button>
                       )}
@@ -391,10 +391,10 @@ export default function ProfilePage() {
                       <Button size="sm" variant="ghost" onClick={() => setEditingMobile(false)}>Cancel</Button>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2 justify-center sm:justify-start">
-                      <p className="text-muted-foreground text-sm">{maskedMobile || <span className="italic">No mobile number</span>}</p>
+                    <div className="flex items-center gap-2 justify-center sm:justify-start min-w-0">
+                      <p className="text-muted-foreground text-sm truncate min-w-0 flex-1">{maskedMobile || <span className="italic">No mobile number</span>}</p>
                       {canEditOwnProfile && (
-                        <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => { setNewMobile(user?.user_metadata?.mobile_number || "+91 "); setEditingMobile(true); }}>
+                        <Button size="sm" variant="ghost" className="h-6 px-2 text-xs shrink-0" onClick={() => { setNewMobile(user?.user_metadata?.mobile_number || "+91 "); setEditingMobile(true); }}>
                           <Pencil className="w-3 h-3" />
                         </Button>
                       )}
