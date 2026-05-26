@@ -393,26 +393,40 @@ export default function AdminUsersPage() {
             {roleBadge(role)}
             {statusBadge(status)}
           </div>
-          <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground flex-wrap">
-            <span>{String(user.email || "")}</span>
-            {!!user.mobile_number && <span>{String(user.mobile_number)}</span>}
-            <span className="flex items-center gap-1">
-              <Clock className="w-3 h-3" />
-              {user.created_at ? format(new Date(String(user.created_at)), "MMM d, yyyy") : ""}
-            </span>
-          </div>
+          {/* Admins see only name + role for super_admin rows; sensitive fields are masked at the API level */}
+          {role === "super_admin" && currentRole !== "super_admin" ? (
+            <div className="mt-1">
+              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground/60 italic">
+                <Shield className="w-3 h-3" /> Details restricted
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground flex-wrap">
+              {!!user.email && <span>{String(user.email)}</span>}
+              {!!user.mobile_number && <span>{String(user.mobile_number)}</span>}
+              {!!user.created_at && (
+                <span className="flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  {format(new Date(String(user.created_at)), "MMM d, yyyy")}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          <Button
-            size="sm"
-            variant="ghost"
-            className="gap-1"
-            onClick={() => setDetailUserId(userId)}
-            title="View user details"
-          >
-            <Eye className="w-3.5 h-3.5" />
-          </Button>
+          {/* Eye (detail view) button is hidden for super_admin rows when actor is not super_admin */}
+          {(role !== "super_admin" || currentRole === "super_admin") && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="gap-1"
+              onClick={() => setDetailUserId(userId)}
+              title="View user details"
+            >
+              <Eye className="w-3.5 h-3.5" />
+            </Button>
+          )}
 
           {/* Edit profile button — only visible when actor has permission to edit this target */}
           {userId !== currentUser?.id && canActorEditTarget(currentRole ?? "", role) && (

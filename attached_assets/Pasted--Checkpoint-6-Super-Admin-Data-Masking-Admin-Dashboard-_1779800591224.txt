@@ -1,0 +1,123 @@
+🟢 Checkpoint 6: Super Admin Data Masking & Admin Dashboard Privacy Restriction
+
+Goal: Restrict Admin-level visibility of Super Admin personal information by masking sensitive details and removing unnecessary metadata from the Active Users section of the Admin Dashboard.
+
+Context: Currently, Admin users can view sensitive Super Admin information such as:
+
+* Email address
+* Phone number
+* Joined date
+* Other profile/account details
+
+This creates unnecessary exposure of high-authority account information.
+
+New Requirement:
+
+* Admins should only be able to see:
+
+  * Super Admin Name
+  * Super Admin Role
+* All other Super Admin details must be hidden, removed, or masked from Admin dashboards.
+* Super Admin remains the highest authority in the system.
+
+Instructions:
+
+1. Analyze Existing Dashboard Visibility Logic:
+
+* Review:
+
+  * Active Users module
+  * User listing components
+  * Role-based rendering logic
+  * Backend/API responses
+  * RLS/security policies
+* Identify where Super Admin data is exposed to Admin users.
+
+2. Implement Super Admin Data Masking:
+
+* For Admin users:
+
+  * Mask or hide Super Admin email addresses
+  * Mask or hide Super Admin phone numbers
+  * Remove joined date visibility
+  * Remove unnecessary metadata/details
+* Ensure Admins can only see:
+
+  * Super Admin Name
+  * Super Admin Role
+
+3. Enforce Backend Security:
+
+* Ensure sensitive Super Admin data is restricted not only in the UI but also:
+
+  * In API responses
+  * In database queries
+  * In backend services
+* Prevent Admins from accessing hidden Super Admin data through manual API calls or browser inspection.
+
+4. UI & User Experience:
+
+* Ensure the dashboard UI remains clean and consistent after masking/removal.
+* Add proper placeholders or masked formatting if required.
+* Prevent layout breaking after hidden field removal.
+
+5. Security Validation:
+
+* Verify that:
+
+  * Admins cannot retrieve hidden Super Admin data through frontend manipulation
+  * API/network responses do not expose restricted fields
+  * Unauthorized role escalation or data leakage is prevented
+
+6. Testing & Validation:
+
+* Test:
+
+  * Admin dashboard visibility
+  * Super Admin dashboard visibility
+  * Active Users listing
+  * API/network responses
+  * Different role combinations
+  * Mobile and desktop layouts
+* Ensure:
+
+  * Super Admin still sees complete data if intended
+  * Admins only see allowed information
+  * No console errors or broken UI states occur
+
+7. Database / SQL / RLS Changes:
+
+* If any SQL, RLS policy, backend filtering, or API permission changes are required:
+
+  * Clearly explain every required change.
+  * Provide updated SQL separately.
+  * Mention exactly where and how to run it.
+  * Mention whether existing data or permissions may be affected.
+* Explicitly state if no SQL changes are required.
+
+8. Checkpoint Requirement:
+
+* After completing and verifying this correction:
+
+  * Create a proper checkpoint/commit before starting the next feature.
+  * Ensure privacy restrictions are fully tested and stable.
+  * Provide an implementation summary including:
+
+    * Files modified
+    * UI/backend/API changes
+    * Permission/security updates
+    * SQL/RLS changes
+    * Remaining limitations/issues (if any)
+
+Acceptance Criteria:
+
+* [ ] Admins can only view Super Admin Name and Role.
+* [ ] Super Admin email addresses are hidden or masked from Admins.
+* [ ] Super Admin phone numbers are hidden or masked from Admins.
+* [ ] Joined date and unnecessary metadata are removed from Admin visibility.
+* [ ] Sensitive data is protected at frontend, backend, and API levels.
+* [ ] No restricted data is exposed through browser inspection or API calls.
+* [ ] Dashboard UI remains stable and responsive after changes.
+* [ ] No privilege escalation or data leakage exists.
+* [ ] Checkpoint/commit is created after successful implementation and testing.
+* [ ] Any required SQL/RLS changes are clearly documented separately.

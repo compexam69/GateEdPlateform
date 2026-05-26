@@ -42,13 +42,39 @@ function canActorEditTarget(actorRole: string, targetRole: string): boolean {
   return false;
 }
 
+/**
+ * Fields that are stripped from super_admin rows when the requesting actor
+ * is an admin (not a super_admin). Only id, full_name, role, status, and
+ * is_approved remain visible.
+ */
+const SUPER_ADMIN_MASKED_FIELDS = ["email", "mobile_number", "created_at", "avatar_url", "email_verified"];
+
+function maskSuperAdminRow(row: Record<string, unknown>): Record<string, unknown> {
+  const masked = { ...row };
+  for (const field of SUPER_ADMIN_MASKED_FIELDS) {
+    masked[field] = null;
+  }
+  return masked;
+}
+
 router.get("/admin/users", requireAdmin, async (req: AuthRequest, res) => {
+  const actorRole = req.user!.role;
+
   const { data, error } = await supabase
     .from("profiles")
     .select("*")
     .order("created_at", { ascending: false });
   if (error) { res.status(500).json({ error: error.message }); return; }
-  res.json(data ?? []);
+
+  const users = (data ?? []) as Record<string, unknown>[];
+
+  // Admins (non-super_admin) must not see sensitive fields of super_admin accounts.
+  if (actorRole !== "super_admin") {
+    res.json(users.map(u => u["role"] === "super_admin" ? maskSuperAdminRow(u) : u));
+    return;
+  }
+
+  res.json(users);
 });
 
 router.post("/admin/users/:userId/approve", requireAdmin, async (req: AuthRequest, res) => {
@@ -463,6 +489,21 @@ router.patch("/admin/gate-config", requireAdmin, async (req: AuthRequest, res) =
 
 router.get("/admin/users/:userId/detail", requireAdmin, async (req: AuthRequest, res) => {
   const userId = String(req.params["userId"]);
+  const actorRole = req.user!.role;
+
+  // Before fetching activity data, check target role to block admin from viewing super_admin detail.
+  if (actorRole !== "super_admin") {
+    const { data: targetCheck } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (targetCheck?.role === "super_admin") {
+      res.status(403).json({ error: "Admins cannot view detailed profiles of super admin accounts." });
+      return;
+    }
+  }
 
   const [profileRes, attemptsRes, notesRes, pomodoroRes] = await Promise.all([
     supabase
