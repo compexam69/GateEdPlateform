@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LogOut, User, Camera, Eye, EyeOff, CheckCircle, Shield, X, Pencil, Phone, Bell, Mail, Download } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { Badge } from "@/components/ui/badge";
@@ -53,12 +53,34 @@ export default function ProfilePage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [changingPwd, setChangingPwd] = useState(false);
 
-  const [photoUrl, setPhotoUrl] = useState<string | null>(user?.user_metadata?.avatar_url || null);
+  const storedAvatarPath: string | null = user?.user_metadata?.avatar_url || null;
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [cropOpen, setCropOpen] = useState(false);
   const [cropSrc, setCropSrc] = useState<string>("");
+
+  useEffect(() => {
+    if (!storedAvatarPath || storedAvatarPath.startsWith("blob:") || storedAvatarPath.startsWith("http")) {
+      setPhotoUrl(storedAvatarPath);
+      return;
+    }
+    let cancelled = false;
+    supabase.auth.getSession().then(({ data }) => {
+      const token = data.session?.access_token;
+      if (!token || cancelled) return;
+      fetch(`${getApiBase()}/b2/profile-download-url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ user_id: user!.id }),
+      })
+        .then(r => (r.ok ? r.json() : null))
+        .then(d => { if (!cancelled && d?.download_url) setPhotoUrl(d.download_url); })
+        .catch(() => {});
+    });
+    return () => { cancelled = true; };
+  }, [user?.id, storedAvatarPath]);
 
   const rawPrefs = user?.user_metadata?.notification_prefs;
   const [notifPrefs, setNotifPrefs] = useState<NotifPrefs>({
