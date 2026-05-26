@@ -1,0 +1,142 @@
+🟢 Checkpoint 10: Profile Photo Upload Fix
+
+Goal: Fix the profile photo upload functionality and resolve the "Failed to generate upload URL" error occurring during image upload while allowing users to upload images of any size and automatically compressing/resizing them during the upload process.
+
+Context: The current profile photo upload feature is failing during the upload process with the error:
+"Failed to generate upload URL"
+
+Additionally, the system should support uploading large image files without rejecting them immediately. Instead of blocking uploads based on file size, images should be automatically compressed and optimized before upload to improve performance, storage usage, and mobile/PWA compatibility.
+
+Instructions:
+
+1. Analyze Existing Upload Flow:
+
+* Review:
+
+  * Profile photo upload UI/component
+  * Image upload service/helper functions
+  * Storage bucket configuration
+  * Backend/API upload logic
+  * Signed URL generation flow
+  * Database profile update logic
+* Identify:
+
+  * Why the upload URL generation is failing
+  * Whether storage permissions are incorrect
+  * Whether signed URL generation is broken
+  * Whether authentication/session issues affect uploads
+  * Whether image preprocessing is causing failures
+
+2. Fix Upload URL Generation:
+
+* Ensure the system correctly generates secure upload URLs.
+* Verify:
+
+  * Storage bucket access permissions
+  * Signed URL generation logic
+  * Authenticated upload requests
+  * Expiration handling for upload URLs
+* Prevent invalid or expired upload requests.
+
+3. Implement Smart Image Compression & Optimization:
+
+* Allow users to upload images of any reasonable size without immediate rejection.
+* Before upload:
+
+  * Automatically compress large images
+  * Resize oversized images proportionally
+  * Optimize image quality for web/mobile usage
+* Ensure compression happens client-side before upload whenever possible.
+* Maintain acceptable visual quality after compression.
+* Prevent browser crashes or memory issues with extremely large images.
+
+4. Validate Supported Uploads:
+
+* Support common image formats:
+
+  * JPG/JPEG
+  * PNG
+  * WEBP
+* Reject unsupported or corrupted files gracefully.
+* Ensure upload handling remains stable even for very large images.
+
+5. Implement Reliable Upload Flow:
+
+* Ensure:
+
+  * Image uploads complete successfully
+  * Database/profile records update correctly
+  * Uploaded images display immediately in the UI
+  * Old profile photos are automatically removed/replaced from storage
+* Prevent duplicate uploads or broken image references.
+
+6. Improve Error Handling:
+
+* Display clear and user-friendly error messages for:
+
+  * Network failures
+  * Permission errors
+  * Invalid/corrupted files
+  * Upload timeout failures
+  * Storage service failures
+* Prevent broken loading states or silent upload failures.
+
+7. Testing & Validation:
+
+* Test:
+
+  * Small image uploads
+  * Very large image uploads
+  * Replacing existing photos
+  * Invalid file uploads
+  * Slow internet conditions
+  * Mobile and desktop browsers
+  * Installed PWA mode
+* Verify:
+
+  * Large images compress successfully before upload
+  * Upload works consistently
+  * Images render correctly after upload
+  * No stale cached images remain
+  * No console or network errors occur
+
+8. Storage / Backend / SQL Changes:
+
+* If any storage bucket policy, backend logic, Supabase configuration, RLS policy, or SQL changes are required:
+
+  * Clearly explain every required change.
+  * Provide updated SQL separately.
+  * Mention exactly where and how to run it.
+  * Mention whether existing files/data may be affected.
+* Explicitly state if no SQL/backend changes are required.
+
+9. Checkpoint Requirement:
+
+* After completing and verifying this fix:
+
+  * Create a proper checkpoint/commit before starting the next feature.
+  * Ensure the upload flow is fully tested and production-ready.
+  * Provide an implementation summary including:
+
+    * Files modified
+    * Upload/storage logic changes
+    * Compression/optimization improvements
+    * Storage/RLS/SQL changes
+    * Remaining limitations/issues (if any)
+
+Acceptance Criteria:
+
+* [ ] Profile photo upload works successfully without URL generation errors.
+* [ ] Users can upload large images without immediate rejection.
+* [ ] Large images are automatically compressed/resized before upload.
+* [ ] Image quality remains visually acceptable after compression.
+* [ ] Secure upload URLs are generated correctly.
+* [ ] Invalid or corrupted files are rejected properly.
+* [ ] Old profile photos are automatically replaced/deleted.
+* [ ] Database/profile image references update correctly.
+* [ ] Uploaded images display immediately in the UI.
+* [ ] Clear error messages appear for upload failures.
+* [ ] No broken loading states or stale images remain.
+* [ ] Upload works consistently across devices and browsers.
+* [ ] Checkpoint/commit is created after successful implementation and testing.
+* [ ] Any required storage/RLS/SQL changes are clearly documented separately.

@@ -79,7 +79,7 @@ router.post("/b2/upload-url", requireAuth, async (req: AuthRequest, res) => {
   const expiry = new Date(Date.now() + 15 * 60 * 1000).toISOString();
 
   try {
-    const { uploadUrl } = await getUploadPresignedUrl(storagePath);
+    const { uploadUrl, uploadAuthToken } = await getUploadPresignedUrl(storagePath);
 
     // Create the user_notes record now (with size and hash); b2_file_id populated after client confirms upload
     const cleanName = filename.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
@@ -93,7 +93,7 @@ router.post("/b2/upload-url", requireAuth, async (req: AuthRequest, res) => {
       content_type: content_type ?? "application/pdf",
     }).select().single();
 
-    res.json({ upload_url: uploadUrl, storage_path: storagePath, expires_at: expiry });
+    res.json({ upload_url: uploadUrl, upload_auth_token: uploadAuthToken, storage_path: storagePath, expires_at: expiry });
   } catch (e) {
     res.status(500).json({ error: "Failed to generate upload URL" });
   }
@@ -138,8 +138,8 @@ router.post("/b2/profile-upload-url", requireAuth, async (req: AuthRequest, res)
       } catch { /* best-effort — do not block the upload */ }
     }
 
-    const { uploadUrl } = await getUploadPresignedUrl(storagePath);
-    res.json({ upload_url: uploadUrl, storage_path: storagePath, expires_at: expiry });
+    const { uploadUrl, uploadAuthToken } = await getUploadPresignedUrl(storagePath);
+    res.json({ upload_url: uploadUrl, upload_auth_token: uploadAuthToken, storage_path: storagePath, expires_at: expiry });
   } catch {
     res.status(500).json({ error: "Failed to generate upload URL" });
   }

@@ -167,14 +167,12 @@ export default function ProfilePage() {
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
       toast({ title: "Invalid file type", description: "Please upload a JPG, PNG, or WEBP image.", variant: "destructive" }); return;
     }
-    if (file.size > 2 * 1024 * 1024) {
-      toast({ title: "File too large", description: "Image must be under 2MB.", variant: "destructive" }); return;
-    }
     setUploadingPhoto(true);
     try {
       const compressed = await compressImage(file, 500, 500);
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
+      if (!token) throw new Error("Not authenticated — please sign in again.");
       const urlRes = await fetch(`${getApiBase()}/b2/profile-upload-url`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({}),
       });
@@ -182,13 +180,22 @@ export default function ProfilePage() {
         const errData = await urlRes.json().catch(() => ({}));
         throw new Error((errData as { error?: string }).error || "Failed to get upload URL");
       }
-      const { upload_url, storage_path } = await urlRes.json();
+      const { upload_url, upload_auth_token, storage_path } = await urlRes.json();
       const uploadRes = await fetch(upload_url, {
         method: "POST",
-        headers: { Authorization: upload_url, "Content-Type": "image/jpeg", "X-Bz-File-Name": encodeURIComponent(storage_path), "X-Bz-Content-Sha1": "do_not_verify" },
+        headers: {
+          Authorization: upload_auth_token,
+          "Content-Type": "image/jpeg",
+          "X-Bz-File-Name": encodeURIComponent(storage_path),
+          "X-Bz-Content-Sha1": "do_not_verify",
+          "Content-Length": String(compressed.size),
+        },
         body: compressed,
       });
-      if (!uploadRes.ok) throw new Error("Upload to storage failed");
+      if (!uploadRes.ok) {
+        const errText = await uploadRes.text().catch(() => "");
+        throw new Error(`Storage upload failed (${uploadRes.status})${errText ? ": " + errText : ""}`);
+      }
       await supabase.from("profiles").update({ avatar_url: storage_path }).eq("id", user!.id);
       await supabase.auth.updateUser({ data: { avatar_url: storage_path } });
       setPhotoUrl(URL.createObjectURL(compressed));
