@@ -54,7 +54,7 @@ interface NotifPrefs {
 const DEFAULT_PREFS: NotifPrefs = { daily_plan: true, streak: true, exam_reminders: true };
 
 export default function ProfilePage() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, role } = useAuth();
   const { toast } = useToast();
 
   const [editingName, setEditingName] = useState(false);
@@ -92,8 +92,12 @@ export default function ProfilePage() {
   });
   const [savingPrefs, setSavingPrefs] = useState(false);
 
-  const role = user?.user_metadata?.role || "student";
-  const isAdmin = role === "admin" || role === "super_admin";
+  // role is read from the profiles table via useAuth (authoritative, not JWT metadata)
+  const effectiveRole = role ?? "student";
+  const isAdmin = effectiveRole === "admin" || effectiveRole === "super_admin";
+  // Only super_admin may edit their own protected fields (name, email, mobile)
+  // Admins and students have immutable protected fields on their own profile
+  const canEditOwnProfile = effectiveRole === "super_admin";
 
   async function handleSaveName() {
     if (!newName.trim() || newName.trim().length < 2) {
@@ -292,7 +296,7 @@ export default function ProfilePage() {
               </div>
 
               <div className="flex-1 text-center sm:text-left space-y-3">
-                {editingName ? (
+                {editingName && canEditOwnProfile ? (
                   <div className="flex gap-2 items-center">
                     <Input value={newName} onChange={e => setNewName(e.target.value)} className="max-w-xs" autoFocus />
                     <Button size="sm" onClick={handleSaveName} disabled={savingName}>{savingName ? "Saving..." : "Save"}</Button>
@@ -301,9 +305,11 @@ export default function ProfilePage() {
                 ) : (
                   <div className="flex items-center gap-2 justify-center sm:justify-start">
                     <h2 className="text-2xl font-bold">{user?.user_metadata?.full_name || "Student"}</h2>
-                    <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => { setNewName(user?.user_metadata?.full_name || ""); setEditingName(true); }}>
-                      <Pencil className="w-3 h-3" />
-                    </Button>
+                    {canEditOwnProfile && (
+                      <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => { setNewName(user?.user_metadata?.full_name || ""); setEditingName(true); }}>
+                        <Pencil className="w-3 h-3" />
+                      </Button>
+                    )}
                   </div>
                 )}
 
@@ -315,9 +321,11 @@ export default function ProfilePage() {
                       {isEmailVerified
                         ? <Badge variant="secondary" className="bg-success/10 text-success text-xs gap-1"><CheckCircle className="w-3 h-3" />Verified</Badge>
                         : <Badge variant="destructive" className="text-xs">Unverified</Badge>}
-                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => { setEditingEmail(true); setEmailChangeSuccess(false); }}>
-                        <Pencil className="w-3 h-3" />
-                      </Button>
+                      {canEditOwnProfile && (
+                        <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => { setEditingEmail(true); setEmailChangeSuccess(false); }}>
+                          <Pencil className="w-3 h-3" />
+                        </Button>
+                      )}
                     </div>
 
                     {emailChangeSuccess && (
@@ -327,7 +335,7 @@ export default function ProfilePage() {
                       </div>
                     )}
 
-                    {editingEmail && (
+                    {canEditOwnProfile && editingEmail && (
                       <div className="mt-2 space-y-2 rounded-lg border border-border bg-muted/30 p-3">
                         <p className="text-xs text-muted-foreground flex items-center gap-1.5">
                           <Mail className="w-3.5 h-3.5" />
@@ -372,7 +380,7 @@ export default function ProfilePage() {
                   </div>
 
                   {/* Mobile field */}
-                  {editingMobile ? (
+                  {editingMobile && canEditOwnProfile ? (
                     <div className="flex gap-2 items-center">
                       <div className="relative">
                         <Phone className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -385,9 +393,11 @@ export default function ProfilePage() {
                   ) : (
                     <div className="flex items-center gap-2 justify-center sm:justify-start">
                       <p className="text-muted-foreground text-sm">{maskedMobile || <span className="italic">No mobile number</span>}</p>
-                      <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => { setNewMobile(user?.user_metadata?.mobile_number || "+91 "); setEditingMobile(true); }}>
-                        <Pencil className="w-3 h-3" />
-                      </Button>
+                      {canEditOwnProfile && (
+                        <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => { setNewMobile(user?.user_metadata?.mobile_number || "+91 "); setEditingMobile(true); }}>
+                          <Pencil className="w-3 h-3" />
+                        </Button>
+                      )}
                     </div>
                   )}
                 </div>

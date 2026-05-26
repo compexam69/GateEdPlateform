@@ -428,8 +428,9 @@ export default function AdminUsersPage() {
             </Button>
           )}
 
-          {/* Edit profile button — only visible when actor has permission to edit this target */}
-          {userId !== currentUser?.id && canActorEditTarget(currentRole ?? "", role) && (
+          {/* Edit profile button — visible when actor has permission to edit this target.
+              Super admins may also edit their own row from the admin dashboard. */}
+          {(userId !== currentUser?.id || currentRole === "super_admin") && canActorEditTarget(currentRole ?? "", role) && (
             <Button
               size="sm"
               variant="ghost"

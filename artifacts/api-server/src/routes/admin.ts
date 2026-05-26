@@ -136,12 +136,7 @@ router.patch("/admin/users/:userId/profile", requireAdmin, async (req: AuthReque
   const targetUserId = String(req.params["userId"]);
   const actorId = req.user!.id;
 
-  if (targetUserId === actorId) {
-    res.status(403).json({ error: "Use your own profile page to edit your own details." });
-    return;
-  }
-
-  // Fetch actor's role from DB (authoritative source, not JWT metadata)
+  // Fetch actor's role from DB first (authoritative source, not JWT metadata)
   const { data: actorProfile } = await supabase
     .from("profiles")
     .select("role")
@@ -149,6 +144,14 @@ router.patch("/admin/users/:userId/profile", requireAdmin, async (req: AuthReque
     .maybeSingle();
 
   const actorRole = actorProfile?.role ?? "";
+
+  // Self-edit via the admin route is only permitted for super_admin.
+  // Admins and students must use their own Profile page (which is also blocked
+  // for them — this defence-in-depth catch rejects any direct API attempt).
+  if (targetUserId === actorId && actorRole !== "super_admin") {
+    res.status(403).json({ error: "Admins and students cannot edit their own protected fields." });
+    return;
+  }
 
   // Fetch target profile for hierarchy check + snapshot
   const { data: targetProfile } = await supabase
