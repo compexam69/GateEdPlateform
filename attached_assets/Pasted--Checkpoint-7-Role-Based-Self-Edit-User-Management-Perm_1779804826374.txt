@@ -1,0 +1,167 @@
+🟢 Checkpoint 7: Role-Based Self-Edit & User Management Permission Enforcement
+
+Goal: Implement strict role-based editing permissions for Super Admins, Admins, and Regular Users (Students) across both the Admin Dashboard and Profile Module.
+
+Context: The system currently requires more precise permission enforcement for editing protected profile fields such as:
+
+* Name
+* Email
+* Mobile Number
+
+New Requirements:
+
+Super Admin:
+
+* Can edit their own details.
+* Can edit details of:
+
+  * Admins
+  * Regular Users (Students)
+* Editing must be available from:
+
+  * Admin Dashboard/User Management Module
+  * Profile Module
+
+Admin:
+
+* Cannot edit their own protected details.
+* Can edit protected details of only Regular Users (Students).
+* Their own Name, Email, and Mobile fields must remain immutable.
+* Edit/Pencil icons for their own profile must be hidden or disabled in:
+
+  * Profile Module
+  * User Management Module
+
+Regular Users (Students):
+
+* Cannot edit their own Name, Email, or Mobile Number.
+* Their information must remain immutable.
+* Edit/Pencil icons must be hidden or disabled in the Profile Module.
+
+Instructions:
+
+1. Analyze Existing Permission & Profile Logic:
+
+* Review:
+
+  * Role-based access control logic
+  * Profile Module
+  * Admin Dashboard/User Management Module
+  * API authorization logic
+  * Database/RLS policies
+  * UI rendering conditions
+* Identify where current permissions allow unauthorized editing.
+
+2. Implement Role-Based Editing Rules:
+
+Super Admin:
+
+* Can edit:
+
+  * Their own profile details
+  * Admin details
+  * Student/Regular User details
+
+Admin:
+
+* Can edit:
+
+  * Only Student/Regular User details
+* Cannot edit:
+
+  * Their own details
+  * Other Admin details
+  * Super Admin details
+
+Regular User (Student):
+
+* Cannot edit protected fields under any condition.
+
+3. UI Restrictions & Visibility:
+
+* Hide or disable Edit/Pencil icons where editing is not allowed.
+* Ensure immutable fields appear clearly read-only.
+* Prevent unauthorized edit forms/modals from opening.
+
+4. Backend & Security Enforcement:
+
+* Enforce restrictions at:
+
+  * Frontend/UI level
+  * Backend/API level
+  * Database/RLS level
+* Prevent manual API manipulation or privilege escalation attempts.
+* Ensure unauthorized update requests are rejected properly.
+
+5. Audit Logging:
+
+* Log all successful edits performed by:
+
+  * Super Admins
+  * Admins
+* Include:
+
+  * Acting user
+  * Target user
+  * Changed fields
+  * Timestamp
+  * Previous vs updated values
+
+6. Testing & Validation:
+
+* Test all permission combinations:
+
+  * Super Admin → Self
+  * Super Admin → Admin
+  * Super Admin → Student
+  * Admin → Self
+  * Admin → Student
+  * Admin → Admin
+  * Student → Self
+* Verify:
+
+  * Unauthorized edits fail correctly
+  * Authorized edits succeed
+  * UI reflects correct permissions
+  * No hidden API bypass exists
+  * No stale cached profile data remains
+
+7. Database / SQL / RLS Changes:
+
+* If any SQL, RLS policies, triggers, backend rules, or permission updates are required:
+
+  * Clearly explain every required change.
+  * Provide updated SQL separately.
+  * Mention where and how to run the SQL.
+  * Mention whether existing permissions/data may be affected.
+* Explicitly state if no SQL changes are required.
+
+8. Checkpoint Requirement:
+
+* After completing and verifying this implementation:
+
+  * Create a proper checkpoint/commit before starting the next feature.
+  * Ensure all role-based permissions are fully tested and stable.
+  * Provide an implementation summary including:
+
+    * Files modified
+    * Permission logic changes
+    * UI restrictions added
+    * API/backend updates
+    * SQL/RLS changes
+    * Remaining limitations/issues (if any)
+
+Acceptance Criteria:
+
+* [ ] Super Admin can edit their own details.
+* [ ] Super Admin can edit Admin and Student details.
+* [ ] Admin cannot edit their own details.
+* [ ] Admin can edit only Student details.
+* [ ] Admin cannot edit Admin or Super Admin details.
+* [ ] Students cannot edit Name, Email, or Mobile fields.
+* [ ] Edit/Pencil icons are hidden or disabled where editing is not allowed.
+* [ ] Unauthorized API/database update attempts are blocked.
+* [ ] Audit logs capture all authorized changes.
+* [ ] No privilege escalation or permission bypass exists.
+* [ ] Checkpoint/commit is created after successful implementation and testing.
+* [ ] Any required SQL/RLS changes are clearly documented separately.
