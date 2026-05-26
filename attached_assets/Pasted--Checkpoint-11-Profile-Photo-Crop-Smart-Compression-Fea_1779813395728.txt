@@ -1,0 +1,156 @@
+🟢 Checkpoint 11: Profile Photo Crop & Smart Compression Feature
+
+Goal: Implement a profile photo cropping feature during image upload that allows users to crop their profile picture before upload and automatically compress the cropped image if its size exceeds the defined limit.
+
+Context: The current profile photo upload system supports image upload and compression, but users cannot crop images before uploading. This may result in:
+
+* Improper profile image alignment
+* Large unnecessary image dimensions
+* Poor avatar/profile presentation
+* Increased storage and bandwidth usage
+
+New Requirement:
+
+* Users should be able to crop images before upload.
+* After cropping:
+
+  * If the cropped image size exceeds the defined limit, automatically compress and optimize it before upload.
+  * If the cropped image is already within the allowed limit, upload it without unnecessary compression.
+* Ensure the final uploaded image is optimized for profile/avatar usage across mobile, desktop, and PWA layouts.
+
+Instructions:
+
+1. Analyze Existing Upload Flow:
+
+* Review:
+
+  * Current profile photo upload component
+  * Image compression/resizing logic
+  * Upload modal/UI flow
+  * Storage upload process
+  * Profile image rendering system
+* Identify where cropping and conditional compression should be integrated safely.
+
+2. Implement Image Crop Feature:
+
+* Add a user-friendly image cropping interface before upload.
+* Allow users to:
+
+  * Select crop area
+  * Zoom in/out
+  * Reposition image
+  * Preview cropped result before upload
+* Ensure smooth interaction on:
+
+  * Mobile devices
+  * Desktop browsers
+  * Installed PWA mode
+
+3. Implement Smart Compression Logic:
+
+* After cropping:
+
+  * Check the final cropped image size.
+  * If the image exceeds the configured size limit:
+
+    * Automatically compress and optimize it before upload.
+  * If the image is already within the allowed size:
+
+    * Upload without unnecessary compression.
+* Ensure:
+
+  * Compression reduces file size efficiently
+  * Visual quality remains acceptable
+  * Compression does not distort the image
+  * Processing remains fast and responsive
+
+4. Define Profile Image Standards:
+
+* Ensure uploaded profile pictures:
+
+  * Maintain proper aspect ratio
+  * Use optimized dimensions
+  * Render correctly throughout the application
+* Prevent stretched, blurry, distorted, or oversized profile images.
+
+5. Improve Upload Flow & UX:
+
+* Add:
+
+  * Crop confirmation controls
+  * Compression/loading indicators
+  * Upload progress indicators
+  * Cancel/reset crop functionality
+  * Clear validation/error messages
+* Ensure smooth upload experience without blocking the UI.
+
+6. Error Handling:
+
+* Handle:
+
+  * Invalid/corrupted image files
+  * Crop processing failures
+  * Compression failures
+  * Upload interruptions
+  * Storage/network errors
+* Prevent broken states or incomplete uploads.
+
+7. Testing & Validation:
+
+* Test:
+
+  * Small images
+  * Very large images
+  * Different image formats
+  * Mobile touch interactions
+  * Desktop interactions
+  * Portrait and landscape images
+  * Slow internet conditions
+  * Installed PWA mode
+* Verify:
+
+  * Cropping works correctly
+  * Compression only triggers when image size exceeds the limit
+  * Small images upload without unnecessary processing
+  * Final uploaded image renders correctly
+  * No UI overflow or broken layout occurs
+
+8. Storage / Backend / SQL Changes:
+
+* If any storage bucket policy, backend logic, image processing configuration, or SQL changes are required:
+
+  * Clearly explain every required change.
+  * Provide updated SQL separately.
+  * Mention exactly where and how to run it.
+  * Mention whether existing files/data may be affected.
+* Explicitly state if no SQL/backend changes are required.
+
+9. Checkpoint Requirement:
+
+* After completing and verifying this feature:
+
+  * Create a proper checkpoint/commit before starting the next feature.
+  * Ensure the crop/compression/upload flow is fully tested and production-ready.
+  * Provide an implementation summary including:
+
+    * Files modified
+    * Crop/compression logic added
+    * Upload flow changes
+    * Storage/backend updates
+    * SQL/RLS changes
+    * Remaining limitations/issues (if any)
+
+Acceptance Criteria:
+
+* [ ] Users can crop profile images before upload.
+* [ ] Cropping works correctly on mobile, desktop, and PWA layouts.
+* [ ] Compression triggers only when the cropped image exceeds the size limit.
+* [ ] Small images upload without unnecessary compression.
+* [ ] Large images are compressed and optimized successfully.
+* [ ] Image quality remains visually acceptable after compression.
+* [ ] Final profile pictures render correctly throughout the application.
+* [ ] Upload flow remains responsive and user-friendly.
+* [ ] Invalid or corrupted images are handled gracefully.
+* [ ] No broken UI states or upload failures occur.
+* [ ] Checkpoint/commit is created after successful implementation and testing.
+* [ ] Any required storage/backend/SQL changes are clearly documented separately.

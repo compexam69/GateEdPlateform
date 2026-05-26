@@ -11,36 +11,9 @@ import { supabase } from "@/lib/supabase";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
+import { PhotoCropModal } from "@/components/PhotoCropModal";
 
 import { getApiBase, apiFetch } from "@/lib/api";
-
-async function compressImage(file: File, maxSizeKB = 500, maxDim = 500): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
-      const w = Math.round(img.width * scale);
-      const h = Math.round(img.height * scale);
-      const canvas = document.createElement("canvas");
-      canvas.width = w; canvas.height = h;
-      const ctx = canvas.getContext("2d")!;
-      ctx.drawImage(img, 0, 0, w, h);
-      let quality = 0.9;
-      const tryCompress = () => {
-        canvas.toBlob(blob => {
-          if (!blob) { reject(new Error("Compression failed")); return; }
-          if (blob.size <= maxSizeKB * 1024 || quality <= 0.3) { resolve(blob); }
-          else { quality -= 0.1; tryCompress(); }
-        }, "image/jpeg", quality);
-      };
-      tryCompress();
-    };
-    img.onerror = reject;
-    img.src = url;
-  });
-}
 
 const MOBILE_REGEX = /^(\+91)[\s-]?[6-9]\d{9}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -83,6 +56,9 @@ export default function ProfilePage() {
   const [photoUrl, setPhotoUrl] = useState<string | null>(user?.user_metadata?.avatar_url || null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [cropOpen, setCropOpen] = useState(false);
+  const [cropSrc, setCropSrc] = useState<string>("");
 
   const rawPrefs = user?.user_metadata?.notification_prefs;
   const [notifPrefs, setNotifPrefs] = useState<NotifPrefs>({
@@ -161,20 +137,42 @@ export default function ProfilePage() {
     } finally { setChangingEmail(false); }
   }
 
-  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
+    if (fileInputRef.current) fileInputRef.current.value = "";
     if (!file) return;
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-      toast({ title: "Invalid file type", description: "Please upload a JPG, PNG, or WEBP image.", variant: "destructive" }); return;
+      toast({ title: "Invalid file type", description: "Please upload a JPG, PNG, or WEBP image.", variant: "destructive" });
+      return;
+    }
+    if (cropSrc) URL.revokeObjectURL(cropSrc);
+    setCropSrc(URL.createObjectURL(file));
+    setCropOpen(true);
+  }
+
+  function handleCropClose() {
+    setCropOpen(false);
+    if (cropSrc) {
+      URL.revokeObjectURL(cropSrc);
+      setCropSrc("");
+    }
+  }
+
+  async function handleCropConfirm(blob: Blob) {
+    setCropOpen(false);
+    if (cropSrc) {
+      URL.revokeObjectURL(cropSrc);
+      setCropSrc("");
     }
     setUploadingPhoto(true);
     try {
-      const compressed = await compressImage(file, 500, 500);
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
       if (!token) throw new Error("Not authenticated — please sign in again.");
       const urlRes = await fetch(`${getApiBase()}/b2/profile-upload-url`, {
-        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({}),
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({}),
       });
       if (!urlRes.ok) {
         const errData = await urlRes.json().catch(() => ({}));
@@ -188,9 +186,9 @@ export default function ProfilePage() {
           "Content-Type": "image/jpeg",
           "X-Bz-File-Name": encodeURIComponent(storage_path),
           "X-Bz-Content-Sha1": "do_not_verify",
-          "Content-Length": String(compressed.size),
+          "Content-Length": String(blob.size),
         },
-        body: compressed,
+        body: blob,
       });
       if (!uploadRes.ok) {
         const errText = await uploadRes.text().catch(() => "");
@@ -198,13 +196,12 @@ export default function ProfilePage() {
       }
       await supabase.from("profiles").update({ avatar_url: storage_path }).eq("id", user!.id);
       await supabase.auth.updateUser({ data: { avatar_url: storage_path } });
-      setPhotoUrl(URL.createObjectURL(compressed));
+      setPhotoUrl(URL.createObjectURL(blob));
       toast({ title: "Photo updated!" });
     } catch (err: unknown) {
       toast({ title: "Upload failed", description: (err as Error).message, variant: "destructive" });
     } finally {
       setUploadingPhoto(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
 
@@ -294,7 +291,7 @@ export default function ProfilePage() {
                     <X className="w-3 h-3 text-white" />
                   </button>
                 )}
-                <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handlePhotoUpload} />
+                <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleFileSelect} />
                 {uploadingPhoto && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full">
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -502,6 +499,14 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
       </div>
+
+      <PhotoCropModal
+        open={cropOpen}
+        imageSrc={cropSrc}
+        onClose={handleCropClose}
+        onConfirm={handleCropConfirm}
+        onError={(msg) => toast({ title: "Image processing failed", description: msg, variant: "destructive" })}
+      />
     </AppLayout>
   );
 }
