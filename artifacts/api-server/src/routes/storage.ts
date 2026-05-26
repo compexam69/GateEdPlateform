@@ -2,6 +2,7 @@ import { Router } from "express";
 import { supabase } from "../lib/supabase";
 import { getUploadPresignedUrl, getDownloadPresignedUrl, deleteB2File, getB2FileIdByPath, generateStoragePath, generateProfilePhotoPath } from "../lib/b2";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
+import { logger } from "../lib/logger";
 
 const router = Router();
 
@@ -95,7 +96,9 @@ router.post("/b2/upload-url", requireAuth, async (req: AuthRequest, res) => {
 
     res.json({ upload_url: uploadUrl, upload_auth_token: uploadAuthToken, storage_path: storagePath, expires_at: expiry });
   } catch (e) {
-    res.status(500).json({ error: "Failed to generate upload URL" });
+    logger.error({ err: e, userId, chapter_id }, "[storage] Failed to generate upload URL");
+    const msg = e instanceof Error ? e.message : "Failed to generate upload URL";
+    res.status(500).json({ error: msg });
   }
 });
 
@@ -111,8 +114,10 @@ router.post("/b2/download-url", requireAuth, async (req: AuthRequest, res) => {
   try {
     const url = await getDownloadPresignedUrl(storage_path);
     res.json({ download_url: url, expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString() });
-  } catch {
-    res.status(500).json({ error: "Failed to generate download URL" });
+  } catch (e) {
+    logger.error({ err: e, userId, storage_path }, "[storage] Failed to generate download URL");
+    const msg = e instanceof Error ? e.message : "Failed to generate download URL";
+    res.status(500).json({ error: msg });
   }
 });
 
@@ -135,13 +140,18 @@ router.post("/b2/profile-upload-url", requireAuth, async (req: AuthRequest, res)
         if (oldFileId) {
           await deleteB2File(String(profile.avatar_url), oldFileId);
         }
-      } catch { /* best-effort — do not block the upload */ }
+      } catch (e) {
+        logger.warn({ err: e, userId }, "[storage] Old profile photo cleanup failed (non-fatal)");
+      }
     }
 
     const { uploadUrl, uploadAuthToken } = await getUploadPresignedUrl(storagePath);
+    logger.info({ userId, storagePath }, "[storage] Profile upload URL generated");
     res.json({ upload_url: uploadUrl, upload_auth_token: uploadAuthToken, storage_path: storagePath, expires_at: expiry });
-  } catch {
-    res.status(500).json({ error: "Failed to generate upload URL" });
+  } catch (e) {
+    logger.error({ err: e, userId }, "[storage] Failed to generate profile upload URL");
+    const msg = e instanceof Error ? e.message : "Failed to generate upload URL";
+    res.status(500).json({ error: msg });
   }
 });
 
@@ -155,8 +165,10 @@ router.delete("/b2/profile-photo", requireAuth, async (req: AuthRequest, res) =>
     }
     await supabase.from("profiles").update({ avatar_url: null }).eq("id", userId);
     res.json({ message: "Profile photo removed" });
-  } catch {
-    res.status(500).json({ error: "Failed to remove profile photo" });
+  } catch (e) {
+    logger.error({ err: e, userId }, "[storage] Failed to remove profile photo");
+    const msg = e instanceof Error ? e.message : "Failed to remove profile photo";
+    res.status(500).json({ error: msg });
   }
 });
 
@@ -166,8 +178,10 @@ router.post("/b2/profile-download-url", requireAuth, async (req: AuthRequest, re
   try {
     const url = await getDownloadPresignedUrl(storagePath);
     res.json({ download_url: url, expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString() });
-  } catch {
-    res.status(500).json({ error: "Failed to generate download URL" });
+  } catch (e) {
+    logger.error({ err: e, user_id, storagePath }, "[storage] Failed to generate profile download URL");
+    const msg = e instanceof Error ? e.message : "Failed to generate download URL";
+    res.status(500).json({ error: msg });
   }
 });
 
