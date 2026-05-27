@@ -1,0 +1,202 @@
+🟢 Checkpoint 17: Move Super Admin Self-Edit Actions Inside Main Profile Edit Popup
+
+Goal: Redesign the Super Admin profile editing workflow by moving the Edit/Pencil buttons for Name, Email, and Mobile Number inside the main Profile Edit/Pencil popup/modal under a dedicated “Edit Details” section while keeping the actual details visible on the Profile page.
+
+Context: Currently:
+
+* The profile photo has a centralized Pencil/Edit button with a popup/modal workflow.
+* The Name, Email, and Mobile Number fields are displayed on the Profile page with separate visible Edit/Pencil buttons beside them.
+
+This creates UI clutter and inconsistent editing behavior across the Profile module.
+
+Important Permission Rule:
+
+* Only the Super Admin has permission to edit their own:
+
+  * Name
+  * Email
+  * Mobile Number
+* Admins cannot edit their own details.
+* Students/regular users cannot edit their own immutable details.
+
+New Requirement:
+
+* Apply this redesign ONLY for the Super Admin Profile Settings page.
+* Keep the Name, Email, and Mobile Number visible normally on the Profile page.
+* Remove ONLY the inline Edit/Pencil buttons beside these fields from the Profile page UI.
+* Move these edit actions inside the main Profile Edit/Pencil popup/modal.
+* Add a dedicated “Edit Details” section inside the popup/modal containing:
+
+  * Edit Name option
+  * Edit Email option
+  * Edit Mobile Number option
+
+Instructions:
+
+1. Analyze Existing Profile Editing Workflow:
+
+* Review:
+
+  * Super Admin Profile Settings UI
+  * Existing inline Edit/Pencil buttons
+  * Profile Edit/Pencil popup/modal
+  * Existing permission logic
+  * Existing edit dialogs/forms
+  * Responsive/mobile behavior
+* Identify how the current edit actions are rendered and triggered.
+
+2. Redesign Super Admin Profile Edit Structure:
+
+* Keep the following details visible normally on the Profile page:
+
+  * Name
+  * Email
+  * Mobile Number
+* Remove ONLY the visible inline Edit/Pencil buttons beside these fields.
+* Inside the main Profile Edit/Pencil popup/modal:
+
+  * Add a clearly separated:
+
+    * “Edit Details”
+      OR similar section
+* Under this section add:
+
+  * Edit Name action
+  * Edit Email action
+  * Edit Mobile Number action
+
+3. Preserve Existing Permission Rules:
+
+* Ensure permission logic remains fully intact:
+
+  * Super Admin:
+
+    * Can edit their own Name, Email, and Mobile Number
+  * Admins:
+
+    * Cannot edit their own immutable details
+  * Students/regular users:
+
+    * Cannot edit immutable details
+* Ensure:
+
+  * The new “Edit Details” section appears ONLY for the Super Admin.
+  * Admins and students do NOT see these self-edit options.
+
+4. Improve Popup/Modal UX:
+
+* Ensure:
+
+  * Proper grouping/layout of actions
+  * Clear separation between:
+
+    * Profile photo actions
+    * Edit Details actions
+  * Responsive mobile-friendly spacing
+  * Clean modern UI
+* Prevent:
+
+  * Overlapping buttons
+  * Cluttered layouts
+  * Broken modal sizing
+
+5. Preserve Existing Functionality:
+
+* Ensure this redesign does NOT break:
+
+  * Profile image upload/update/delete
+  * Tap-to-view image functionality
+  * Swipe-down viewer gesture
+  * Existing edit forms/dialogs
+  * Validation logic
+  * Backend update logic
+  * Audit logging
+  * Role-based access restrictions
+
+6. Error Handling & State Management:
+
+* Ensure:
+
+  * Popup/modal states remain stable
+  * Nested dialogs/forms open correctly
+  * No duplicate modal openings occur
+  * Form state resets properly after close/cancel
+* Prevent:
+
+  * Broken edit flows
+  * Unresponsive buttons
+  * State synchronization issues
+
+7. Responsive & Accessibility Validation:
+
+* Ensure:
+
+  * Popup/modal works correctly on:
+
+    * Mobile browsers
+    * Desktop browsers
+    * Installed PWA mode
+  * Keyboard accessibility works correctly
+  * Focus management remains stable
+  * No overflow or horizontal scrolling occurs
+
+8. Testing & Validation:
+
+* Test:
+
+  * Super Admin self-edit flows
+  * Permission-restricted admin/student accounts
+  * Multiple popup open/close cycles
+  * Mobile touch interactions
+  * Desktop interactions
+* Verify:
+
+  * Name, Email, and Mobile remain visible on the Profile page
+  * Inline Edit/Pencil buttons are removed successfully
+  * Edit actions work correctly from inside the popup
+  * Existing functionality remains stable
+  * Permission restrictions behave correctly
+  * Admins/students cannot access self-edit actions
+  * No console/runtime errors occur
+
+9. Backend / Storage / SQL Changes:
+
+* If any backend, role-permission, modal state, or SQL changes are required:
+
+  * Clearly explain every required change.
+  * Provide updated SQL/configuration separately.
+  * Mention exactly where and how to apply the changes.
+  * Mention whether existing data/users may be affected.
+* Explicitly state if no backend/storage/SQL changes are required.
+
+10. Checkpoint Requirement:
+
+* After completing and verifying this redesign:
+
+  * Create a proper checkpoint/commit immediately.
+  * Ensure the new Super Admin profile edit workflow is fully stable and production-ready.
+  * Provide a final implementation summary including:
+
+    * Files modified
+    * Popup/modal restructuring
+    * Edit Details section implementation
+    * Removed inline Edit/Pencil buttons
+    * Permission handling updates
+    * Responsive improvements
+    * Remaining limitations/issues (if any)
+
+Acceptance Criteria:
+
+* [ ] Name, Email, and Mobile Number remain visible on the Super Admin Profile page.
+* [ ] Inline Edit/Pencil buttons beside these fields are removed.
+* [ ] Main Profile Edit/Pencil popup contains a dedicated “Edit Details” section.
+* [ ] Edit Name, Edit Email, and Edit Mobile actions work correctly from inside the popup.
+* [ ] Only the Super Admin can access and use these self-edit actions.
+* [ ] Admins and students cannot see or use these self-edit options.
+* [ ] Existing permission/immutability rules remain fully functional.
+* [ ] UI remains clean, responsive, and uncluttered.
+* [ ] Existing profile image functionality remains unaffected.
+* [ ] No popup/modal conflicts or broken states occur.
+* [ ] No layout overflow or responsiveness issues occur.
+* [ ] No console/runtime errors occur after implementation.
+* [ ] Checkpoint/commit is created after successful implementation and testing.

@@ -516,6 +516,53 @@ export default function ProfilePage() {
                           </button>
                         </>
                       )}
+
+                      {/* Edit Details — Super Admin only */}
+                      {canEditOwnProfile && (
+                        <>
+                          <div className="h-px bg-border mx-3 mt-1" />
+                          <div className="px-4 pt-2.5 pb-1">
+                            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 select-none">Edit Details</p>
+                          </div>
+                          <button
+                            role="menuitem"
+                            onClick={() => {
+                              setPhotoMenuOpen(false);
+                              setNewName(user?.user_metadata?.full_name || "");
+                              setEditingName(true);
+                            }}
+                            className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-left hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:bg-muted/60"
+                          >
+                            <User className="w-4 h-4 text-primary shrink-0" />
+                            <span>Edit Name</span>
+                          </button>
+                          <button
+                            role="menuitem"
+                            onClick={() => {
+                              setPhotoMenuOpen(false);
+                              setEditingEmail(true);
+                              setEmailChangeSuccess(false);
+                            }}
+                            className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-left hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:bg-muted/60"
+                          >
+                            <Mail className="w-4 h-4 text-primary shrink-0" />
+                            <span>Edit Email</span>
+                          </button>
+                          <button
+                            role="menuitem"
+                            onClick={() => {
+                              setPhotoMenuOpen(false);
+                              setNewMobile(user?.user_metadata?.mobile_number || "+91 ");
+                              setEditingMobile(true);
+                            }}
+                            className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-left hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:bg-muted/60"
+                          >
+                            <Phone className="w-4 h-4 text-primary shrink-0" />
+                            <span>Edit Mobile</span>
+                          </button>
+                          <div className="pb-1" />
+                        </>
+                      )}
                     </div>
                   </>
                 )}
@@ -541,11 +588,6 @@ export default function ProfilePage() {
                 ) : (
                   <div className="flex items-center gap-2 justify-center sm:justify-start min-w-0">
                     <h2 className="text-2xl font-bold truncate min-w-0">{user?.user_metadata?.full_name || "Student"}</h2>
-                    {canEditOwnProfile && (
-                      <Button size="sm" variant="ghost" className="h-7 px-2 shrink-0" onClick={() => { setNewName(user?.user_metadata?.full_name || ""); setEditingName(true); }}>
-                        <Pencil className="w-3 h-3" />
-                      </Button>
-                    )}
                   </div>
                 )}
 
@@ -557,11 +599,6 @@ export default function ProfilePage() {
                       {isEmailVerified
                         ? <Badge variant="secondary" className="bg-success/10 text-success text-xs gap-1 shrink-0"><CheckCircle className="w-3 h-3" />Verified</Badge>
                         : <Badge variant="destructive" className="text-xs shrink-0">Unverified</Badge>}
-                      {canEditOwnProfile && (
-                        <Button size="sm" variant="ghost" className="h-6 px-2 text-xs shrink-0" onClick={() => { setEditingEmail(true); setEmailChangeSuccess(false); }}>
-                          <Pencil className="w-3 h-3" />
-                        </Button>
-                      )}
                     </div>
 
                     {emailChangeSuccess && (
@@ -629,11 +666,6 @@ export default function ProfilePage() {
                   ) : (
                     <div className="flex items-center gap-2 justify-center sm:justify-start min-w-0">
                       <p className="text-muted-foreground text-sm truncate min-w-0 flex-1">{maskedMobile || <span className="italic">No mobile number</span>}</p>
-                      {canEditOwnProfile && (
-                        <Button size="sm" variant="ghost" className="h-6 px-2 text-xs shrink-0" onClick={() => { setNewMobile(user?.user_metadata?.mobile_number || "+91 "); setEditingMobile(true); }}>
-                          <Pencil className="w-3 h-3" />
-                        </Button>
-                      )}
                     </div>
                   )}
                 </div>
