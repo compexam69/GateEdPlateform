@@ -175,6 +175,56 @@ router.post("/b2/download-url", requireAuth, async (req: AuthRequest, res) => {
   }
 });
 
+// ── Server-side PDF proxy (for react-pdf inline rendering) ───────────────────
+// Fetches the PDF from B2 server-side and streams it to the client.
+// This avoids CORS issues when pdfjs-dist fetches PDFs directly from B2.
+router.get("/b2/pdf-proxy", requireAuth, async (req: AuthRequest, res) => {
+  const { storage_path } = req.query as { storage_path?: string };
+  const userId = req.user!.id;
+
+  if (!storage_path || !storage_path.startsWith(`users/${userId}/`)) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+
+  try {
+    const url = await getDownloadPresignedUrl(storage_path);
+    const b2Res = await fetch(url);
+
+    if (!b2Res.ok) {
+      const errText = await b2Res.text().catch(() => "");
+      logger.error({ status: b2Res.status, errText, userId }, "[storage] PDF proxy B2 fetch failed");
+      res.status(502).json({ error: "Failed to fetch PDF from storage" });
+      return;
+    }
+
+    if (!b2Res.body) {
+      res.status(502).json({ error: "Empty response from storage" });
+      return;
+    }
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", "inline");
+    res.setHeader("Cache-Control", "private, max-age=900"); // 15-min cache
+
+    const contentLength = b2Res.headers.get("content-length");
+    if (contentLength) res.setHeader("Content-Length", contentLength);
+
+    // Stream B2 body to client — no intermediate buffering in memory
+    const { Readable } = await import("stream");
+    const nodeStream = Readable.fromWeb(b2Res.body as Parameters<typeof Readable.fromWeb>[0]);
+    nodeStream.pipe(res);
+    nodeStream.on("error", err => {
+      logger.error({ err, userId, storage_path }, "[storage] PDF proxy stream error");
+      if (!res.headersSent) res.status(500).end();
+    });
+  } catch (e) {
+    logger.error({ err: e, userId, storage_path }, "[storage] PDF proxy failed");
+    const msg = e instanceof Error ? e.message : "Proxy failed";
+    if (!res.headersSent) res.status(500).json({ error: msg });
+  }
+});
+
 // ── Server-side profile photo proxy upload ────────────────────────────────────
 // The browser cannot upload directly to Backblaze B2 upload pod domains
 // because those pods do not send CORS headers. This endpoint accepts the raw

@@ -1,6 +1,9 @@
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
-import { FileText, Download, Trash2, UploadCloud, Lock, FolderOpen, Eye, X, AlertCircle, ExternalLink } from "lucide-react";
+import {
+  FileText, Download, Trash2, UploadCloud, Lock, FolderOpen,
+  Eye, X, AlertCircle, ChevronLeft, ChevronRight,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -11,13 +14,20 @@ import {
 import { getApiBase } from "@/lib/api";
 import type { Note } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
-import { useRef, useState, useEffect, useCallback } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Progress } from "@/components/ui/progress";
 import { format } from "date-fns";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Document, Page, pdfjs } from "react-pdf";
+
+// Configure pdfjs worker — Vite resolves the module URL at build time
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  "pdfjs-dist/build/pdf.worker.min.mjs",
+  import.meta.url,
+).toString();
 
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -25,42 +35,37 @@ function formatBytes(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-/** Returns true on iOS/iPadOS where iframes can't render PDFs */
-function isIOSDevice(): boolean {
-  if (typeof navigator === "undefined") return false;
-  return (
-    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-    // iPad on iOS 13+ reports itself as MacIntel with touch
-    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
-  );
-}
-
 interface UnlockedChapter {
   chapter_id: string;
   chapter_title: string;
 }
 
+// ── PDF Viewer ────────────────────────────────────────────────────────────────
+
 interface PdfViewerProps {
   note: Note;
-  url: string;
   onClose: () => void;
   onDownload: () => void;
   downloading: boolean;
 }
 
-function PdfViewer({ note, url, onClose, onDownload, downloading }: PdfViewerProps) {
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+function PdfViewer({ note, onClose, onDownload, downloading }: PdfViewerProps) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [fetching, setFetching] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [numPages, setNumPages] = useState<number | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageInput, setPageInput] = useState("1");
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [pageWidth, setPageWidth] = useState(680);
 
-  // Close on Escape key
+  // Revoke object URL on unmount to avoid memory leaks
   useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+    return () => {
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Lock body scroll while viewer is open
   useEffect(() => {
@@ -69,49 +74,103 @@ function PdfViewer({ note, url, onClose, onDownload, downloading }: PdfViewerPro
     return () => { document.body.style.overflow = prev; };
   }, []);
 
-  // Safety timeout — if iframe hasn't loaded in 15s, show error state
+  // Keyboard: Escape closes, arrow keys navigate pages
   useEffect(() => {
-    const t = setTimeout(() => {
-      if (loading) {
-        setLoading(false);
-        setLoadError(true);
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") { onClose(); return; }
+      if (e.key === "ArrowLeft")  setCurrentPage(p => Math.max(1, p - 1));
+      if (e.key === "ArrowRight") setCurrentPage(p => Math.min(numPages ?? p, p + 1));
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose, numPages]);
+
+  // Fetch PDF bytes through the server proxy (avoids B2 CORS restrictions)
+  useEffect(() => {
+    let cancelled = false;
+    let objectUrl: string | null = null;
+
+    async function load() {
+      setFetching(true);
+      setFetchError(null);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (!token) throw new Error("Not authenticated");
+
+        const res = await fetch(
+          `${getApiBase()}/b2/pdf-proxy?storage_path=${encodeURIComponent(note.b2_storage_path)}`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: "Failed to load PDF" }));
+          throw new Error((err as { error?: string }).error ?? "Failed to load PDF");
+        }
+        const blob = await res.blob();
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setBlobUrl(objectUrl);
+      } catch (e) {
+        if (!cancelled) setFetchError((e as Error).message);
+      } finally {
+        if (!cancelled) setFetching(false);
       }
-    }, 15000);
-    return () => clearTimeout(t);
-  }, [loading]);
+    }
+    load();
+    return () => {
+      cancelled = true;
+      // Revoke the object URL created during this effect if the component unmounts mid-fetch
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [note.b2_storage_path]);
 
-  function handleLoad() {
-    setLoading(false);
-    setLoadError(false);
+  // Responsive page width via ResizeObserver on the scroll container
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const measure = () => {
+      const w = el.clientWidth;
+      if (w > 0) setPageWidth(Math.min(w - 32, 900)); // 16px padding each side, cap at 900px
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [blobUrl]); // re-run once blobUrl is set so the container is rendered
+
+  // Keep page input in sync with currentPage state
+  useEffect(() => { setPageInput(String(currentPage)); }, [currentPage]);
+
+  const goToPrev = () => setCurrentPage(p => Math.max(1, p - 1));
+  const goToNext = () => setCurrentPage(p => Math.min(numPages ?? p, p + 1));
+
+  function commitPageInput() {
+    const n = parseInt(pageInput, 10);
+    if (!isNaN(n) && numPages && n >= 1 && n <= numPages) {
+      setCurrentPage(n);
+    } else {
+      setPageInput(String(currentPage));
+    }
   }
-
-  // iframe onError is unreliable — we rely on the timeout above for error state
 
   return (
     <div
-      className="fixed inset-0 z-[80] flex flex-col bg-background animate-in fade-in-0 duration-200"
+      className="fixed inset-0 z-[80] flex flex-col bg-background animate-in fade-in-0 duration-150"
       role="dialog"
       aria-modal="true"
       aria-label={`PDF viewer: ${note.title}`}
     >
-      {/* ── Header bar ── */}
+      {/* ── Header ── */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-border bg-card shrink-0">
         <FileText className="w-4 h-4 text-primary shrink-0" />
         <h2 className="flex-1 font-semibold text-sm truncate min-w-0">{note.title}</h2>
 
-        {/* Open in new tab (always available as fallback) */}
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1.5 rounded-md hover:bg-muted/60 shrink-0"
-          title="Open in new tab"
-        >
-          <ExternalLink className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Open</span>
-        </a>
+        {note.pdf_size_bytes && (
+          <span className="text-xs text-muted-foreground shrink-0 hidden sm:block">
+            {formatBytes(note.pdf_size_bytes)}
+          </span>
+        )}
 
-        {/* Download button */}
         <Button
           variant="outline"
           size="sm"
@@ -123,7 +182,6 @@ function PdfViewer({ note, url, onClose, onDownload, downloading }: PdfViewerPro
           <span className="hidden sm:inline">{downloading ? "Downloading…" : "Download"}</span>
         </Button>
 
-        {/* Close button */}
         <button
           onClick={onClose}
           className="w-8 h-8 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
@@ -133,60 +191,139 @@ function PdfViewer({ note, url, onClose, onDownload, downloading }: PdfViewerPro
         </button>
       </div>
 
-      {/* ── Viewer body ── */}
-      <div className="relative flex-1 overflow-hidden">
-        {/* Loading spinner */}
-        {loading && !loadError && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background z-10">
+      {/* ── Scrollable content area ── */}
+      <div
+        ref={containerRef}
+        className="relative flex-1 overflow-y-auto bg-[#404040]"
+        // Subtle dark background so PDF pages have clear separation
+      >
+        {/* Fetch loading overlay */}
+        {fetching && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/95 z-10">
             <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
             <p className="text-sm text-muted-foreground">Loading PDF…</p>
           </div>
         )}
 
-        {/* Error state */}
-        {loadError && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-background z-10 p-6 text-center">
-            <AlertCircle className="w-12 h-12 text-destructive/60" />
+        {/* Fetch error state */}
+        {fetchError && !fetching && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-background p-6 text-center z-10">
+            <AlertCircle className="w-12 h-12 text-destructive/50" />
             <div className="space-y-1">
               <p className="font-semibold text-sm">Could not load PDF</p>
-              <p className="text-xs text-muted-foreground max-w-xs">
-                The file may have expired or your browser blocked it. Try opening it in a new tab.
-              </p>
+              <p className="text-xs text-muted-foreground max-w-[280px]">{fetchError}</p>
             </div>
-            <div className="flex gap-2">
-              <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Button size="sm" variant="outline">
-                  <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
-                  Open in new tab
-                </Button>
-              </a>
-              <Button size="sm" variant="outline" onClick={onDownload} disabled={downloading}>
-                <Download className="w-3.5 h-3.5 mr-1.5" />
-                Download
-              </Button>
-            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onDownload}
+              disabled={downloading}
+            >
+              <Download className="w-3.5 h-3.5 mr-1.5" />
+              Download instead
+            </Button>
           </div>
         )}
 
-        {/* PDF iframe — fills the entire viewer body */}
-        <iframe
-          ref={iframeRef}
-          src={url}
-          title={note.title}
-          className="w-full h-full border-0"
-          onLoad={handleLoad}
-          allow="fullscreen"
-          // Prevent iframe from navigating the parent window
-          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-top-navigation-by-user-activation"
-        />
+        {/* react-pdf Document + Page */}
+        {blobUrl && (
+          <div className="flex justify-center py-6 px-4 min-h-full">
+            <Document
+              file={blobUrl}
+              onLoadSuccess={({ numPages: n }) => {
+                setNumPages(n);
+                setCurrentPage(1);
+              }}
+              onLoadError={err => setFetchError(err.message)}
+              loading={
+                <div className="flex items-center justify-center h-64">
+                  <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                </div>
+              }
+              error={
+                <div className="flex flex-col items-center gap-2 text-white/60 py-16">
+                  <AlertCircle className="w-10 h-10" />
+                  <p className="text-sm">Failed to parse PDF</p>
+                </div>
+              }
+            >
+              <Page
+                key={`page_${currentPage}`}
+                pageNumber={currentPage}
+                width={pageWidth > 0 ? pageWidth : undefined}
+                renderTextLayer={false}
+                renderAnnotationLayer={false}
+                className="shadow-2xl rounded-sm overflow-hidden"
+                loading={
+                  <div
+                    className="flex items-center justify-center bg-white rounded-sm"
+                    style={{ width: pageWidth > 0 ? pageWidth : 680, height: Math.round((pageWidth > 0 ? pageWidth : 680) * 1.414) }}
+                  >
+                    <div className="w-6 h-6 border-2 border-primary/40 border-t-primary rounded-full animate-spin" />
+                  </div>
+                }
+                error={
+                  <div
+                    className="flex items-center justify-center bg-white rounded-sm text-sm text-muted-foreground"
+                    style={{ width: pageWidth > 0 ? pageWidth : 680, height: 200 }}
+                  >
+                    Could not render this page
+                  </div>
+                }
+              />
+            </Document>
+          </div>
+        )}
       </div>
+
+      {/* ── Footer — page navigation ── */}
+      {numPages !== null && (
+        <div className="flex items-center justify-between px-4 py-2.5 border-t border-border bg-card shrink-0">
+          {/* Prev */}
+          <button
+            onClick={goToPrev}
+            disabled={currentPage <= 1}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            aria-label="Previous page"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            <span className="hidden sm:inline">Prev</span>
+          </button>
+
+          {/* Page indicator + jump input */}
+          <div className="flex items-center gap-1.5 text-sm">
+            <span className="text-muted-foreground text-xs">Page</span>
+            <input
+              type="number"
+              min={1}
+              max={numPages}
+              value={pageInput}
+              onChange={e => setPageInput(e.target.value)}
+              onBlur={commitPageInput}
+              onKeyDown={e => { if (e.key === "Enter") { commitPageInput(); (e.target as HTMLInputElement).blur(); } }}
+              className="w-12 h-7 rounded-md border border-border bg-background text-center text-sm focus:outline-none focus:ring-1 focus:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              aria-label="Go to page"
+            />
+            <span className="text-muted-foreground text-xs">of {numPages}</span>
+          </div>
+
+          {/* Next */}
+          <button
+            onClick={goToNext}
+            disabled={numPages !== null && currentPage >= numPages}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            aria-label="Next page"
+          >
+            <span className="hidden sm:inline">Next</span>
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function NotesPage() {
   const queryClient = useQueryClient();
@@ -199,10 +336,8 @@ export default function NotesPage() {
   const [showChapterPicker, setShowChapterPicker] = useState(false);
   const [selectedChapterId, setSelectedChapterId] = useState<string>("");
 
-  // PDF inline viewer state
+  // Inline PDF viewer state
   const [previewNote, setPreviewNote] = useState<Note | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [fetchingPreviewId, setFetchingPreviewId] = useState<string | null>(null);
 
   const { data: notes = [], isLoading } = useQuery({
     queryKey: [getGetNotesUrl()],
@@ -309,8 +444,6 @@ export default function NotesPage() {
       const token = session?.access_token;
       if (!token) throw new Error("Not authenticated — please sign in again.");
 
-      // Send file bytes directly to the API server, which proxies to B2 server-side.
-      // Direct browser→B2 uploads fail due to CORS on Backblaze upload pod domains.
       const params = new URLSearchParams({
         chapter_id: chapterId,
         filename: file.name,
@@ -368,50 +501,7 @@ export default function NotesPage() {
     }
   }
 
-  const handlePreview = useCallback(async (note: Note) => {
-    // iOS Safari cannot render PDFs inside iframes — fall back to new tab
-    if (isIOSDevice()) {
-      toast({
-        title: "Opening PDF",
-        description: "Your device opens PDFs in a separate viewer.",
-      });
-      setDownloadingId(note.id);
-      try {
-        const result = await getDownloadUrl.mutateAsync({ data: { storage_path: note.b2_storage_path } });
-        window.open(result.download_url, "_blank");
-      } catch (err: unknown) {
-        toast({ title: "Failed to open", description: (err as Error)?.message, variant: "destructive" });
-      } finally {
-        setDownloadingId(null);
-      }
-      return;
-    }
-
-    setFetchingPreviewId(note.id);
-    try {
-      const result = await getDownloadUrl.mutateAsync({ data: { storage_path: note.b2_storage_path } });
-      // Append b2ContentDisposition=inline so B2 serves the PDF inline
-      // rather than as an attachment — required for iframe rendering.
-      const base = result.download_url;
-      const inlineUrl = base.includes("?")
-        ? `${base}&b2ContentDisposition=inline`
-        : `${base}?b2ContentDisposition=inline`;
-
-      setPreviewUrl(inlineUrl);
-      setPreviewNote(note);
-    } catch (err: unknown) {
-      toast({ title: "Preview failed", description: (err as Error)?.message, variant: "destructive" });
-    } finally {
-      setFetchingPreviewId(null);
-    }
-  }, [getDownloadUrl, toast]);
-
-  function closePreview() {
-    setPreviewNote(null);
-    setPreviewUrl(null);
-  }
-
-  // Download from within the viewer (re-fetches URL to ensure fresh token)
+  // Download the currently-previewed note (called from within the viewer)
   async function handleViewerDownload() {
     if (!previewNote) return;
     await handleDownload(previewNote);
@@ -491,27 +581,21 @@ export default function NotesPage() {
             {notes.map((note: Note) => (
               <Card key={note.id} className="bg-card">
                 <CardContent className="p-4 flex items-start gap-3">
-                  {/* Clickable thumbnail area — opens inline viewer */}
+                  {/* Clickable icon — opens inline viewer */}
                   <button
                     className="w-10 h-10 rounded bg-accent/10 flex items-center justify-center shrink-0 hover:bg-primary/15 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                    onClick={() => handlePreview(note)}
-                    disabled={fetchingPreviewId === note.id}
+                    onClick={() => setPreviewNote(note)}
                     title="View PDF"
                     aria-label={`View ${note.title}`}
                   >
-                    {fetchingPreviewId === note.id ? (
-                      <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <FileText className="w-5 h-5 text-accent" />
-                    )}
+                    <FileText className="w-5 h-5 text-accent" />
                   </button>
 
                   <div className="flex-1 min-w-0">
-                    {/* Note title — also opens viewer on click */}
+                    {/* Clickable title — also opens viewer */}
                     <button
-                      className="w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
-                      onClick={() => handlePreview(note)}
-                      disabled={fetchingPreviewId === note.id}
+                      className="w-full text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
+                      onClick={() => setPreviewNote(note)}
                     >
                       <h3 className="font-semibold truncate text-sm hover:text-primary transition-colors">{note.title}</h3>
                     </button>
@@ -535,15 +619,10 @@ export default function NotesPage() {
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7"
-                      onClick={() => handlePreview(note)}
-                      disabled={fetchingPreviewId === note.id}
+                      onClick={() => setPreviewNote(note)}
                       title="View PDF"
                     >
-                      {fetchingPreviewId === note.id ? (
-                        <div className="w-3 h-3 border border-primary border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <Eye className="w-3.5 h-3.5 text-muted-foreground" />
-                      )}
+                      <Eye className="w-3.5 h-3.5 text-muted-foreground" />
                     </Button>
 
                     {/* Download */}
@@ -626,12 +705,11 @@ export default function NotesPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Inline PDF viewer — renders on top of everything ── */}
-      {previewNote && previewUrl && (
+      {/* ── Inline PDF viewer — renders over the full app ── */}
+      {previewNote && (
         <PdfViewer
           note={previewNote}
-          url={previewUrl}
-          onClose={closePreview}
+          onClose={() => setPreviewNote(null)}
           onDownload={handleViewerDownload}
           downloading={downloadingId === previewNote.id}
         />
