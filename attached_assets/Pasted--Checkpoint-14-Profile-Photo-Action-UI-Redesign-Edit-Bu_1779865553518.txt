@@ -1,0 +1,161 @@
+🟢 Checkpoint 14: Profile Photo Action UI Redesign (Edit Button + Action Popup)
+
+Goal: Redesign the profile photo action UI to improve user experience by replacing the current visible delete/upload buttons with a cleaner edit workflow using a single pencil/edit button and action popup/modal.
+
+Context: Currently, the Profile Settings page shows:
+
+* A visible red delete button outside the profile image
+* A visible camera button for upload/update
+
+This creates a cluttered UI and affects the overall profile design consistency.
+
+New Requirement:
+
+* Remove the separate visible red delete button from the profile image area.
+* Replace the current camera button design with a proper Pencil/Edit button UI.
+* When the user clicks the Pencil/Edit button:
+
+  * Open a popup/modal/action menu
+  * Inside the popup show:
+
+    * Upload/Update Photo button
+    * Delete Photo button (red/destructive action)
+* Keep the interface clean, modern, mobile-friendly, and responsive.
+
+Instructions:
+
+1. Analyze Existing Profile Photo UI:
+
+* Review:
+
+  * Profile image/avatar component
+  * Current delete button implementation
+  * Current camera/upload button implementation
+  * Upload modal/action flow
+  * Responsive/mobile behavior
+* Identify how the current action buttons are positioned and rendered.
+
+2. Redesign Profile Photo Action Flow:
+
+* Remove the always-visible red delete button from the profile image area.
+* Replace the current camera button with:
+
+  * Pencil/Edit style button/icon
+  * Cleaner modern UI appearance
+* Ensure the edit button:
+
+  * Aligns properly with the profile image
+  * Looks visually consistent across devices
+  * Does not overlap or break layout
+
+3. Implement Action Popup / Modal:
+
+* When clicking the Pencil/Edit button:
+
+  * Open a popup/modal/bottom-sheet/action-menu
+* Inside the popup provide:
+
+  * Upload/Update Photo action
+  * Delete Photo action (styled as destructive/red action)
+* Ensure:
+
+  * Popup closes properly
+  * Click outside closes popup
+  * Mobile touch interactions work smoothly
+  * Keyboard accessibility works on desktop
+
+4. Preserve Existing Upload Features:
+
+* Ensure the redesign does NOT break:
+
+  * Image cropping
+  * Smart compression
+  * Upload/update flow
+  * Delete functionality
+  * Image preview/tap-to-view
+  * Backblaze/Supabase upload integration
+* Existing upload logic must continue working correctly after UI redesign.
+
+5. Improve User Experience & Responsiveness:
+
+* Ensure:
+
+  * Clean spacing/alignment
+  * Proper z-index/modal layering
+  * Smooth animations/transitions
+  * Responsive popup sizing
+  * No overflow issues on mobile/PWA layouts
+* Ensure the popup works correctly in:
+
+  * Mobile browsers
+  * Desktop browsers
+  * Installed PWA mode
+
+6. Error Handling & Validation:
+
+* Ensure:
+
+  * Delete confirmation works properly if required
+  * Upload popup does not open multiple times
+  * Broken modal states do not occur
+  * UI remains stable during upload/delete actions
+
+7. Testing & Validation:
+
+* Test:
+
+  * Upload new profile photo
+  * Update existing profile photo
+  * Delete profile photo
+  * Open/close popup repeatedly
+  * Mobile touch interactions
+  * Desktop interactions
+  * Installed PWA mode
+  * Slow devices/network conditions
+* Verify:
+
+  * No UI overlap or broken layout occurs
+  * Popup/modal works consistently
+  * Existing upload/delete features remain functional
+  * No console or runtime errors occur
+
+8. Backend / Storage / SQL Changes:
+
+* If any backend, storage, modal state, upload handler, or SQL changes are required:
+
+  * Clearly explain every required change.
+  * Provide updated code/configuration separately.
+  * Mention exactly where and how to apply changes.
+  * Mention whether existing uploads/data may be affected.
+* Explicitly state if no backend/storage/SQL changes are required.
+
+9. Checkpoint Requirement:
+
+* After completing and verifying this UI redesign:
+
+  * Create a proper checkpoint/commit immediately.
+  * Ensure the redesigned profile photo workflow is fully stable and production-ready.
+  * Provide a final implementation summary including:
+
+    * Files modified
+    * UI redesign changes
+    * Popup/modal implementation details
+    * Upload/delete flow adjustments
+    * Responsive improvements
+    * Remaining limitations/issues (if any)
+
+Acceptance Criteria:
+
+* [ ] The visible red delete button is removed from the profile image area.
+* [ ] The camera button is redesigned as a Pencil/Edit button.
+* [ ] Clicking the Edit button opens a popup/modal/action menu.
+* [ ] Popup contains:
+
+  * Upload/Update Photo option
+  * Delete Photo option
+* [ ] Existing upload, crop, compression, and delete functionality continue working correctly.
+* [ ] UI remains responsive across mobile, desktop, and PWA layouts.
+* [ ] No layout overflow, overlapping, or broken modal states occur.
+* [ ] Popup opens/closes smoothly and consistently.
+* [ ] No console/runtime errors occur after implementation.
+* [ ] Checkpoint/commit is created after successful implementation and testing.
