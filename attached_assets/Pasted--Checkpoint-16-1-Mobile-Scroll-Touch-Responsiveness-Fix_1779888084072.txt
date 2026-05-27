@@ -1,0 +1,219 @@
+🟢 Checkpoint 16.1: Mobile Scroll & Touch Responsiveness Fix for Profile Photo Viewer
+
+Goal: Fix the mobile scrolling/touch responsiveness issue caused by the swipe-down gesture implementation in the Profile Photo Viewer so scrolling feels smooth, instant, natural, and user-friendly without requiring long presses or slow dragging.
+
+Context: After implementing the swipe-down gesture to close the Profile Photo Viewer, a new issue appeared on mobile devices:
+
+* Small/normal scrolling gestures often become stuck or unresponsive.
+* Users must:
+
+  * Hold/tap longer
+  * Scroll slowly
+  * Drag more forcefully
+    before scrolling starts working properly.
+
+This creates a poor mobile UX and makes the viewer feel laggy or frozen.
+
+The issue is likely related to:
+
+* Touch event interception
+* Incorrect gesture threshold handling
+* Passive/non-passive event listeners
+* preventDefault misuse
+* Scroll locking conflicts
+* Gesture detection overriding normal scroll behavior
+
+New Requirement:
+
+* Scrolling inside the photo viewer and surrounding screen must feel:
+
+  * Instant
+  * Smooth
+  * Natural
+  * Native-like
+* Users should be able to:
+
+  * Scroll normally with light/quick gestures
+  * Swipe down intentionally to close the viewer
+    without gesture conflicts or stuck scrolling.
+
+Instructions:
+
+1. Analyze Existing Touch & Scroll Handling:
+
+* Review:
+
+  * Swipe-down gesture logic
+  * Touch event listeners
+  * Scroll-lock implementation
+  * Modal overflow handling
+  * preventDefault usage
+  * Passive event listener configuration
+  * Drag threshold calculations
+  * Gesture detection timing
+* Identify:
+
+  * Why scrolling becomes stuck/unresponsive
+  * Which event handlers intercept normal scrolling
+  * Whether touchmove is blocking scrolling unnecessarily
+  * Whether gesture activation starts too aggressively
+  * Whether scroll locking conflicts with touch gestures
+
+2. Fix Scroll Responsiveness:
+
+* Ensure:
+
+  * Normal scrolling starts instantly with small touch gestures
+  * Users do NOT need long presses or slow dragging
+  * Scrolling feels smooth and lightweight
+  * Touch response feels native-like
+* Prevent:
+
+  * Sticky scrolling
+  * Delayed touch response
+  * Frozen scroll states
+  * Gesture lag
+
+3. Improve Gesture Detection Logic:
+
+* Refactor gesture handling so:
+
+  * Swipe-down activates ONLY during intentional downward gestures
+  * Small scroll gestures are treated as normal scrolling
+  * Gesture detection does not hijack regular touch behavior
+* Implement:
+
+  * Better gesture thresholds
+  * Direction locking
+  * Smart vertical movement detection
+  * Gesture activation only after threshold confirmation
+
+4. Optimize Touch Event Handling:
+
+* Ensure:
+
+  * Passive listeners are used correctly where appropriate
+  * preventDefault is only used when absolutely necessary
+  * Browser scrolling remains hardware-accelerated
+* Prevent:
+
+  * Browser scroll blocking
+  * Touch event performance issues
+  * Main-thread lag during scrolling
+
+5. Preserve Existing Swipe-Down Close Feature:
+
+* Ensure the following still work correctly:
+
+  * Swipe-down to close viewer
+  * Tap-to-open viewer
+  * Image upload/update/delete
+  * Zooming/scaling behavior
+  * Existing animations
+  * Existing responsive layouts
+* The scroll fix must NOT break current gesture functionality.
+
+6. Improve UX & Smoothness:
+
+* Ensure:
+
+  * Scroll transitions feel fluid
+  * Gesture animations remain smooth
+  * Viewer interactions feel responsive
+  * No jittering occurs during touch movement
+* Add:
+
+  * Smooth fallback behavior
+  * Gesture cancellation recovery
+  * Stable touch interaction handling
+
+7. Prevent Browser & PWA Conflicts:
+
+* Prevent:
+
+  * Pull-to-refresh conflicts
+  * Browser gesture interference
+  * Scroll bouncing issues
+  * PWA touch conflicts
+* Ensure:
+
+  * Stable behavior across:
+
+    * Chrome Android
+    * Samsung Internet
+    * Safari iOS
+    * Installed PWA mode
+
+8. Handle Edge Cases:
+
+* Handle:
+
+  * Rapid touch gestures
+  * Multi-touch interactions
+  * Slow devices
+  * Orientation changes
+  * Nested scrolling areas
+  * Long images/content
+* Prevent:
+
+  * Frozen UI states
+  * Scroll dead-zones
+  * Gesture locking issues
+
+9. Testing & Validation:
+
+* Test:
+
+  * Fast scrolling
+  * Light/short touch scrolling
+  * Swipe-down dismissal
+  * Rapid repeated gestures
+  * Portrait/landscape orientation
+  * Different screen sizes
+  * Low-performance devices
+  * Installed PWA mode
+* Verify:
+
+  * Scrolling feels instant and responsive
+  * Swipe-down still works correctly
+  * No stuck scrolling occurs
+  * No unwanted refresh/reload happens
+  * No gesture conflicts remain
+  * No console/runtime errors occur
+
+10. Backend / Storage / SQL Changes:
+
+* Explicitly state if no backend/storage/SQL changes are required.
+* If any touch-state persistence or viewer-state changes are required:
+
+  * Clearly explain them separately.
+
+11. Checkpoint Requirement:
+
+* After completing and verifying this scroll responsiveness fix:
+
+  * Create a proper checkpoint/commit immediately.
+  * Ensure the mobile touch/scroll experience is fully stable and production-ready.
+  * Provide a final implementation summary including:
+
+    * Files modified
+    * Scroll responsiveness fixes
+    * Gesture detection improvements
+    * Touch handling optimizations
+    * Browser/PWA compatibility fixes
+    * Remaining limitations/issues (if any)
+
+Acceptance Criteria:
+
+* [ ] Mobile scrolling works instantly with normal/light touch gestures.
+* [ ] Users no longer need long presses or slow dragging to scroll.
+* [ ] Swipe-down gesture still closes the photo viewer correctly.
+* [ ] Normal scrolling and swipe gestures no longer conflict.
+* [ ] No stuck/frozen scrolling states occur.
+* [ ] No browser pull-to-refresh conflicts occur.
+* [ ] Touch interactions feel smooth and native-like.
+* [ ] Existing photo viewer functionality remains stable.
+* [ ] PWA mode works correctly without touch conflicts.
+* [ ] No layout overflow or responsiveness issues occur.
+* [ ] No console/runtime errors occur after implementation.
+* [ ] Checkpoint/commit is created after successful implementation and testing.

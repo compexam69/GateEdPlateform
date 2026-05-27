@@ -71,7 +71,16 @@ export default function ProfilePage() {
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const hintRef = useRef<HTMLParagraphElement>(null);
   const rafRef = useRef<number | null>(null);
-  const gestureRef = useRef({ startY: 0, startTime: 0, delta: 0, dragging: false });
+  const gestureRef = useRef({
+    startY: 0,
+    startX: 0,
+    startTime: 0,
+    delta: 0,
+    dragging: false,
+    // Direction lock: determined after 10px dead zone
+    locked: false,
+    lockAxis: null as "v" | "h" | null,
+  });
   // Tracks whether a meaningful drag occurred so that the tap-to-close onClick is
   // NOT triggered after a snap-back swipe.
   const wasDraggingRef = useRef(false);
@@ -127,9 +136,12 @@ export default function ProfilePage() {
       if (e.touches.length !== 1) return; // ignore multi-touch
       gestureRef.current = {
         startY: e.touches[0].clientY,
+        startX: e.touches[0].clientX,
         startTime: Date.now(),
         delta: 0,
         dragging: false,
+        locked: false,
+        lockAxis: null,
       };
       wasDraggingRef.current = false;
     }
@@ -137,16 +149,32 @@ export default function ProfilePage() {
     function onTouchMove(e: TouchEvent) {
       if (e.touches.length !== 1) return;
       const g = gestureRef.current;
-      const delta = e.touches[0].clientY - g.startY;
-      if (delta > 0) {
-        // preventDefault() MUST be called here to block pull-to-refresh.
-        // This works only because the listener is registered with passive:false.
-        e.preventDefault();
-        g.dragging = true;
-        g.delta = delta;
-        if (delta > 5) wasDraggingRef.current = true;
-        applyGestureVisuals(delta);
+      const dy = e.touches[0].clientY - g.startY;
+      const dx = Math.abs(e.touches[0].clientX - g.startX);
+
+      // ── Direction-lock dead zone (10 px) ──────────────────────────────
+      // Don't decide axis until the finger has moved at least 10 px in any
+      // direction. This means tiny / incidental touches never get captured.
+      if (!g.locked) {
+        const dist = Math.hypot(dy, dx);
+        if (dist < 10) return; // still inside dead zone — pass through freely
+        g.locked = true;
+        // Vertical if downward movement dominates, otherwise horizontal.
+        g.lockAxis = dy > 0 && dy >= dx ? "v" : "h";
       }
+
+      // ── Horizontal or upward gesture ─────────────────────────────────
+      // Let the browser handle it natively — hardware-accelerated, no lag.
+      if (g.lockAxis !== "v") return;
+
+      // ── Confirmed downward-vertical swipe ────────────────────────────
+      // Now safe to block pull-to-refresh / overscroll.
+      // Works because listener is registered with passive:false.
+      e.preventDefault();
+      g.dragging = true;
+      g.delta = dy;
+      if (dy > 8) wasDraggingRef.current = true;
+      applyGestureVisuals(dy);
     }
 
     function onTouchEnd() {
@@ -173,12 +201,14 @@ export default function ProfilePage() {
         resetGestureVisuals();
       }
 
-      gestureRef.current = { ...g, dragging: false, delta: 0 };
+      gestureRef.current = { ...g, dragging: false, delta: 0, locked: false, lockAxis: null };
     }
 
     function onTouchCancel() {
       gestureRef.current.dragging = false;
       gestureRef.current.delta = 0;
+      gestureRef.current.locked = false;
+      gestureRef.current.lockAxis = null;
       resetGestureVisuals();
     }
 
@@ -778,9 +808,13 @@ export default function ProfilePage() {
           ref={viewerRef}
           className="fixed inset-0 z-[70] flex items-center justify-center bg-black/85 backdrop-blur-sm animate-in fade-in-0 duration-200"
           style={{
-            // touch-action:none tells the browser we are handling ALL touch
-            // gestures ourselves — suppresses pull-to-refresh and overscroll.
-            touchAction: "none",
+            // pan-x pinch-zoom: let the browser handle horizontal panning and
+            // pinch-zoom natively (hardware-accelerated, zero JS latency).
+            // We still intercept vertical swipes via passive:false touchmove
+            // listeners, but only AFTER the 10px direction-lock dead zone
+            // confirms it's a downward-vertical gesture. This keeps normal
+            // touch response instant and smooth on all mobile browsers.
+            touchAction: "pan-x pinch-zoom",
           }}
           onClick={() => {
             // Ignore the click that fires after a cancelled drag (snap-back)
