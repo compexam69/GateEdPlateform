@@ -1,5 +1,5 @@
 import { AppLayout } from "@/components/layout/AppLayout";
-import { AdminBackButton } from "@/components/layout/AdminBackButton";
+import { AdminBreadcrumb } from "@/components/layout/AdminBreadcrumb";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, BookOpen, Target, Clock, HardDrive, TrendingUp, MousePointerClick } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -69,7 +69,7 @@ export default function AdminAnalyticsPage() {
   return (
     <AppLayout requireAdmin>
       <div className="space-y-6">
-        <AdminBackButton />
+        <AdminBreadcrumb pageName="Platform Analytics" />
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Platform Analytics</h1>
           <p className="text-muted-foreground mt-1">Real-time platform overview and metrics.</p>

@@ -1,5 +1,5 @@
 import { AppLayout } from "@/components/layout/AppLayout";
-import { AdminBackButton } from "@/components/layout/AdminBackButton";
+import { AdminBreadcrumb } from "@/components/layout/AdminBreadcrumb";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -107,7 +107,7 @@ export default function AdminGatePage() {
   return (
     <AppLayout requireAdmin>
       <div className="space-y-6 max-w-2xl mx-auto">
-        <AdminBackButton />
+        <AdminBreadcrumb pageName="Gate Configuration" />
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2">

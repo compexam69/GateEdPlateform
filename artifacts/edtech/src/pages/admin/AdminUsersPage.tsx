@@ -1,5 +1,5 @@
 import { AppLayout } from "@/components/layout/AppLayout";
-import { AdminBackButton } from "@/components/layout/AdminBackButton";
+import { AdminBreadcrumb } from "@/components/layout/AdminBreadcrumb";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -580,7 +580,7 @@ export default function AdminUsersPage() {
   return (
     <AppLayout requireAdmin>
       <div className="space-y-6">
-        <AdminBackButton />
+        <AdminBreadcrumb pageName="User Management" />
         {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
