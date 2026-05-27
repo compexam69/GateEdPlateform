@@ -1,0 +1,193 @@
+🟢 Checkpoint 18: Inline PDF Preview Panel for Student Notes
+
+Goal: Implement an inline PDF preview panel that renders PDF notes directly inside the application instead of triggering automatic file downloads, allowing students to read notes seamlessly without leaving the app.
+
+Context: Currently, when students click on PDF notes/resources, the browser triggers a direct file download or opens the PDF externally. This disrupts user experience and forces students to leave the application environment.
+
+New Requirement:
+
+* Render PDFs inline inside the application using a built-in preview panel/viewer.
+* Students should be able to:
+
+  * Read PDF notes directly inside the app
+  * Scroll through pages smoothly
+  * Open PDFs without automatic download behavior
+* The feature must work smoothly across:
+
+  * Mobile devices
+  * Desktop browsers
+  * Installed PWA mode
+
+Instructions:
+
+1. Analyze Existing Notes/PDF Workflow:
+
+* Review:
+
+  * Current notes/resource module
+  * PDF file handling logic
+  * Download/open behavior
+  * Storage/file URL generation
+  * Existing UI layout
+  * Mobile responsiveness
+* Identify where PDFs are currently triggering downloads or external navigation.
+
+2. Implement Inline PDF Preview Panel:
+
+* Replace automatic PDF download behavior with:
+
+  * Inline embedded PDF preview/viewer
+* Ensure:
+
+  * PDFs render directly inside the app
+  * Students remain inside the application
+  * Viewer loads smoothly without page redirects
+* Add:
+
+  * Scrollable PDF container
+  * Proper loading states
+  * Error fallback UI if PDF fails to load
+
+3. Improve PDF Viewer User Experience:
+
+* Ensure the preview panel supports:
+
+  * Smooth scrolling
+  * Responsive resizing
+  * Mobile-friendly viewing
+  * Landscape and portrait orientation
+* Add:
+
+  * Open/close controls if needed
+  * Fullscreen option if appropriate
+  * Loading indicators
+  * Empty/error states
+* Prevent:
+
+  * Layout overflow
+  * Broken rendering
+  * Horizontal scrolling issues
+
+4. Preserve Existing File Access Logic:
+
+* Ensure:
+
+  * Existing authentication/access rules remain intact
+  * Authorized students can access PDFs correctly
+  * Unauthorized access remains blocked
+* Existing note/resource permissions must continue working properly.
+
+5. Preserve Download Capability:
+
+* Even though PDFs open inline:
+
+  * Keep an optional Download PDF button if required.
+* Ensure:
+
+  * Viewing does not automatically trigger downloads
+  * Users still have controlled download access if allowed
+
+6. Optimize Performance:
+
+* Ensure:
+
+  * Large PDFs load efficiently
+  * Viewer does not freeze on mobile devices
+  * Lazy loading/render optimization is applied if needed
+* Prevent:
+
+  * Memory leaks
+  * Excessive re-renders
+  * Browser crashes on large files
+
+7. Error Handling & Edge Cases:
+
+* Handle:
+
+  * Invalid/corrupted PDFs
+  * Broken file URLs
+  * Expired signed URLs
+  * Slow internet conditions
+  * Missing PDFs
+  * Permission failures
+* Ensure:
+
+  * User-friendly error messages appear
+  * App UI remains stable even if PDF fails to load
+
+8. Responsive & PWA Validation:
+
+* Ensure the PDF preview panel works correctly on:
+
+  * Mobile browsers
+  * Desktop browsers
+  * Tablets
+  * Installed PWA mode
+* Verify:
+
+  * No layout overflow occurs
+  * Scrolling remains smooth
+  * PDF scaling behaves correctly on small screens
+
+9. Testing & Validation:
+
+* Test:
+
+  * Small PDFs
+  * Large PDFs
+  * Multi-page PDFs
+  * Slow internet conditions
+  * Mobile touch scrolling
+  * Desktop interactions
+  * Installed PWA mode
+* Verify:
+
+  * PDFs render inline successfully
+  * Automatic downloads no longer occur
+  * Existing note functionality remains stable
+  * No console/runtime errors occur
+
+10. Backend / Storage / SQL Changes:
+
+* If any:
+
+  * Storage configuration
+  * Signed URL handling
+  * File-serving logic
+  * PDF security rules
+  * Backend/API changes
+  * SQL/RLS changes
+    are required:
+  * Clearly explain every required change.
+  * Provide updated code/configuration separately.
+  * Mention exactly where and how to apply the changes.
+  * Mention whether existing notes/files may be affected.
+* Explicitly state if no backend/storage/SQL changes are required.
+
+11. Checkpoint Requirement:
+
+* After completing and verifying this feature:
+
+  * Create a proper checkpoint/commit immediately.
+  * Ensure the PDF preview system is fully stable and production-ready.
+  * Provide a final implementation summary including:
+
+    * Files modified
+    * PDF viewer implementation details
+    * UI/UX improvements
+    * Performance optimizations
+    * Backend/storage changes
+    * Remaining limitations/issues (if any)
+
+Acceptance Criteria:
+
+* [ ] PDFs open inline inside the application instead of downloading automatically.
+* [ ] Students can read notes without leaving the app.
+* [ ] PDF rendering works correctly on mobile, desktop, and PWA environments.
+* [ ] Existing authentication and permission rules remain intact.
+* [ ] Optional controlled download functionality remains available if required.
+* [ ] Large PDFs load and scroll smoothly.
+* [ ] Invalid or broken PDFs are handled gracefully.
+* [ ] No layout overflow or responsiveness issues occur.
+* [ ] No console/runtime errors occur after implementation.
+* [ ] Checkpoint/commit is created after successful implementation and testing.
