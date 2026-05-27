@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LogOut, User, Eye, EyeOff, CheckCircle, Shield, Pencil, Phone, Bell, Mail, Download, ImagePlus, Trash2, X, ZoomIn } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { Badge } from "@/components/ui/badge";
@@ -64,8 +64,139 @@ export default function ProfilePage() {
   const [photoViewerOpen, setPhotoViewerOpen] = useState(false);
   const [viewerImgLoaded, setViewerImgLoaded] = useState(false);
   const [viewerImgError, setViewerImgError] = useState(false);
-  const [swipeDelta, setSwipeDelta] = useState(0);
-  const swipeTouchStartY = useRef<number | null>(null);
+
+  // Refs for imperative gesture handling (no state = no re-renders during drag)
+  const viewerRef = useRef<HTMLDivElement>(null);
+  const imgContainerRef = useRef<HTMLDivElement>(null);
+  const closeBtnRef = useRef<HTMLButtonElement>(null);
+  const hintRef = useRef<HTMLParagraphElement>(null);
+  const rafRef = useRef<number | null>(null);
+  const gestureRef = useRef({ startY: 0, startTime: 0, delta: 0, dragging: false });
+  // Tracks whether a meaningful drag occurred so that the tap-to-close onClick is
+  // NOT triggered after a snap-back swipe.
+  const wasDraggingRef = useRef(false);
+
+  // Apply drag visuals directly to DOM nodes — zero React re-renders
+  const applyGestureVisuals = useCallback((delta: number) => {
+    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => {
+      const viewer = viewerRef.current;
+      const img = imgContainerRef.current;
+      const closeBtn = closeBtnRef.current;
+      const hint = hintRef.current;
+      if (!viewer || !img) return;
+      const d = Math.max(0, delta);
+      viewer.style.opacity = String(Math.max(0.15, 1 - d / 300));
+      img.style.transition = "none";
+      img.style.transform = `translateY(${d}px)`;
+      if (closeBtn) closeBtn.style.opacity = String(Math.max(0, 1 - d / 120));
+      if (hint) hint.style.opacity = String(Math.max(0, 1 - d / 60));
+    });
+  }, []);
+
+  // Snap back with smooth spring animation
+  const resetGestureVisuals = useCallback(() => {
+    if (rafRef.current !== null) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+    const viewer = viewerRef.current;
+    const img = imgContainerRef.current;
+    const closeBtn = closeBtnRef.current;
+    const hint = hintRef.current;
+    if (!viewer || !img) return;
+    img.style.transition = "transform 0.3s cubic-bezier(0.22,1,0.36,1)";
+    img.style.transform = "translateY(0)";
+    viewer.style.transition = "opacity 0.3s ease";
+    viewer.style.opacity = "1";
+    if (closeBtn) { closeBtn.style.transition = "opacity 0.3s ease"; closeBtn.style.opacity = "1"; }
+    if (hint) { hint.style.transition = "opacity 0.3s ease"; hint.style.opacity = "1"; }
+  }, []);
+
+  // Imperative touch listeners: passive:false on touchmove so we CAN call
+  // preventDefault(), suppressing pull-to-refresh AND overscroll bounce.
+  useEffect(() => {
+    if (!photoViewerOpen) return;
+    const el = viewerRef.current;
+    if (!el) return;
+
+    // Lock body scroll / pull-to-refresh while viewer is open
+    const prevOverscroll = document.body.style.overscrollBehavior;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overscrollBehavior = "none";
+    document.body.style.overflow = "hidden";
+
+    function onTouchStart(e: TouchEvent) {
+      if (e.touches.length !== 1) return; // ignore multi-touch
+      gestureRef.current = {
+        startY: e.touches[0].clientY,
+        startTime: Date.now(),
+        delta: 0,
+        dragging: false,
+      };
+      wasDraggingRef.current = false;
+    }
+
+    function onTouchMove(e: TouchEvent) {
+      if (e.touches.length !== 1) return;
+      const g = gestureRef.current;
+      const delta = e.touches[0].clientY - g.startY;
+      if (delta > 0) {
+        // preventDefault() MUST be called here to block pull-to-refresh.
+        // This works only because the listener is registered with passive:false.
+        e.preventDefault();
+        g.dragging = true;
+        g.delta = delta;
+        if (delta > 5) wasDraggingRef.current = true;
+        applyGestureVisuals(delta);
+      }
+    }
+
+    function onTouchEnd() {
+      const g = gestureRef.current;
+      if (!g.dragging) return;
+
+      const elapsed = Date.now() - g.startTime;
+      // px/ms — fast flick even with small distance should dismiss
+      const velocity = elapsed > 0 ? g.delta / elapsed : 0;
+      const shouldClose = g.delta > 80 || (g.delta > 35 && velocity > 0.4);
+
+      if (shouldClose) {
+        // Fly out then unmount
+        const img = imgContainerRef.current;
+        const viewer = viewerRef.current;
+        if (img && viewer) {
+          img.style.transition = "transform 0.22s ease-in";
+          img.style.transform = `translateY(${window.innerHeight}px)`;
+          viewer.style.transition = "opacity 0.22s ease-in";
+          viewer.style.opacity = "0";
+        }
+        setTimeout(() => setPhotoViewerOpen(false), 230);
+      } else {
+        resetGestureVisuals();
+      }
+
+      gestureRef.current = { ...g, dragging: false, delta: 0 };
+    }
+
+    function onTouchCancel() {
+      gestureRef.current.dragging = false;
+      gestureRef.current.delta = 0;
+      resetGestureVisuals();
+    }
+
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+    el.addEventListener("touchcancel", onTouchCancel, { passive: true });
+
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("touchcancel", onTouchCancel);
+      document.body.style.overscrollBehavior = prevOverscroll;
+      document.body.style.overflow = prevOverflow;
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    };
+  }, [photoViewerOpen, applyGestureVisuals, resetGestureVisuals]);
 
   useEffect(() => {
     if (!photoViewerOpen) return;
@@ -75,25 +206,6 @@ export default function ProfilePage() {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [photoViewerOpen]);
-
-  function handleViewerTouchStart(e: React.TouchEvent) {
-    swipeTouchStartY.current = e.touches[0].clientY;
-    setSwipeDelta(0);
-  }
-
-  function handleViewerTouchMove(e: React.TouchEvent) {
-    if (swipeTouchStartY.current === null) return;
-    const delta = e.touches[0].clientY - swipeTouchStartY.current;
-    if (delta > 0) setSwipeDelta(delta);
-  }
-
-  function handleViewerTouchEnd() {
-    if (swipeDelta > 80) {
-      setPhotoViewerOpen(false);
-    }
-    setSwipeDelta(0);
-    swipeTouchStartY.current = null;
-  }
 
   useEffect(() => {
     if (!storedAvatarPath || storedAvatarPath.startsWith("blob:") || storedAvatarPath.startsWith("http")) {
@@ -631,33 +743,36 @@ export default function ProfilePage() {
       {/* ── Full-screen photo viewer ── */}
       {photoViewerOpen && photoUrl && (
         <div
+          ref={viewerRef}
           className="fixed inset-0 z-[70] flex items-center justify-center bg-black/85 backdrop-blur-sm animate-in fade-in-0 duration-200"
-          style={{ opacity: Math.max(0.15, 1 - swipeDelta / 300) }}
-          onClick={() => setPhotoViewerOpen(false)}
-          onTouchStart={handleViewerTouchStart}
-          onTouchMove={handleViewerTouchMove}
-          onTouchEnd={handleViewerTouchEnd}
+          style={{
+            // touch-action:none tells the browser we are handling ALL touch
+            // gestures ourselves — suppresses pull-to-refresh and overscroll.
+            touchAction: "none",
+          }}
+          onClick={() => {
+            // Ignore the click that fires after a cancelled drag (snap-back)
+            if (wasDraggingRef.current) { wasDraggingRef.current = false; return; }
+            setPhotoViewerOpen(false);
+          }}
           role="dialog"
           aria-modal="true"
           aria-label="Profile photo viewer"
         >
-          {/* Close button — fades out while swiping */}
+          {/* Close button — opacity driven imperatively during swipe */}
           <button
+            ref={closeBtnRef}
             className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
-            style={{ opacity: Math.max(0, 1 - swipeDelta / 120) }}
-            onClick={() => setPhotoViewerOpen(false)}
+            onClick={(e) => { e.stopPropagation(); setPhotoViewerOpen(false); }}
             aria-label="Close viewer"
           >
             <X className="w-5 h-5 text-white" />
           </button>
 
-          {/* Image container — follows finger downward, snaps back if not far enough */}
+          {/* Image container — transform driven imperatively during swipe */}
           <div
+            ref={imgContainerRef}
             className="relative flex items-center justify-center p-6"
-            style={{
-              transform: `translateY(${swipeDelta}px)`,
-              transition: swipeDelta === 0 ? "transform 0.25s cubic-bezier(0.22,1,0.36,1)" : "none",
-            }}
             onClick={e => e.stopPropagation()}
           >
             {/* Loading spinner */}
@@ -690,11 +805,11 @@ export default function ProfilePage() {
             />
           </div>
 
-          {/* Hint text — fades in after load, fades out while swiping */}
+          {/* Hint text — opacity driven imperatively during swipe */}
           {viewerImgLoaded && !viewerImgError && (
             <p
+              ref={hintRef}
               className="absolute bottom-5 left-1/2 -translate-x-1/2 text-xs text-white/40 select-none whitespace-nowrap"
-              style={{ opacity: Math.max(0, 1 - swipeDelta / 60) }}
             >
               Swipe down or tap outside to close
             </p>

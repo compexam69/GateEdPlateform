@@ -1,0 +1,152 @@
+🟢 Checkpoint 16: Mobile Swipe-Down Gesture for Profile Photo Viewer
+
+Goal: Finalize and stabilize the mobile swipe-down gesture functionality for closing the profile photo viewer, ensuring it behaves like a native mobile photo viewer experience without causing refreshes, broken states, or gesture conflicts.
+
+Context: A swipe-down gesture was added to the profile photo viewer so users can close the enlarged image preview naturally on mobile devices, similar to native gallery/photo viewer applications.
+
+However, after implementation, refreshing/reload behavior or unintended gesture-related issues occurred. The swipe gesture implementation must now be deeply analyzed and stabilized to ensure smooth mobile UX without breaking the existing viewer functionality.
+
+New Requirement:
+
+* Users should be able to swipe down on the enlarged profile photo viewer to close it smoothly.
+* The gesture must:
+
+  * Feel natural and responsive
+  * Not trigger unwanted page refresh/reload behavior
+  * Not conflict with browser pull-to-refresh
+  * Work correctly in PWA mode
+  * Preserve existing photo viewer functionality
+
+Instructions:
+
+1. Analyze Existing Gesture Implementation:
+
+* Review:
+
+  * Photo viewer modal/component
+  * Swipe gesture implementation
+  * Touch event handling
+  * Scroll behavior
+  * Mobile browser interactions
+  * PWA-specific behavior
+* Identify:
+
+  * Why refresh/reload behavior occurs
+  * Whether browser pull-to-refresh conflicts with the gesture
+  * Whether touch events are improperly handled
+  * Whether event propagation/preventDefault logic is missing or incorrect
+
+2. Stabilize Swipe-Down Close Gesture:
+
+* Ensure:
+
+  * Swipe-down closes the viewer smoothly
+  * Gesture feels responsive and native-like
+  * Viewer closes only after intentional downward swipe
+  * Accidental touches do not close the viewer
+* Properly handle:
+
+  * Gesture thresholds
+  * Velocity detection
+  * Drag distance calculation
+  * Smooth animation transitions
+
+3. Prevent Refresh/Pull-to-Refresh Conflicts:
+
+* Prevent:
+
+  * Browser pull-to-refresh activation
+  * Unwanted page reloads
+  * Scroll locking issues
+  * Gesture conflicts with modal scrolling
+* Ensure:
+
+  * Gesture handling works safely across mobile browsers
+  * PWA mode remains stable
+
+4. Preserve Existing Viewer Features:
+
+* Ensure the gesture implementation does NOT break:
+
+  * Tap-to-view functionality
+  * Upload/update/delete actions
+  * Image zooming/scaling
+  * Modal open/close behavior
+  * Existing responsive layouts
+* Existing image viewer interactions must remain stable.
+
+5. Improve UX & Animation:
+
+* Add/Improve:
+
+  * Smooth drag-down animation
+  * Elastic/dismiss effect
+  * Gesture cancellation recovery
+  * Smooth return animation if swipe threshold is not reached
+* Ensure:
+
+  * No jittering or lag occurs
+  * Mobile interactions feel fluid and polished
+
+6. Error Handling & Edge Cases:
+
+* Handle:
+
+  * Rapid repeated gestures
+  * Multi-touch conflicts
+  * Orientation changes
+  * Slow devices
+  * Background scrolling issues
+* Prevent broken modal states or frozen gestures.
+
+7. Testing & Validation:
+
+* Test:
+
+  * Android browsers
+  * iOS browsers
+  * Installed PWA mode
+  * Different screen sizes
+  * Portrait and landscape orientation
+  * Slow/low-performance devices
+* Verify:
+
+  * Swipe-down closes viewer correctly
+  * No unwanted refresh/reload occurs
+  * No browser gesture conflicts remain
+  * Existing viewer functionality remains unaffected
+  * No console/runtime errors occur
+
+8. Backend / Storage / SQL Changes:
+
+* Explicitly state if no backend/storage/SQL changes are required.
+* If any viewer state or backend interaction changes are needed:
+
+  * Clearly explain them separately.
+
+9. Checkpoint Requirement:
+
+* After completing and verifying this feature stabilization:
+
+  * Create a proper checkpoint/commit immediately.
+  * Ensure the swipe gesture experience is fully stable and production-ready.
+  * Provide a final implementation summary including:
+
+    * Files modified
+    * Gesture handling improvements
+    * Refresh conflict fixes
+    * Animation/UX enhancements
+    * Remaining limitations/issues (if any)
+
+Acceptance Criteria:
+
+* [ ] Swipe-down gesture closes the photo viewer smoothly on mobile devices.
+* [ ] No unwanted page refresh or pull-to-refresh behavior occurs.
+* [ ] Gesture feels responsive and native-like.
+* [ ] Existing photo viewer functionality remains fully functional.
+* [ ] No modal freezes, gesture conflicts, or broken states occur.
+* [ ] Smooth drag/dismiss animations work correctly.
+* [ ] PWA mode works correctly without gesture conflicts.
+* [ ] No layout overflow or responsiveness issues occur.
+* [ ] No console/runtime errors occur after implementation.
+* [ ] Checkpoint/commit is created after successful implementation and testing.
