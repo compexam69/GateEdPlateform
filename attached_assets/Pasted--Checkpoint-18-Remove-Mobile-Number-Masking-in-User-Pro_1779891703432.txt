@@ -1,0 +1,156 @@
+🟢 Checkpoint 18: Remove Mobile Number Masking in User Profile Pages
+
+Goal: Remove mobile number masking from all authenticated user profile pages so users can view their complete registered mobile number correctly.
+
+Context: Currently, mobile numbers are masked across profile pages using a format similar to:
+
+* +91 XXXXX4321
+
+This masking is being applied globally, including:
+
+* Student/User profiles
+* Admin profiles
+* Super Admin profiles
+
+As a result:
+
+* Even authenticated users cannot fully view their own registered mobile number.
+* Super Admins also see masked numbers inside their own Profile module.
+
+New Requirement:
+
+* Remove mobile number masking for authenticated users viewing their own profile.
+* Every authenticated user should see their full registered mobile number correctly in their Profile module.
+* No masking should appear for:
+
+  * Students/Regular Users
+  * Admins
+  * Super Admins
+    when viewing their own profile information.
+
+Instructions:
+
+1. Analyze Existing Mobile Number Rendering Logic:
+
+* Review:
+
+  * Profile module/components
+  * User details rendering logic
+  * Global masking utilities/helpers
+  * Mobile number formatting functions
+  * Authentication-based rendering conditions
+* Identify:
+
+  * Where mobile number masking is applied
+  * Whether masking is implemented globally/shared
+  * Which components reuse the masking logic
+  * Whether profile-specific exceptions already exist
+
+2. Remove Masking for Authenticated Self-Profile Views:
+
+* Refactor the rendering logic so:
+
+  * Authenticated users can view their own full mobile number
+  * Mobile numbers display correctly without masking
+* Ensure:
+
+  * Full number visibility in:
+
+    * Student profile
+    * Admin profile
+    * Super Admin profile
+* Prevent:
+
+  * Partial masking
+  * Formatting corruption
+  * Inconsistent rendering
+
+3. Preserve Existing Security & Permissions:
+
+* Ensure the implementation does NOT break:
+
+  * Authentication logic
+  * Role-based permissions
+  * Admin dashboard behavior
+  * User management modules
+  * Existing profile functionality
+* Only remove masking for legitimate authenticated self-profile viewing.
+
+4. Maintain Proper Mobile Number Formatting:
+
+* Ensure:
+
+  * Country codes display correctly
+  * Formatting remains clean and readable
+  * Numbers render consistently across devices
+* Prevent:
+
+  * Duplicate country codes
+  * Broken spacing
+  * Invalid formatting
+
+5. Handle Edge Cases:
+
+* Handle:
+
+  * Missing mobile numbers
+  * Null/empty values
+  * Different country formats
+  * Old/incomplete profile data
+* Ensure:
+
+  * UI remains stable
+  * No undefined/null rendering issues occur
+
+6. Testing & Validation:
+
+* Test:
+
+  * Student profile
+  * Admin profile
+  * Super Admin profile
+  * Mobile devices
+  * Desktop devices
+  * PWA mode
+* Verify:
+
+  * Full mobile number displays correctly
+  * No masking remains in self-profile views
+  * Existing profile functionality remains stable
+  * No console/runtime errors occur
+
+7. Backend / Database / SQL Changes:
+
+* Explicitly state whether:
+
+  * No backend/database/SQL changes are required
+    OR
+  * Any formatting/rendering changes are required
+* If changes are needed:
+
+  * Clearly explain them separately.
+
+8. Checkpoint Requirement:
+
+* After completing and verifying this implementation:
+
+  * Create a proper checkpoint/commit immediately.
+  * Ensure mobile numbers display correctly across all authenticated profile pages.
+  * Provide a final implementation summary including:
+
+    * Files modified
+    * Masking logic changes
+    * Formatting improvements
+    * Remaining limitations/issues (if any)
+
+Acceptance Criteria:
+
+* [ ] Authenticated users can view their full mobile number in their own profile.
+* [ ] No masking appears in Student profiles.
+* [ ] No masking appears in Admin profiles.
+* [ ] No masking appears in Super Admin profiles.
+* [ ] Mobile number formatting remains clean and consistent.
+* [ ] Existing authentication and permissions remain unaffected.
+* [ ] No broken/null rendering issues occur.
+* [ ] No console/runtime errors occur after implementation.
+* [ ] Checkpoint/commit is created after successful implementation and testing.

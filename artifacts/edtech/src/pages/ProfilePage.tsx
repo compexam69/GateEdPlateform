@@ -512,11 +512,7 @@ export default function ProfilePage() {
     } finally { setSavingPrefs(false); }
   }
 
-  const maskedMobile = (() => {
-    const m = user?.user_metadata?.mobile_number || "";
-    if (m.length >= 10) return m.slice(0, 3) + " XXXXX " + m.slice(-4);
-    return m;
-  })();
+  const maskedMobile = user?.user_metadata?.mobile_number || "";
 
   const roleLabel = role === "super_admin" ? "Super Admin" : role === "admin" ? "Admin" : "Student";
   const isEmailVerified = !!(user?.email_confirmed_at);
