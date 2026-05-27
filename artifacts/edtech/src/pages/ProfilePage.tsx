@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LogOut, User, Eye, EyeOff, CheckCircle, Shield, Pencil, Phone, Bell, Mail, Download, ImagePlus, Trash2, X, ZoomIn } from "lucide-react";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { Badge } from "@/components/ui/badge";
@@ -64,169 +64,6 @@ export default function ProfilePage() {
   const [photoViewerOpen, setPhotoViewerOpen] = useState(false);
   const [viewerImgLoaded, setViewerImgLoaded] = useState(false);
   const [viewerImgError, setViewerImgError] = useState(false);
-
-  // Refs for imperative gesture handling (no state = no re-renders during drag)
-  const viewerRef = useRef<HTMLDivElement>(null);
-  const imgContainerRef = useRef<HTMLDivElement>(null);
-  const closeBtnRef = useRef<HTMLButtonElement>(null);
-  const hintRef = useRef<HTMLParagraphElement>(null);
-  const rafRef = useRef<number | null>(null);
-  const gestureRef = useRef({
-    startY: 0,
-    startX: 0,
-    startTime: 0,
-    delta: 0,
-    dragging: false,
-    // Direction lock: determined after 10px dead zone
-    locked: false,
-    lockAxis: null as "v" | "h" | null,
-  });
-  // Tracks whether a meaningful drag occurred so that the tap-to-close onClick is
-  // NOT triggered after a snap-back swipe.
-  const wasDraggingRef = useRef(false);
-
-  // Apply drag visuals directly to DOM nodes — zero React re-renders
-  const applyGestureVisuals = useCallback((delta: number) => {
-    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
-    rafRef.current = requestAnimationFrame(() => {
-      const viewer = viewerRef.current;
-      const img = imgContainerRef.current;
-      const closeBtn = closeBtnRef.current;
-      const hint = hintRef.current;
-      if (!viewer || !img) return;
-      const d = Math.max(0, delta);
-      viewer.style.opacity = String(Math.max(0.15, 1 - d / 300));
-      img.style.transition = "none";
-      img.style.transform = `translateY(${d}px)`;
-      if (closeBtn) closeBtn.style.opacity = String(Math.max(0, 1 - d / 120));
-      if (hint) hint.style.opacity = String(Math.max(0, 1 - d / 60));
-    });
-  }, []);
-
-  // Snap back with smooth spring animation
-  const resetGestureVisuals = useCallback(() => {
-    if (rafRef.current !== null) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
-    const viewer = viewerRef.current;
-    const img = imgContainerRef.current;
-    const closeBtn = closeBtnRef.current;
-    const hint = hintRef.current;
-    if (!viewer || !img) return;
-    img.style.transition = "transform 0.3s cubic-bezier(0.22,1,0.36,1)";
-    img.style.transform = "translateY(0)";
-    viewer.style.transition = "opacity 0.3s ease";
-    viewer.style.opacity = "1";
-    if (closeBtn) { closeBtn.style.transition = "opacity 0.3s ease"; closeBtn.style.opacity = "1"; }
-    if (hint) { hint.style.transition = "opacity 0.3s ease"; hint.style.opacity = "1"; }
-  }, []);
-
-  // Imperative touch listeners: passive:false on touchmove so we CAN call
-  // preventDefault(), suppressing pull-to-refresh AND overscroll bounce.
-  useEffect(() => {
-    if (!photoViewerOpen) return;
-    const el = viewerRef.current;
-    if (!el) return;
-
-    // Lock body scroll / pull-to-refresh while viewer is open
-    const prevOverscroll = document.body.style.overscrollBehavior;
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overscrollBehavior = "none";
-    document.body.style.overflow = "hidden";
-
-    function onTouchStart(e: TouchEvent) {
-      if (e.touches.length !== 1) return; // ignore multi-touch
-      gestureRef.current = {
-        startY: e.touches[0].clientY,
-        startX: e.touches[0].clientX,
-        startTime: Date.now(),
-        delta: 0,
-        dragging: false,
-        locked: false,
-        lockAxis: null,
-      };
-      wasDraggingRef.current = false;
-    }
-
-    function onTouchMove(e: TouchEvent) {
-      if (e.touches.length !== 1) return;
-      const g = gestureRef.current;
-      const dy = e.touches[0].clientY - g.startY;
-      const dx = Math.abs(e.touches[0].clientX - g.startX);
-
-      // ── Direction-lock dead zone (10 px) ──────────────────────────────
-      // Don't decide axis until the finger has moved at least 10 px in any
-      // direction. This means tiny / incidental touches never get captured.
-      if (!g.locked) {
-        const dist = Math.hypot(dy, dx);
-        if (dist < 10) return; // still inside dead zone — pass through freely
-        g.locked = true;
-        // Vertical if downward movement dominates, otherwise horizontal.
-        g.lockAxis = dy > 0 && dy >= dx ? "v" : "h";
-      }
-
-      // ── Horizontal or upward gesture ─────────────────────────────────
-      // Let the browser handle it natively — hardware-accelerated, no lag.
-      if (g.lockAxis !== "v") return;
-
-      // ── Confirmed downward-vertical swipe ────────────────────────────
-      // Now safe to block pull-to-refresh / overscroll.
-      // Works because listener is registered with passive:false.
-      e.preventDefault();
-      g.dragging = true;
-      g.delta = dy;
-      if (dy > 8) wasDraggingRef.current = true;
-      applyGestureVisuals(dy);
-    }
-
-    function onTouchEnd() {
-      const g = gestureRef.current;
-      if (!g.dragging) return;
-
-      const elapsed = Date.now() - g.startTime;
-      // px/ms — fast flick even with small distance should dismiss
-      const velocity = elapsed > 0 ? g.delta / elapsed : 0;
-      const shouldClose = g.delta > 80 || (g.delta > 35 && velocity > 0.4);
-
-      if (shouldClose) {
-        // Fly out then unmount
-        const img = imgContainerRef.current;
-        const viewer = viewerRef.current;
-        if (img && viewer) {
-          img.style.transition = "transform 0.22s ease-in";
-          img.style.transform = `translateY(${window.innerHeight}px)`;
-          viewer.style.transition = "opacity 0.22s ease-in";
-          viewer.style.opacity = "0";
-        }
-        setTimeout(() => setPhotoViewerOpen(false), 230);
-      } else {
-        resetGestureVisuals();
-      }
-
-      gestureRef.current = { ...g, dragging: false, delta: 0, locked: false, lockAxis: null };
-    }
-
-    function onTouchCancel() {
-      gestureRef.current.dragging = false;
-      gestureRef.current.delta = 0;
-      gestureRef.current.locked = false;
-      gestureRef.current.lockAxis = null;
-      resetGestureVisuals();
-    }
-
-    el.addEventListener("touchstart", onTouchStart, { passive: true });
-    el.addEventListener("touchmove", onTouchMove, { passive: false });
-    el.addEventListener("touchend", onTouchEnd, { passive: true });
-    el.addEventListener("touchcancel", onTouchCancel, { passive: true });
-
-    return () => {
-      el.removeEventListener("touchstart", onTouchStart);
-      el.removeEventListener("touchmove", onTouchMove);
-      el.removeEventListener("touchend", onTouchEnd);
-      el.removeEventListener("touchcancel", onTouchCancel);
-      document.body.style.overscrollBehavior = prevOverscroll;
-      document.body.style.overflow = prevOverflow;
-      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
-    };
-  }, [photoViewerOpen, applyGestureVisuals, resetGestureVisuals]);
 
   useEffect(() => {
     if (!photoViewerOpen) return;
@@ -805,29 +642,14 @@ export default function ProfilePage() {
       {/* ── Full-screen photo viewer ── */}
       {photoViewerOpen && photoUrl && (
         <div
-          ref={viewerRef}
           className="fixed inset-0 z-[70] flex items-center justify-center bg-black/85 backdrop-blur-sm animate-in fade-in-0 duration-200"
-          style={{
-            // pan-x pinch-zoom: let the browser handle horizontal panning and
-            // pinch-zoom natively (hardware-accelerated, zero JS latency).
-            // We still intercept vertical swipes via passive:false touchmove
-            // listeners, but only AFTER the 10px direction-lock dead zone
-            // confirms it's a downward-vertical gesture. This keeps normal
-            // touch response instant and smooth on all mobile browsers.
-            touchAction: "pan-x pinch-zoom",
-          }}
-          onClick={() => {
-            // Ignore the click that fires after a cancelled drag (snap-back)
-            if (wasDraggingRef.current) { wasDraggingRef.current = false; return; }
-            setPhotoViewerOpen(false);
-          }}
+          onClick={() => setPhotoViewerOpen(false)}
           role="dialog"
           aria-modal="true"
           aria-label="Profile photo viewer"
         >
-          {/* Close button — opacity driven imperatively during swipe */}
+          {/* Close button */}
           <button
-            ref={closeBtnRef}
             className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
             onClick={(e) => { e.stopPropagation(); setPhotoViewerOpen(false); }}
             aria-label="Close viewer"
@@ -835,9 +657,8 @@ export default function ProfilePage() {
             <X className="w-5 h-5 text-white" />
           </button>
 
-          {/* Image container — transform driven imperatively during swipe */}
+          {/* Image container */}
           <div
-            ref={imgContainerRef}
             className="relative flex items-center justify-center p-6"
             onClick={e => e.stopPropagation()}
           >
@@ -871,13 +692,10 @@ export default function ProfilePage() {
             />
           </div>
 
-          {/* Hint text — opacity driven imperatively during swipe */}
+          {/* Hint text */}
           {viewerImgLoaded && !viewerImgError && (
-            <p
-              ref={hintRef}
-              className="absolute bottom-5 left-1/2 -translate-x-1/2 text-xs text-white/40 select-none whitespace-nowrap"
-            >
-              Swipe down or tap outside to close
+            <p className="absolute bottom-5 left-1/2 -translate-x-1/2 text-xs text-white/40 select-none whitespace-nowrap">
+              Tap outside or press Esc to close
             </p>
           )}
         </div>
