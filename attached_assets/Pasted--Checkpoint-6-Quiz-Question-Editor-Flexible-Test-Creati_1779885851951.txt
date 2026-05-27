@@ -1,0 +1,302 @@
+🟢 Checkpoint 6: Quiz & Question Editor Flexible Test Creation, Bulk Import System & Mobile Responsiveness
+
+Goal: Implement a fully flexible and production-ready Quiz & Question Editor system that allows Admins and Super Admins to create tests with or without video solutions/QR codes while also improving the Bulk Import workflow, question PDF conversion process, and mobile responsiveness for editor action buttons.
+
+Context: Currently:
+
+* The Quiz & Question Editor enforces video solutions or QR code-related fields in some workflows.
+* Many tests only require:
+
+  * Questions
+  * Options
+  * Correct answers
+  * Text solutions/explanations
+    without video content.
+
+Additionally:
+
+* “Bulk Import” and “Add Questions” buttons are not properly responsive on mobile devices.
+* Admins do not have a clear workflow for generating/importing bulk questions from question PDFs.
+
+New Requirement:
+
+* Video solutions and QR codes must become fully optional.
+* Admins and Super Admins should be able to:
+
+  * Create tests with or without video solutions
+  * Import large sets of questions easily
+  * Generate bulk import files from question PDFs
+* Student view must automatically adapt depending on whether video solutions exist.
+* Mobile responsiveness for editor controls must be fully optimized.
+
+Instructions:
+
+1. Analyze Existing Quiz & Question System:
+
+* Review:
+
+  * Quiz Editor
+  * Question Editor
+  * Bulk Import workflow
+  * Database schema
+  * Validation logic
+  * Video/QR handling
+  * Student-side rendering
+  * Existing gating logic
+  * Mobile responsive layouts
+* Identify:
+
+  * Where video/QR fields are mandatory
+  * Which validations enforce them
+  * How bulk import currently works
+  * Which layouts/buttons break on mobile
+
+2. Make Video Solutions & QR Codes Optional:
+
+* Update the system so:
+
+  * Video URLs become optional/nullable
+  * QR generation becomes optional
+* Ensure:
+
+  * Tests save successfully without videos
+  * Existing video-based tests continue working
+  * Validation no longer blocks text-only tests
+
+3. Update Student Solution Rendering:
+
+* Refactor student-side logic so:
+
+  * Text solutions display even without videos
+  * QR codes automatically hide when video is absent
+  * Empty placeholders are never shown
+* Ensure:
+
+  * Clean and readable UI
+  * Stable rendering across devices
+
+4. Improve Bulk Import Workflow:
+
+* Ensure Bulk Import supports:
+
+  * Questions
+  * Options
+  * Correct answers
+  * Text explanations
+  * Optional video URLs
+  * Optional QR/video fields
+* Validate:
+
+  * Required fields
+  * File structure
+  * Duplicate questions
+  * Missing data
+* Prevent:
+
+  * Corrupted imports
+  * Invalid question formats
+  * Partial save failures
+
+5. Improve Mobile Responsiveness:
+
+* Refactor:
+
+  * “Bulk Import”
+  * “Add Questions”
+  * Related action buttons
+* Ensure:
+
+  * Fully responsive mobile layout
+  * Proper spacing and touch targets
+  * No overlap or overflow
+* Consider:
+
+  * Vertical stacking
+  * Sticky action footer
+  * Full-width mobile buttons
+
+6. Preserve Existing Functionality:
+
+* Ensure implementation does NOT break:
+
+  * Lecture tests
+  * Topic tests
+  * Subject tests
+  * Full tests
+  * Existing gating/progression logic
+  * Analytics/reporting
+  * Existing permissions
+
+7. Beginner-Friendly Bulk Import & PDF Question Guide:
+
+* After implementation, provide a complete beginner-friendly guide explaining:
+
+A. Bulk Import File Structure
+
+* Explain:
+
+  * Which file formats are supported
+
+    * CSV
+    * Excel/XLSX
+    * JSON (if supported)
+  * Which fields are required
+  * Which fields are optional
+* Clearly explain each column/field:
+
+  * Question
+  * Option A
+  * Option B
+  * Option C
+  * Option D
+  * Correct Answer
+  * Explanation/Text Solution
+  * Video URL (optional)
+  * QR/video field (optional)
+  * Difficulty level (if applicable)
+  * Subject/topic/test mapping fields
+* Show:
+
+  * Proper example rows
+  * Correct formatting rules
+  * Common mistakes to avoid
+
+B. Generate Bulk Import Questions from Question PDFs
+
+* Explain step-by-step:
+
+  * How to convert question PDFs into bulk import format
+  * Which AI/manual tools can help extract questions
+  * How to clean extracted text
+  * How to organize MCQs properly
+  * How to structure answers/options correctly
+  * How to prepare import-ready files
+* Explain:
+
+  * What happens if PDF extraction is messy
+  * How to verify extracted answers
+  * How to avoid duplicate or broken questions
+  * Recommended workflow for large question banks
+
+C. Bulk Import Workflow
+
+* Explain:
+
+  * How to upload the bulk import file
+  * What validations occur
+  * What errors may appear
+  * How to fix import errors
+  * What happens after successful import
+  * How imported questions are linked to tests
+
+D. Different Scenarios
+
+* Explain what happens when:
+
+  * Video exists
+  * Video missing
+  * QR unavailable
+  * Text-only explanation
+  * Invalid import file
+  * Missing options/answers
+  * Duplicate questions
+  * Broken formatting
+
+8. Responsive & PWA Validation:
+
+* Ensure the Quiz & Question Editor works correctly on:
+
+  * Mobile browsers
+  * Tablets
+  * Desktop browsers
+  * Installed PWA mode
+
+9. Error Handling & Edge Cases:
+
+* Handle:
+
+  * Missing video URLs
+  * Empty QR fields
+  * Large bulk imports
+  * Broken CSV/XLSX formatting
+  * Duplicate data
+  * Long explanations
+  * Mobile orientation changes
+* Ensure:
+
+  * User-friendly errors appear
+  * UI remains stable during failures
+
+10. Testing & Validation:
+
+* Test:
+
+  * Tests with videos
+  * Tests without videos
+  * QR visibility logic
+  * Bulk imports
+  * PDF-based imports
+  * Large question sets
+  * Mobile responsiveness
+  * PWA mode
+* Verify:
+
+  * Tests save correctly
+  * Student rendering behaves correctly
+  * Bulk import works reliably
+  * Buttons remain responsive
+  * No layout overflow occurs
+  * No console/runtime errors occur
+
+11. Backend / Database / SQL Changes:
+
+* If any:
+
+  * Database schema updates
+  * Nullable field changes
+  * Bulk import schema updates
+  * Validation changes
+  * API updates
+  * SQL migrations
+  * RLS/security updates
+    are required:
+  * Clearly explain every required change.
+  * Provide updated SQL/configuration separately.
+  * Mention exactly where and how to apply the changes.
+  * Mention whether existing test/question data may be affected.
+
+12. Checkpoint Requirement:
+
+* After completing and verifying this feature implementation:
+
+  * Create a proper checkpoint/commit immediately.
+  * Ensure the Quiz & Question Editor system is fully stable and production-ready.
+  * Provide a final implementation summary including:
+
+    * Files modified
+    * Bulk import improvements
+    * PDF question workflow guidance
+    * Validation logic changes
+    * Student rendering improvements
+    * QR/video handling updates
+    * Mobile responsiveness fixes
+    * Database/schema changes
+    * Remaining limitations/issues (if any)
+
+Acceptance Criteria:
+
+* [ ] Admins and Super Admins can create tests without video URLs or QR codes.
+* [ ] Video solution fields are fully optional.
+* [ ] Student view correctly displays text solutions without requiring videos.
+* [ ] QR codes automatically hide when no video exists.
+* [ ] Existing video-based tests continue functioning correctly.
+* [ ] “Bulk Import” and “Add Questions” buttons are fully responsive on mobile devices.
+* [ ] Bulk Import supports optional video/QR fields.
+* [ ] A complete beginner-friendly guide for PDF-to-bulk-import workflow is provided.
+* [ ] Required and optional bulk import fields are documented clearly.
+* [ ] All test types save and function correctly.
+* [ ] Existing gating logic remains operational.
+* [ ] UI remains responsive across mobile, desktop, tablet, and PWA environments.
+* [ ] No layout overflow or responsiveness issues occur.
+* [ ] No console/runtime errors occur after implementation.
+* [ ] Checkpoint/commit is created after successful implementation and testing.

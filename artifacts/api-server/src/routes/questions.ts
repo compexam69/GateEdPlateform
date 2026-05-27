@@ -17,7 +17,13 @@ interface RawQuestion {
 function isValidOptions(opts: unknown): opts is Record<string, string> {
   if (!opts || typeof opts !== "object" || Array.isArray(opts)) return false;
   const o = opts as Record<string, unknown>;
-  return ["A", "B", "C", "D"].every(k => k in o && typeof o[k] === "string" && (o[k] as string).trim() !== "");
+  // A and B are required; C and D are optional but must be non-empty strings if present
+  if (!("A" in o) || typeof o["A"] !== "string" || o["A"].trim() === "") return false;
+  if (!("B" in o) || typeof o["B"] !== "string" || o["B"].trim() === "") return false;
+  for (const k of ["C", "D"]) {
+    if (k in o && o[k] !== null && o[k] !== "" && (typeof o[k] !== "string" || (o[k] as string).trim() === "")) return false;
+  }
+  return true;
 }
 
 function validateQuestion(raw: RawQuestion, idx: number): { valid: true; row: Record<string, unknown> } | { valid: false; error: string } {

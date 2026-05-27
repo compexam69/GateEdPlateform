@@ -198,7 +198,7 @@ export default function ExamResultPage() {
           <TabsList className="flex-wrap h-auto">
             <TabsTrigger value="answers">Answer Sheet</TabsTrigger>
             <TabsTrigger value="solutions">Solutions</TabsTrigger>
-            <TabsTrigger value="videos">Videos</TabsTrigger>
+            {withVideo.length > 0 && <TabsTrigger value="videos">Videos ({withVideo.length})</TabsTrigger>}
             <TabsTrigger value="insights">Insights</TabsTrigger>
           </TabsList>
 

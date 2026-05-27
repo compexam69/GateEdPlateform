@@ -232,13 +232,13 @@ function QuizRow({ quiz, expanded, onToggle, onEdit, onDelete, onAddQuestion, on
 
         {expanded && (
           <div className="border-t border-border bg-muted/20 p-4 space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between">
               <p className="text-sm font-medium text-muted-foreground">{questions.length} question{questions.length !== 1 ? "s" : ""}</p>
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" onClick={onBulkImport}>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button size="sm" variant="outline" className="w-full sm:w-auto justify-center" onClick={onBulkImport}>
                   <FileJson className="w-3.5 h-3.5 mr-1.5" /> Bulk Import
                 </Button>
-                <Button size="sm" onClick={onAddQuestion}>
+                <Button size="sm" className="w-full sm:w-auto justify-center" onClick={onAddQuestion}>
                   <Plus className="w-3.5 h-3.5 mr-1.5" /> Add Question
                 </Button>
               </div>
@@ -547,8 +547,9 @@ function QuestionDialog({ open, quizId, question, onClose, onSaved, saving, setS
             <Textarea rows={2} value={form.explanation} onChange={e => f("explanation", e.target.value)} placeholder="Solution explanation..." />
           </div>
           <div className="space-y-1.5">
-            <Label>Video Solution URL (YouTube)</Label>
-            <Input value={form.video_solution_url} onChange={e => f("video_solution_url", e.target.value)} placeholder="https://youtube.com/watch?v=..." />
+            <Label>Video Solution URL <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
+            <Input value={form.video_solution_url} onChange={e => f("video_solution_url", e.target.value)} placeholder="https://youtube.com/watch?v=... (leave blank for text-only)" />
+            <p className="text-xs text-muted-foreground">If provided, a QR code is auto-generated. Leave blank for text-only questions.</p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
@@ -580,17 +581,20 @@ function parseCsvToQuestions(csv: string): unknown[] {
     const cols = line.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g) ?? [];
     const clean = (v?: string) => (v ?? "").replace(/^"|"$/g, "").trim();
     const get = (key: string) => clean(cols[headers.indexOf(key)]);
+    const optC = get("option_c") || get("C");
+    const optD = get("option_d") || get("D");
+    const videoUrl = get("video_solution_url");
     return {
       question_text: get("question_text") || get("question"),
       options: {
         A: get("option_a") || get("A"),
         B: get("option_b") || get("B"),
-        C: get("option_c") || get("C"),
-        D: get("option_d") || get("D"),
+        ...(optC ? { C: optC } : {}),
+        ...(optD ? { D: optD } : {}),
       },
-      correct_answer: get("correct_answer") || get("answer"),
-      explanation: get("explanation") || undefined,
-      video_solution_url: get("video_solution_url") || undefined,
+      correct_answer: (get("correct_answer") || get("answer")).toUpperCase(),
+      explanation: get("explanation") || null,
+      video_solution_url: videoUrl || null,
       difficulty: parseInt(get("difficulty") || "3", 10) || 3,
       order_index: idx,
     };
@@ -615,14 +619,23 @@ function BulkImportDialog({ open, quizId, onClose, onImported }: {
       options: { A: "Joule", B: "Newton", C: "Watt", D: "Pascal" },
       correct_answer: "B",
       explanation: "Force is measured in Newtons (N).",
+      video_solution_url: "",
       difficulty: 2,
       order_index: 0,
     },
+    {
+      question_text: "What is the value of standard gravity?",
+      options: { A: "9.8 m/s²", B: "8.9 m/s²" },
+      correct_answer: "A",
+      explanation: "Standard acceleration due to gravity is 9.8 m/s².",
+      difficulty: 1,
+      order_index: 1,
+    },
   ], null, 2);
 
-  const exampleCsv = `question_text,option_a,option_b,option_c,option_d,correct_answer,explanation,difficulty
-"What is the SI unit of force?","Joule","Newton","Watt","Pascal","B","Force is measured in Newtons (N).",2
-"What is the value of g?","9.8 m/s²","8.9 m/s²","10.8 m/s²","7.9 m/s²","A","Standard gravity is 9.8 m/s².",1`;
+  const exampleCsv = `question_text,option_a,option_b,option_c,option_d,correct_answer,explanation,video_solution_url,difficulty
+"What is the SI unit of force?","Joule","Newton","Watt","Pascal","B","Force is measured in Newtons (N).","",2
+"What is the value of g?","9.8 m/s²","8.9 m/s²","","","A","Standard gravity is 9.8 m/s².","https://youtube.com/watch?v=example",1`;
 
   async function handleImport() {
     setError("");
@@ -701,20 +714,96 @@ function BulkImportDialog({ open, quizId, onClose, onImported }: {
               )}
             </TabsContent>
             <TabsContent value="format" className="mt-3">
-              <div className="space-y-4">
-                <div>
-                  <h4 className="text-sm font-semibold mb-1">JSON format</h4>
-                  <ul className="text-sm space-y-1 list-disc list-inside text-muted-foreground">
-                    <li><code className="text-primary">question_text</code>, <code className="text-primary">options</code> &#123;A,B,C,D&#125;, <code className="text-primary">correct_answer</code> — required</li>
-                    <li><code className="text-primary">explanation</code>, <code className="text-primary">video_solution_url</code>, <code className="text-primary">difficulty</code> (1–5) — optional</li>
+              <div className="space-y-5 text-sm">
+
+                {/* Section 1: File Formats */}
+                <div className="p-3 rounded-lg bg-muted/50 border border-border">
+                  <h4 className="font-semibold mb-2">Supported file formats</h4>
+                  <ul className="space-y-1 text-muted-foreground">
+                    <li><span className="text-primary font-medium">JSON</span> — paste a JSON array directly</li>
+                    <li><span className="text-primary font-medium">CSV</span> — upload a .csv file or paste text (Excel exports to CSV via File → Save As)</li>
+                    <li className="text-xs">XLSX is not directly supported — open in Excel/Sheets and export as CSV first.</li>
                   </ul>
-                  <pre className="text-xs bg-muted p-2 rounded overflow-auto mt-2">{exampleJson}</pre>
                 </div>
+
+                {/* Section 2: Fields */}
                 <div>
-                  <h4 className="text-sm font-semibold mb-1">CSV format</h4>
-                  <p className="text-sm text-muted-foreground mb-1">Columns: <code className="text-primary">question_text, option_a, option_b, option_c, option_d, correct_answer, explanation, difficulty</code></p>
+                  <h4 className="font-semibold mb-2">Fields reference</h4>
+                  <div className="space-y-1.5">
+                    {[
+                      { name: "question_text / question", req: true, desc: "Full question text. Supports plain text and LaTeX (e.g. $x^2$)." },
+                      { name: "option_a / A", req: true, desc: "Option A text." },
+                      { name: "option_b / B", req: true, desc: "Option B text." },
+                      { name: "option_c / C", req: false, desc: "Option C — leave blank to omit." },
+                      { name: "option_d / D", req: false, desc: "Option D — leave blank to omit." },
+                      { name: "correct_answer / answer", req: true, desc: "Must be exactly A, B, C, or D (uppercase)." },
+                      { name: "explanation", req: false, desc: "Text explanation shown to students after the exam. Can include LaTeX." },
+                      { name: "video_solution_url", req: false, desc: "YouTube URL for video solution. Leave blank for text-only questions." },
+                      { name: "difficulty", req: false, desc: "Integer 1–5 (1 = easiest). Defaults to 3 if omitted." },
+                    ].map(f => (
+                      <div key={f.name} className="flex gap-2 text-xs">
+                        <span className={`shrink-0 w-16 font-medium rounded px-1 py-0.5 text-center ${f.req ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"}`}>
+                          {f.req ? "required" : "optional"}
+                        </span>
+                        <div>
+                          <code className="text-primary">{f.name}</code>
+                          <span className="text-muted-foreground ml-1">— {f.desc}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Section 3: JSON Example */}
+                <div>
+                  <h4 className="font-semibold mb-1">JSON example</h4>
+                  <pre className="text-xs bg-muted p-2 rounded overflow-auto">{exampleJson}</pre>
+                </div>
+
+                {/* Section 4: CSV Example */}
+                <div>
+                  <h4 className="font-semibold mb-1">CSV example</h4>
+                  <p className="text-xs text-muted-foreground mb-1">First row must be the header. Wrap fields containing commas in double-quotes.</p>
                   <pre className="text-xs bg-muted p-2 rounded overflow-auto">{exampleCsv}</pre>
                 </div>
+
+                {/* Section 5: PDF Workflow */}
+                <div className="p-3 rounded-lg bg-muted/50 border border-border">
+                  <h4 className="font-semibold mb-2">Importing questions from a PDF (step-by-step)</h4>
+                  <ol className="space-y-2 text-muted-foreground list-decimal list-inside text-xs">
+                    <li><strong className="text-foreground">Extract text from the PDF.</strong> Open the PDF and copy-paste questions, or use a free tool like <span className="text-primary">Adobe Acrobat Reader → Edit → Copy</span>, <span className="text-primary">Smallpdf.com</span>, or <span className="text-primary">ilovepdf.com</span> to convert to Word/text first.</li>
+                    <li><strong className="text-foreground">Clean the extracted text.</strong> Remove page numbers, headers, footers, and any non-question text. Ensure each MCQ has a clear question stem and 4 options labeled A/B/C/D.</li>
+                    <li><strong className="text-foreground">Use AI to structure the questions.</strong> Paste the cleaned text into ChatGPT or any AI tool with this prompt: <em className="text-foreground">"Convert these MCQs into a JSON array with fields: question_text, options (A/B/C/D), correct_answer, explanation, difficulty (1-5). Video_solution_url should be empty string."</em></li>
+                    <li><strong className="text-foreground">Review the AI output.</strong> Check that: correct answers match the answer key, LaTeX formulas use $ signs, options C and D are present or properly omitted.</li>
+                    <li><strong className="text-foreground">Paste into JSON tab and import.</strong> The importer validates every row and reports errors for individual questions without failing the entire batch.</li>
+                  </ol>
+                  <div className="mt-3 p-2 rounded bg-destructive/10 border border-destructive/20 text-xs text-muted-foreground">
+                    <strong className="text-foreground">Common mistakes to avoid:</strong>
+                    {" "}correct_answer must be A/B/C/D (not "Option A" or "1"). Options object must use uppercase keys. Don't include markdown formatting in question text. For large sets (&gt;100 questions), split into batches.
+                  </div>
+                </div>
+
+                {/* Section 6: What happens in each scenario */}
+                <div>
+                  <h4 className="font-semibold mb-2">Scenarios</h4>
+                  <div className="space-y-1 text-xs text-muted-foreground">
+                    {[
+                      ["Video URL present", "QR code is auto-generated; students see a Watch Video button and QR code."],
+                      ["Video URL blank", "No QR generated; students see text-only explanation. The Videos tab is hidden."],
+                      ["Explanation blank", "Students see 'No explanation available' placeholder."],
+                      ["Invalid correct_answer", "That row is skipped with an error; the rest still import."],
+                      ["Missing option A or B", "Row is rejected. C and D can be omitted for True/False questions."],
+                      ["Duplicate questions", "Imported as new rows — check manually and delete duplicates if needed."],
+                      ["More than 500 rows", "Batch is rejected. Split into multiple imports of ≤ 500 each."],
+                    ].map(([scenario, outcome]) => (
+                      <div key={scenario} className="flex gap-2">
+                        <span className="shrink-0 text-primary font-medium">{scenario}:</span>
+                        <span>{outcome}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
               </div>
             </TabsContent>
           </Tabs>
