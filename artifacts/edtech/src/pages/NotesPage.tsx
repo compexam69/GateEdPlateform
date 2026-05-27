@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getNotes, getGetNotesUrl,
-  useDeleteNote, useGetUploadUrl, useGetDownloadUrl,
+  useDeleteNote, useGetDownloadUrl,
   getStorageQuota, getGetStorageQuotaUrl,
 } from "@workspace/api-client-react";
+import { getApiBase } from "@/lib/api";
 import type { Note } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { useRef, useState } from "react";
@@ -78,21 +79,6 @@ export default function NotesPage() {
     },
   });
 
-  const getUploadUrl = useGetUploadUrl({
-    mutation: {
-      onError: (err: unknown) => {
-        const msg = (err as Error)?.message || "Upload failed";
-        if (msg.includes("Complete the Chapter")) {
-          toast({ title: "Upload Locked", description: "Complete the Chapter Test to unlock PDF uploads for this chapter.", variant: "destructive" });
-        } else if (msg.includes("quota")) {
-          toast({ title: "Storage Full", description: "You've reached your 500MB storage limit.", variant: "destructive" });
-        } else {
-          toast({ title: "Upload Error", description: msg, variant: "destructive" });
-        }
-        setUploading(false);
-      },
-    },
-  });
 
   const getDownloadUrl = useGetDownloadUrl();
 
@@ -157,30 +143,49 @@ export default function NotesPage() {
       // Hash computation failed — proceed without deduplication check
     }
     try {
-      const result = await getUploadUrl.mutateAsync({
-        data: { chapter_id: chapterId, filename: file.name, content_type: file.type, size_bytes: file.size, file_hash: fileHash },
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error("Not authenticated — please sign in again.");
+
+      // Send file bytes directly to the API server, which proxies to B2 server-side.
+      // Direct browser→B2 uploads fail due to CORS on Backblaze upload pod domains.
+      const params = new URLSearchParams({
+        chapter_id: chapterId,
+        filename: file.name,
+        content_type: file.type || "application/pdf",
+        size_bytes: String(file.size),
+        ...(fileHash ? { file_hash: fileHash } : {}),
       });
 
-      const uploadResp = await fetch(result.upload_url, {
+      const uploadResp = await fetch(`${getApiBase()}/b2/notes-upload?${params}`, {
         method: "POST",
         headers: {
-          "Authorization": result.upload_url,
-          "X-Bz-File-Name": encodeURIComponent(file.name),
-          "Content-Type": file.type,
-          "Content-Length": String(file.size),
+          "Content-Type": file.type || "application/pdf",
+          Authorization: `Bearer ${token}`,
         },
         body: file,
       });
 
-      if (!uploadResp.ok) throw new Error("Upload to storage failed");
+      if (!uploadResp.ok) {
+        const errData = await uploadResp.json().catch(() => ({}));
+        const msg = (errData as { error?: string }).error || `Upload failed (${uploadResp.status})`;
+        if (msg.includes("Complete the Chapter")) {
+          toast({ title: "Upload Locked", description: "Complete the Chapter Test to unlock PDF uploads for this chapter.", variant: "destructive" });
+        } else if (msg.includes("quota")) {
+          toast({ title: "Storage Full", description: "You've reached your 500MB storage limit.", variant: "destructive" });
+        } else if (uploadResp.status === 409) {
+          toast({ title: "Duplicate File", description: msg, variant: "destructive" });
+        } else {
+          toast({ title: "Upload failed", description: msg, variant: "destructive" });
+        }
+        return;
+      }
 
       queryClient.invalidateQueries({ queryKey: [getGetNotesUrl()] });
       queryClient.invalidateQueries({ queryKey: [getGetStorageQuotaUrl()] });
       toast({ title: "Uploaded!", description: `${file.name} saved successfully.` });
     } catch (err: unknown) {
-      if (!getUploadUrl.isError) {
-        toast({ title: "Upload failed", description: (err as Error)?.message, variant: "destructive" });
-      }
+      toast({ title: "Upload failed", description: (err as Error)?.message, variant: "destructive" });
     } finally {
       setUploading(false);
       setPendingFile(null);

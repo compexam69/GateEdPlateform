@@ -35,71 +35,125 @@ router.delete("/notes/:noteId", requireAuth, async (req: AuthRequest, res) => {
   res.json({ message: "Deleted" });
 });
 
-router.post("/b2/upload-url", requireAuth, async (req: AuthRequest, res) => {
-  const { chapter_id, filename, content_type, size_bytes, file_hash } = req.body;
-  const userId = req.user!.id;
+// ── Server-side PDF notes proxy upload ───────────────────────────────────────
+// Replaces the broken two-step flow (get upload URL → browser fetches B2 directly).
+// Metadata (chapter_id, filename, etc.) arrives as query params; raw PDF bytes
+// are the request body. All gate checks, dedup, quota enforcement, DB insert,
+// and the actual B2 upload happen here — no browser→B2 CORS issues.
+router.post(
+  "/b2/notes-upload",
+  requireAuth,
+  express.raw({ type: "*/*", limit: "50mb" }),
+  async (req: AuthRequest, res) => {
+    const userId = req.user!.id;
+    const body = req.body as Buffer;
 
-  const { data: chapter_progress } = await supabase
-    .from("user_chapter_progress")
-    .select("pdf_upload_unlocked")
-    .eq("user_id", userId)
-    .eq("chapter_id", chapter_id)
-    .maybeSingle();
-
-  if (!chapter_progress?.pdf_upload_unlocked) {
-    res.status(403).json({ error: "Complete the Chapter Test first to unlock PDF uploads" });
-    return;
-  }
-
-  // SHA-256 deduplication check
-  if (file_hash) {
-    const { data: existing } = await supabase
-      .from("user_notes")
-      .select("id, title")
-      .eq("user_id", userId)
-      .eq("file_hash", file_hash)
-      .maybeSingle();
-    if (existing) {
-      res.status(409).json({ error: `Duplicate file detected. You already uploaded "${existing.title}".` });
+    if (!Buffer.isBuffer(body) || body.length === 0) {
+      res.status(400).json({ error: "No file data received" });
       return;
     }
-  }
 
-  const { data: usageData } = await supabase
-    .from("user_notes")
-    .select("pdf_size_bytes")
-    .eq("user_id", userId);
-  const usedBytes = (usageData ?? []).reduce((sum: number, n: { pdf_size_bytes: number }) => sum + (n.pdf_size_bytes ?? 0), 0);
+    const { chapter_id, filename, content_type, size_bytes, file_hash } =
+      req.query as Record<string, string>;
 
-  if (usedBytes + size_bytes > PER_USER_LIMIT) {
-    res.status(403).json({ error: "Storage quota exceeded (500MB per user)" });
-    return;
-  }
+    if (!chapter_id || !filename) {
+      res.status(400).json({ error: "chapter_id and filename are required" });
+      return;
+    }
 
-  const storagePath = generateStoragePath(userId, chapter_id, filename);
-  const expiry = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    const sizeBytes = parseInt(size_bytes ?? "0", 10) || body.length;
 
-  try {
-    const { uploadUrl, uploadAuthToken } = await getUploadPresignedUrl(storagePath);
+    // Gate check
+    const { data: chapter_progress } = await supabase
+      .from("user_chapter_progress")
+      .select("pdf_upload_unlocked")
+      .eq("user_id", userId)
+      .eq("chapter_id", chapter_id)
+      .maybeSingle();
 
-    // Create the user_notes record now (with size and hash); b2_file_id populated after client confirms upload
+    if (!chapter_progress?.pdf_upload_unlocked) {
+      res.status(403).json({ error: "Complete the Chapter Test first to unlock PDF uploads" });
+      return;
+    }
+
+    // SHA-256 deduplication check
+    if (file_hash) {
+      const { data: existing } = await supabase
+        .from("user_notes")
+        .select("id, title")
+        .eq("user_id", userId)
+        .eq("file_hash", file_hash)
+        .maybeSingle();
+      if (existing) {
+        res.status(409).json({ error: `Duplicate file detected. You already uploaded "${existing.title}".` });
+        return;
+      }
+    }
+
+    // Quota check
+    const { data: usageData } = await supabase
+      .from("user_notes")
+      .select("pdf_size_bytes")
+      .eq("user_id", userId);
+    const usedBytes = (usageData ?? []).reduce(
+      (sum: number, n: { pdf_size_bytes: number }) => sum + (n.pdf_size_bytes ?? 0),
+      0,
+    );
+    if (usedBytes + sizeBytes > PER_USER_LIMIT) {
+      res.status(403).json({ error: "Storage quota exceeded (500MB per user)" });
+      return;
+    }
+
+    const storagePath = generateStoragePath(userId, chapter_id, filename);
     const cleanName = filename.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
-    await supabase.from("user_notes").insert({
-      user_id: userId,
-      chapter_id,
-      title: cleanName,
-      b2_storage_path: storagePath,
-      pdf_size_bytes: size_bytes,
-      file_hash: file_hash ?? null,
-      content_type: content_type ?? "application/pdf",
-    }).select().single();
 
-    res.json({ upload_url: uploadUrl, upload_auth_token: uploadAuthToken, storage_path: storagePath, expires_at: expiry });
-  } catch (e) {
-    logger.error({ err: e, userId, chapter_id }, "[storage] Failed to generate upload URL");
-    const msg = e instanceof Error ? e.message : "Failed to generate upload URL";
-    res.status(500).json({ error: msg });
-  }
+    try {
+      // Get B2 upload URL and push bytes entirely server-side — no browser CORS involved
+      const { uploadUrl, uploadAuthToken } = await getUploadPresignedUrl(storagePath);
+      logger.info({ userId, chapter_id, storagePath, bytes: body.length }, "[storage] Uploading PDF to B2...");
+
+      const b2Res = await fetch(uploadUrl, {
+        method: "POST",
+        headers: {
+          Authorization: uploadAuthToken,
+          "Content-Type": content_type || "application/pdf",
+          "X-Bz-File-Name": encodeURIComponent(storagePath),
+          "X-Bz-Content-Sha1": "do_not_verify",
+          "Content-Length": String(body.length),
+        },
+        body: body,
+      });
+
+      if (!b2Res.ok) {
+        const errText = await b2Res.text().catch(() => "");
+        logger.error({ status: b2Res.status, errText, userId }, "[storage] B2 PDF upload failed");
+        throw new Error(`B2 upload failed (${b2Res.status})${errText ? ": " + errText : ""}`);
+      }
+
+      // Insert the notes DB record after successful B2 upload
+      await supabase.from("user_notes").insert({
+        user_id: userId,
+        chapter_id,
+        title: cleanName,
+        b2_storage_path: storagePath,
+        pdf_size_bytes: sizeBytes,
+        file_hash: file_hash ?? null,
+        content_type: content_type ?? "application/pdf",
+      });
+
+      logger.info({ userId, chapter_id, storagePath }, "[storage] PDF uploaded and DB record created");
+      res.json({ storage_path: storagePath, filename });
+    } catch (e) {
+      logger.error({ err: e, userId, chapter_id }, "[storage] Failed to upload PDF notes");
+      const msg = e instanceof Error ? e.message : "Failed to upload PDF";
+      res.status(500).json({ error: msg });
+    }
+  },
+);
+
+// Kept for reference — superseded by /b2/notes-upload (proxy)
+router.post("/b2/upload-url", requireAuth, async (req: AuthRequest, res) => {
+  res.status(410).json({ error: "This endpoint is no longer used. PDF uploads now go through /b2/notes-upload." });
 });
 
 router.post("/b2/download-url", requireAuth, async (req: AuthRequest, res) => {
