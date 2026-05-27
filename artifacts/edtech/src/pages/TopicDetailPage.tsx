@@ -119,7 +119,10 @@ export default function TopicDetailPage() {
   const getTelegramLink = () => {
     const lecture = topic?.lectures?.[0];
     if (!lecture?.telegram_chat_id || !lecture?.telegram_message_id) return null;
-    return `https://t.me/c/${lecture.telegram_chat_id}/${lecture.telegram_message_id}`;
+    // Strip the -100 prefix that Telegram Bot API adds to private channel/supergroup IDs.
+    // t.me/c/ links require the bare numeric ID: -1001234567890 → 1234567890
+    const cleanChatId = lecture.telegram_chat_id.replace(/^-100/, "");
+    return `https://t.me/c/${cleanChatId}/${lecture.telegram_message_id}`;
   };
 
   async function handleLectureClick() {
