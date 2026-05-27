@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogOut, User, Camera, Eye, EyeOff, CheckCircle, Shield, X, Pencil, Phone, Bell, Mail, Download } from "lucide-react";
+import { LogOut, User, Eye, EyeOff, CheckCircle, Shield, Pencil, Phone, Bell, Mail, Download, ImagePlus, Trash2 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
@@ -60,6 +60,7 @@ export default function ProfilePage() {
 
   const [cropOpen, setCropOpen] = useState(false);
   const [cropSrc, setCropSrc] = useState<string>("");
+  const [photoMenuOpen, setPhotoMenuOpen] = useState(false);
 
   useEffect(() => {
     if (!storedAvatarPath || storedAvatarPath.startsWith("blob:") || storedAvatarPath.startsWith("http")) {
@@ -294,21 +295,67 @@ export default function ProfilePage() {
         <Card className="bg-card">
           <CardContent className="p-6">
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
-              <div className="relative">
-                <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center shrink-0 ring-2 ring-border overflow-hidden">
+              <div className="relative shrink-0">
+                {/* Avatar circle */}
+                <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center ring-2 ring-border overflow-hidden">
                   {photoUrl ? <img src={photoUrl} alt="Profile" className="w-full h-full object-cover" /> : <User className="w-12 h-12 text-muted-foreground" />}
                 </div>
-                <button onClick={() => fileInputRef.current?.click()} disabled={uploadingPhoto}
-                  className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center hover:bg-primary/90 transition-colors disabled:opacity-60" title="Change photo">
-                  <Camera className="w-4 h-4 text-white" />
+
+                {/* Pencil / Edit button */}
+                <button
+                  onClick={() => { if (!uploadingPhoto) setPhotoMenuOpen(v => !v); }}
+                  disabled={uploadingPhoto}
+                  className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-md hover:bg-primary/90 transition-colors disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  title="Edit photo"
+                  aria-haspopup="menu"
+                  aria-expanded={photoMenuOpen}
+                >
+                  <Pencil className="w-3.5 h-3.5 text-white" />
                 </button>
-                {photoUrl && (
-                  <button onClick={handleRemovePhoto}
-                    className="absolute top-0 right-0 w-6 h-6 rounded-full bg-destructive flex items-center justify-center hover:bg-destructive/90 transition-colors" title="Remove photo">
-                    <X className="w-3 h-3 text-white" />
-                  </button>
+
+                {/* Action popup */}
+                {photoMenuOpen && (
+                  <>
+                    {/* Transparent backdrop — closes popup on outside click */}
+                    <div
+                      className="fixed inset-0 z-40"
+                      aria-hidden="true"
+                      onClick={() => setPhotoMenuOpen(false)}
+                    />
+                    {/* Menu panel */}
+                    <div
+                      role="menu"
+                      className="absolute left-1/2 -translate-x-1/2 top-[calc(100%+10px)] z-50 min-w-[188px] rounded-xl border border-border bg-card shadow-2xl overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150"
+                    >
+                      <button
+                        role="menuitem"
+                        onClick={() => { setPhotoMenuOpen(false); fileInputRef.current?.click(); }}
+                        className="flex w-full items-center gap-3 px-4 py-3 text-sm text-left hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:bg-muted/60"
+                      >
+                        <ImagePlus className="w-4 h-4 text-primary shrink-0" />
+                        <span>{photoUrl ? "Update Photo" : "Upload Photo"}</span>
+                      </button>
+                      {photoUrl && (
+                        <>
+                          <div className="h-px bg-border mx-3" />
+                          <button
+                            role="menuitem"
+                            onClick={() => { setPhotoMenuOpen(false); handleRemovePhoto(); }}
+                            className="flex w-full items-center gap-3 px-4 py-3 text-sm text-left text-destructive hover:bg-destructive/10 transition-colors focus-visible:outline-none focus-visible:bg-destructive/10"
+                          >
+                            <Trash2 className="w-4 h-4 shrink-0" />
+                            <span>Delete Photo</span>
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </>
                 )}
+
+                {/* Hidden file input — unchanged */}
                 <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleFileSelect} />
+
+                {/* Upload spinner overlay */}
                 {uploadingPhoto && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full">
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
