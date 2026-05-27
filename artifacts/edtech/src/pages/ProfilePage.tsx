@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogOut, User, Eye, EyeOff, CheckCircle, Shield, Pencil, Phone, Bell, Mail, Download, ImagePlus, Trash2 } from "lucide-react";
+import { LogOut, User, Eye, EyeOff, CheckCircle, Shield, Pencil, Phone, Bell, Mail, Download, ImagePlus, Trash2, X, ZoomIn } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
@@ -61,6 +61,18 @@ export default function ProfilePage() {
   const [cropOpen, setCropOpen] = useState(false);
   const [cropSrc, setCropSrc] = useState<string>("");
   const [photoMenuOpen, setPhotoMenuOpen] = useState(false);
+  const [photoViewerOpen, setPhotoViewerOpen] = useState(false);
+  const [viewerImgLoaded, setViewerImgLoaded] = useState(false);
+  const [viewerImgError, setViewerImgError] = useState(false);
+
+  useEffect(() => {
+    if (!photoViewerOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setPhotoViewerOpen(false);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [photoViewerOpen]);
 
   useEffect(() => {
     if (!storedAvatarPath || storedAvatarPath.startsWith("blob:") || storedAvatarPath.startsWith("http")) {
@@ -327,6 +339,27 @@ export default function ProfilePage() {
                       role="menu"
                       className="absolute left-1/2 -translate-x-1/2 top-[calc(100%+10px)] z-50 min-w-[188px] rounded-xl border border-border bg-card shadow-2xl overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150"
                     >
+                      {/* View Photo — only shown when a photo exists */}
+                      {photoUrl && (
+                        <>
+                          <button
+                            role="menuitem"
+                            onClick={() => {
+                              setPhotoMenuOpen(false);
+                              setViewerImgLoaded(false);
+                              setViewerImgError(false);
+                              setPhotoViewerOpen(true);
+                            }}
+                            className="flex w-full items-center gap-3 px-4 py-3 text-sm text-left hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:bg-muted/60"
+                          >
+                            <ZoomIn className="w-4 h-4 text-primary shrink-0" />
+                            <span>View Photo</span>
+                          </button>
+                          <div className="h-px bg-border mx-3" />
+                        </>
+                      )}
+
+                      {/* Upload / Update Photo */}
                       <button
                         role="menuitem"
                         onClick={() => { setPhotoMenuOpen(false); fileInputRef.current?.click(); }}
@@ -335,6 +368,8 @@ export default function ProfilePage() {
                         <ImagePlus className="w-4 h-4 text-primary shrink-0" />
                         <span>{photoUrl ? "Update Photo" : "Upload Photo"}</span>
                       </button>
+
+                      {/* Delete Photo — only shown when a photo exists */}
                       {photoUrl && (
                         <>
                           <div className="h-px bg-border mx-3" />
@@ -571,6 +606,68 @@ export default function ProfilePage() {
         onConfirm={handleCropConfirm}
         onError={(msg) => toast({ title: "Image processing failed", description: msg, variant: "destructive" })}
       />
+
+      {/* ── Full-screen photo viewer ── */}
+      {photoViewerOpen && photoUrl && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/85 backdrop-blur-sm animate-in fade-in-0 duration-200"
+          onClick={() => setPhotoViewerOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Profile photo viewer"
+        >
+          {/* Close button */}
+          <button
+            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+            onClick={() => setPhotoViewerOpen(false)}
+            aria-label="Close viewer"
+          >
+            <X className="w-5 h-5 text-white" />
+          </button>
+
+          {/* Image — stop propagation so clicking the image itself doesn't close */}
+          <div
+            className="relative flex items-center justify-center p-6"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Loading spinner — shown until image is decoded */}
+            {!viewerImgLoaded && !viewerImgError && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-10 h-10 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              </div>
+            )}
+
+            {/* Error fallback */}
+            {viewerImgError && (
+              <div className="flex flex-col items-center gap-3 text-white/60">
+                <User className="w-16 h-16" />
+                <p className="text-sm">Could not load photo</p>
+              </div>
+            )}
+
+            {/* The photo */}
+            <img
+              src={photoUrl}
+              alt="Profile photo"
+              className={[
+                "max-w-[85vw] max-h-[80vh] w-auto h-auto rounded-2xl shadow-2xl object-contain transition-opacity duration-300",
+                viewerImgLoaded ? "opacity-100" : "opacity-0",
+                viewerImgError ? "hidden" : "",
+              ].join(" ")}
+              onLoad={() => setViewerImgLoaded(true)}
+              onError={() => { setViewerImgError(true); setViewerImgLoaded(true); }}
+              draggable={false}
+            />
+          </div>
+
+          {/* Hint text */}
+          {viewerImgLoaded && !viewerImgError && (
+            <p className="absolute bottom-5 left-1/2 -translate-x-1/2 text-xs text-white/40 select-none">
+              Tap outside or press Esc to close
+            </p>
+          )}
+        </div>
+      )}
     </AppLayout>
   );
 }

@@ -1,0 +1,173 @@
+🟢 Checkpoint 15: View Profile Photo Inside Edit Button Popup
+
+Goal: Enhance the redesigned profile photo action workflow by adding a “View Profile Photo” option inside the Pencil/Edit button popup/modal so users can preview their profile picture directly from the action menu.
+
+Context: The previous implementation successfully:
+
+* Replaced the visible camera button with a Pencil/Edit button
+* Removed the always-visible delete button
+* Added a popup/modal containing:
+
+  * Upload/Update Photo option
+  * Delete Photo option
+
+However, users still cannot directly view/enlarge their profile photo from inside the new edit workflow.
+
+New Requirement:
+
+* Add a “View Profile Photo” option inside the Pencil/Edit button popup/modal.
+* When the user clicks/taps “View Profile Photo”:
+
+  * Open the profile image in enlarged/full-screen preview mode.
+* The feature must integrate smoothly with the existing:
+
+  * Upload system
+  * Crop/compression flow
+  * Tap-to-view functionality
+  * Responsive/PWA layouts
+
+Instructions:
+
+1. Analyze Existing Profile Photo Workflow:
+
+* Review:
+
+  * Pencil/Edit button implementation
+  * Popup/modal/action menu
+  * Existing tap-to-view image preview logic
+  * Upload/delete actions
+  * Responsive/mobile behavior
+* Identify the best integration point for adding the View Photo action.
+
+2. Add “View Profile Photo” Action:
+
+* Inside the Pencil/Edit popup/modal:
+
+  * Add a dedicated:
+
+    * “View Photo”
+    * “Preview Photo”
+      OR similar action
+* Ensure:
+
+  * Action placement remains clean and intuitive
+  * UI remains uncluttered
+  * Buttons/actions are properly spaced
+
+3. Implement Enlarged Photo Preview:
+
+* When clicking/tapping “View Profile Photo”:
+
+  * Open enlarged/full-screen image preview
+* Ensure:
+
+  * Smooth modal/viewer opening
+  * Responsive image scaling
+  * Proper centering/alignment
+  * High-quality rendering
+* Support:
+
+  * Mobile touch interactions
+  * Desktop mouse interactions
+  * Installed PWA mode
+
+4. Preserve Existing Functionality:
+
+* Ensure the new feature does NOT break:
+
+  * Upload/update functionality
+  * Delete photo functionality
+  * Crop/compression flow
+  * Existing image preview logic
+  * Responsive layouts
+  * Backblaze/Supabase image rendering
+* Existing upload and delete operations must continue working correctly.
+
+5. Improve User Experience:
+
+* Add:
+
+  * Smooth animations/transitions
+  * Close button
+  * Tap outside to close
+  * Escape-key support on desktop
+  * Loading states for slow image loading
+* Ensure:
+
+  * No popup overlap occurs
+  * Nested modal behavior works correctly
+  * Mobile interactions remain smooth
+
+6. Error Handling & Validation:
+
+* Handle:
+
+  * Missing profile images
+  * Broken image URLs
+  * Failed image loading
+  * Rapid repeated taps/clicks
+* Ensure fallback placeholders appear correctly if no profile photo exists.
+
+7. Responsive & Accessibility Validation:
+
+* Ensure:
+
+  * No overflow issues occur
+  * Viewer scales correctly on small screens
+  * Accessibility/focus behavior works correctly
+  * UI remains stable in portrait and landscape modes
+
+8. Testing & Validation:
+
+* Test:
+
+  * View profile photo
+  * Upload/update after viewing
+  * Delete after viewing
+  * Multiple open/close actions
+  * Mobile browsers
+  * Desktop browsers
+  * Installed PWA mode
+  * Slow internet conditions
+* Verify:
+
+  * No layout breaking occurs
+  * No modal conflicts happen
+  * Existing upload/delete features remain stable
+  * No console/runtime errors occur
+
+9. Backend / Storage / SQL Changes:
+
+* If any backend, storage, image rendering, modal state, or SQL changes are required:
+
+  * Clearly explain every required change.
+  * Provide updated configuration/code separately.
+  * Mention exactly where and how to apply changes.
+  * Mention whether existing uploads/data may be affected.
+* Explicitly state if no backend/storage/SQL changes are required.
+
+10. Checkpoint Requirement:
+
+* After completing and verifying this enhancement:
+
+  * Create a proper checkpoint/commit immediately.
+  * Ensure the profile photo viewer workflow is fully stable and production-ready.
+  * Provide a final implementation summary including:
+
+    * Files modified
+    * Popup/modal updates
+    * Image viewer integration changes
+    * Responsive improvements
+    * Remaining limitations/issues (if any)
+
+Acceptance Criteria:
+
+* [ ] Pencil/Edit popup contains a “View Profile Photo” action.
+* [ ] Clicking “View Profile Photo” opens enlarged/full-screen image preview.
+* [ ] Existing upload/update/delete functionality remains fully functional.
+* [ ] No popup/modal conflicts or UI overlap occurs.
+* [ ] Viewer works correctly on mobile, desktop, and PWA environments.
+* [ ] Broken/missing images are handled gracefully.
+* [ ] No layout overflow or responsiveness issues occur.
+* [ ] No console/runtime errors occur after implementation.
+* [ ] Checkpoint/commit is created after successful implementation and testing.
