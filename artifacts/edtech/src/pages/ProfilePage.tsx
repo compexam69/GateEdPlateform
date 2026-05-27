@@ -64,6 +64,8 @@ export default function ProfilePage() {
   const [photoViewerOpen, setPhotoViewerOpen] = useState(false);
   const [viewerImgLoaded, setViewerImgLoaded] = useState(false);
   const [viewerImgError, setViewerImgError] = useState(false);
+  const [swipeDelta, setSwipeDelta] = useState(0);
+  const swipeTouchStartY = useRef<number | null>(null);
 
   useEffect(() => {
     if (!photoViewerOpen) return;
@@ -73,6 +75,25 @@ export default function ProfilePage() {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [photoViewerOpen]);
+
+  function handleViewerTouchStart(e: React.TouchEvent) {
+    swipeTouchStartY.current = e.touches[0].clientY;
+    setSwipeDelta(0);
+  }
+
+  function handleViewerTouchMove(e: React.TouchEvent) {
+    if (swipeTouchStartY.current === null) return;
+    const delta = e.touches[0].clientY - swipeTouchStartY.current;
+    if (delta > 0) setSwipeDelta(delta);
+  }
+
+  function handleViewerTouchEnd() {
+    if (swipeDelta > 80) {
+      setPhotoViewerOpen(false);
+    }
+    setSwipeDelta(0);
+    swipeTouchStartY.current = null;
+  }
 
   useEffect(() => {
     if (!storedAvatarPath || storedAvatarPath.startsWith("blob:") || storedAvatarPath.startsWith("http")) {
@@ -611,26 +632,35 @@ export default function ProfilePage() {
       {photoViewerOpen && photoUrl && (
         <div
           className="fixed inset-0 z-[70] flex items-center justify-center bg-black/85 backdrop-blur-sm animate-in fade-in-0 duration-200"
+          style={{ opacity: Math.max(0.15, 1 - swipeDelta / 300) }}
           onClick={() => setPhotoViewerOpen(false)}
+          onTouchStart={handleViewerTouchStart}
+          onTouchMove={handleViewerTouchMove}
+          onTouchEnd={handleViewerTouchEnd}
           role="dialog"
           aria-modal="true"
           aria-label="Profile photo viewer"
         >
-          {/* Close button */}
+          {/* Close button — fades out while swiping */}
           <button
             className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+            style={{ opacity: Math.max(0, 1 - swipeDelta / 120) }}
             onClick={() => setPhotoViewerOpen(false)}
             aria-label="Close viewer"
           >
             <X className="w-5 h-5 text-white" />
           </button>
 
-          {/* Image — stop propagation so clicking the image itself doesn't close */}
+          {/* Image container — follows finger downward, snaps back if not far enough */}
           <div
             className="relative flex items-center justify-center p-6"
+            style={{
+              transform: `translateY(${swipeDelta}px)`,
+              transition: swipeDelta === 0 ? "transform 0.25s cubic-bezier(0.22,1,0.36,1)" : "none",
+            }}
             onClick={e => e.stopPropagation()}
           >
-            {/* Loading spinner — shown until image is decoded */}
+            {/* Loading spinner */}
             {!viewerImgLoaded && !viewerImgError && (
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="w-10 h-10 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -660,10 +690,13 @@ export default function ProfilePage() {
             />
           </div>
 
-          {/* Hint text */}
+          {/* Hint text — fades in after load, fades out while swiping */}
           {viewerImgLoaded && !viewerImgError && (
-            <p className="absolute bottom-5 left-1/2 -translate-x-1/2 text-xs text-white/40 select-none">
-              Tap outside or press Esc to close
+            <p
+              className="absolute bottom-5 left-1/2 -translate-x-1/2 text-xs text-white/40 select-none whitespace-nowrap"
+              style={{ opacity: Math.max(0, 1 - swipeDelta / 60) }}
+            >
+              Swipe down or tap outside to close
             </p>
           )}
         </div>
