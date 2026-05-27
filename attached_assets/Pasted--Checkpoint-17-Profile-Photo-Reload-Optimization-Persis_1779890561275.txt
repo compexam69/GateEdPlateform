@@ -1,0 +1,229 @@
+🟢 Checkpoint 17: Profile Photo Reload Optimization & Persistent Image Caching
+
+Goal: Fix the issue where the profile photo reloads every time the user opens the Profile module from another module, causing unnecessary loading delays, flickering, repeated network requests, and poor user experience.
+
+Context: The project is functional, but there is a UX/performance issue related to the Profile module:
+
+* Whenever the user navigates to the Profile module:
+
+  * The profile photo reloads again
+  * Loading/flickering becomes visible
+  * The image fetch/network request happens repeatedly
+* This happens even when:
+
+  * The image has already been loaded previously
+  * The user has not updated their profile photo
+  * The session is still active
+
+This creates:
+
+* Unnecessary network usage
+* Slower navigation experience
+* Visual flickering
+* Poor perceived app performance
+
+The issue is likely caused by:
+
+* Re-fetching image URLs on every navigation
+* Missing image caching/state persistence
+* Component remount behavior
+* Unoptimized state management
+* Cache-busting query regeneration
+* Re-render loops
+* Storage signed URL regeneration on every page load
+
+New Requirement:
+
+* Profile photos should load instantly after the first successful load.
+* The image should remain cached/persisted during normal app navigation.
+* Re-fetching should only occur when:
+
+  * The user uploads/changes/deletes the profile photo
+  * Session/user data changes
+  * Cache expires intentionally
+* Navigation between modules should feel smooth and instant.
+
+Instructions:
+
+1. Analyze Existing Profile Photo Flow:
+
+* Review:
+
+  * Profile module/component
+  * Image loading logic
+  * Storage URL generation
+  * Signed URL generation
+  * State management
+  * Cache handling
+  * Navigation lifecycle
+  * Component mount/unmount behavior
+  * Global auth/user store
+* Identify:
+
+  * Why the image reloads on every navigation
+  * Whether signed URLs regenerate repeatedly
+  * Whether image state resets on route change
+  * Whether unnecessary re-renders occur
+  * Whether browser caching is bypassed
+
+2. Optimize Profile Photo Loading:
+
+* Ensure:
+
+  * Profile photos load instantly after first fetch
+  * Navigation to Profile feels smooth
+  * No visible flickering/loading occurs repeatedly
+* Prevent:
+
+  * Duplicate image fetches
+  * Repeated signed URL generation
+  * Unnecessary image refreshes
+  * Redundant network requests
+
+3. Implement Smart Caching/Persistence:
+
+* Add/Improve:
+
+  * Client-side image caching
+  * Persistent state handling
+  * Memoization where appropriate
+  * Cached signed URL reuse
+  * Optimized image loading strategy
+* Ensure:
+
+  * Cache updates automatically after:
+
+    * Upload
+    * Delete
+    * Replace/update
+* Prevent stale image issues.
+
+4. Optimize Component Lifecycle:
+
+* Refactor:
+
+  * Profile component rendering behavior
+  * Image state initialization
+  * Route transition behavior
+* Ensure:
+
+  * Route navigation does not unnecessarily remount/reload the image
+  * Profile photo state persists correctly during app navigation
+  * React re-render loops are avoided
+
+5. Preserve Existing Profile Features:
+
+* Ensure optimization does NOT break:
+
+  * Upload photo
+  * Update photo
+  * Delete photo
+  * Image cropper
+  * Image viewer/modal
+  * Admin profile management
+  * Responsive layouts
+  * Authentication/session logic
+
+6. Improve UX & Performance:
+
+* Ensure:
+
+  * Profile photo appears instantly when revisiting Profile
+  * No flickering or placeholder flashing occurs
+  * Smooth transitions between modules
+  * Better perceived performance on slow devices/networks
+* Add:
+
+  * Graceful fallback handling
+  * Optimized loading states only when truly needed
+
+7. Handle Edge Cases:
+
+* Handle:
+
+  * Expired signed URLs
+  * Offline/slow network conditions
+  * Deleted images
+  * Rapid module switching
+  * Multiple tabs/windows
+  * Session refresh
+  * PWA mode
+* Ensure:
+
+  * Broken image states do not occur
+  * Cache invalidates safely when necessary
+
+8. Testing & Validation:
+
+* Test:
+
+  * Navigating repeatedly between modules and Profile
+  * Uploading/replacing/deleting profile photos
+  * Refreshing the app
+  * Slow network simulation
+  * Mobile devices
+  * Desktop devices
+  * Installed PWA mode
+* Verify:
+
+  * Profile image no longer reloads unnecessarily
+  * No repeated flickering occurs
+  * Signed URLs are not regenerated repeatedly
+  * Navigation feels smooth and instant
+  * Existing profile functionality remains stable
+  * No console/runtime/network errors occur
+
+9. Backend / Storage / SQL Changes:
+
+* Explicitly state whether:
+
+  * No backend/storage/SQL changes are required
+    OR
+  * Any storage/cache/auth updates are required
+* If required:
+
+  * Clearly explain all necessary changes separately.
+  * Mention exactly where changes must be applied.
+
+10. Performance Monitoring:
+
+* Verify:
+
+  * Reduced unnecessary image requests
+  * Improved navigation responsiveness
+  * Better rendering efficiency
+  * Lower storage/API usage
+* Mention:
+
+  * Which optimizations were implemented
+  * Which bottlenecks were removed
+
+11. Checkpoint Requirement:
+
+* After completing and verifying this optimization:
+
+  * Create a proper checkpoint/commit immediately.
+  * Ensure the Profile module experience is fully smooth and production-ready.
+  * Provide a final implementation summary including:
+
+    * Files modified
+    * Caching optimizations
+    * State management improvements
+    * Image loading optimizations
+    * Storage/signed URL handling changes
+    * Performance improvements
+    * Remaining limitations/issues (if any)
+
+Acceptance Criteria:
+
+* [ ] Profile photo no longer reloads unnecessarily when revisiting the Profile module.
+* [ ] Navigation between modules and Profile feels smooth and instant.
+* [ ] No repeated image flickering/loading occurs.
+* [ ] Signed URLs are not regenerated unnecessarily.
+* [ ] Image cache updates correctly after upload/update/delete actions.
+* [ ] Existing profile photo features remain fully functional.
+* [ ] No broken/stale image states occur.
+* [ ] PWA mode works correctly with optimized image handling.
+* [ ] No layout overflow or responsiveness issues occur.
+* [ ] No console/runtime/network errors occur after implementation.
+* [ ] Checkpoint/commit is created after successful optimization and testing.
