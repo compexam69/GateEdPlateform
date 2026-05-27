@@ -1,0 +1,182 @@
+🟢 Critical Fix Required: Profile Photo Upload Flow Still Broken After Previous Implementation
+
+Goal: Completely resolve the remaining profile photo upload issue and ensure the upload flow works reliably end-to-end without introducing new regressions or partial fixes.
+
+Context: Previous implementations attempted to fix:
+
+* Image cropping
+* Smart compression
+* Upload flow
+* Signed upload URL generation
+* Backblaze/Supabase storage integration
+
+However, a new issue related to the same upload flow has appeared after the previous implementation. The earlier fixes were only partially successful, and the upload system is still unstable.
+
+A screenshot showing the errors after photo upload is attached/provided. Deeply analyze the screenshot along with the existing codebase, console errors, network failures, and upload pipeline to identify the exact root cause before implementing any fix.
+
+Important:
+Do NOT apply superficial fixes, temporary patches, hardcoded workarounds, or assumptions. Perform a deep investigation of the entire existing codebase and upload architecture before modifying anything.
+
+Instructions:
+
+1. Analyze Screenshot & Existing Errors:
+
+* Carefully analyze the provided screenshot showing:
+
+  * Error messages
+  * Console logs
+  * Network/API failures
+  * Upload response issues
+  * Storage/authentication failures
+* Correlate the screenshot errors with the existing upload logic and application flow.
+* Identify the exact failing step after clicking the "Upload Photo" button.
+
+2. Perform Deep Root Cause Analysis:
+
+* Analyze the complete upload architecture end-to-end, including:
+
+  * Crop logic
+  * Compression logic
+  * Blob/file conversion
+  * Upload request creation
+  * Signed URL generation
+  * Storage provider integration
+  * Authentication/session validation
+  * Backend/API handlers
+  * Database update flow
+  * State management
+  * Environment variables
+  * PWA/mobile-specific behavior
+* Trace the exact execution flow step-by-step using logs and debugging.
+
+3. Identify Exact Failure Point:
+
+* Determine:
+
+  * What specifically fails
+  * Why it fails
+  * At which exact step it fails
+  * Why previous fixes did not fully solve the issue
+* Capture:
+
+  * Console errors
+  * Network request failures
+  * Storage/API responses
+  * Auth/session issues
+  * Invalid payload structures
+  * Race conditions
+  * Timing/state synchronization problems
+
+4. Implement a Permanent Production-Ready Fix:
+
+* Refactor unstable or fragile logic if necessary.
+* Ensure:
+
+  * Upload flow works consistently
+  * Crop/compression pipeline remains stable
+  * File conversion remains valid
+  * Upload requests are correctly generated
+  * Signed URLs are valid and not expired
+  * Storage upload succeeds reliably
+  * Database updates occur correctly
+  * UI refreshes immediately after successful upload
+* Remove redundant or conflicting upload logic if present.
+
+5. Validate Storage Provider Integration:
+
+* Fully verify:
+
+  * Backblaze/Supabase connectivity
+  * Bucket permissions
+  * API credentials
+  * Signed URL generation
+  * CORS configuration
+  * Upload token/auth handling
+* Explicitly confirm whether the storage provider integration is functioning correctly.
+
+6. Add Robust Error Handling & Recovery:
+
+* Replace generic errors with precise actionable messages.
+* Ensure failures are handled gracefully without breaking the UI.
+* Prevent:
+
+  * Infinite loading states
+  * Silent failures
+  * Broken previews
+  * Duplicate uploads
+  * Corrupted uploads
+
+7. Full Regression Testing:
+
+* Test:
+
+  * Cropped image uploads
+  * Large image uploads
+  * Small image uploads
+  * Multiple upload attempts
+  * Replacing profile photos
+  * Mobile devices
+  * Desktop browsers
+  * Installed PWA mode
+  * Slow/interrupted internet
+* Verify:
+
+  * No new issues were introduced
+  * Previous features still work correctly
+  * Upload remains stable after refresh/re-login
+
+8. Database / Storage / Environment Changes:
+
+* If any:
+
+  * SQL
+  * RLS policies
+  * Storage bucket policies
+  * Environment variables
+  * Backend/API configs
+  * Authentication settings
+    need updates:
+  * Clearly explain every required change.
+  * Provide exact updated code/configuration separately.
+  * Mention exactly where and how to apply changes.
+  * Mention whether existing uploads/data may be affected.
+* Explicitly state if no infrastructure/config changes are required.
+
+9. Mandatory Stability Verification:
+
+* Before completing:
+
+  * Verify the upload works successfully multiple consecutive times.
+  * Ensure no console/network/storage errors remain.
+  * Confirm the issue is actually fixed, not partially hidden.
+
+10. Checkpoint Requirement:
+
+* After the issue is fully resolved and tested:
+
+  * Create a proper checkpoint/commit immediately.
+  * Ensure the checkpoint represents a stable working upload system.
+  * Provide a final implementation summary including:
+
+    * Exact root cause found
+    * Screenshot error analysis
+    * Files modified
+    * Upload/storage/auth fixes applied
+    * Removed/refactored unstable logic
+    * Storage/RLS/environment changes
+    * Remaining risks/issues (if any)
+
+Acceptance Criteria:
+
+* [ ] Screenshot-related upload errors are fully identified and resolved.
+* [ ] The upload issue is fully resolved permanently.
+* [ ] Cropping and compression work correctly.
+* [ ] Upload URL generation works consistently.
+* [ ] Upload succeeds reliably across devices and browsers.
+* [ ] No silent failures or broken states remain.
+* [ ] No temporary hacks or unstable fixes exist.
+* [ ] Storage provider integration is verified and stable.
+* [ ] Database/profile image updates work correctly.
+* [ ] No regressions were introduced.
+* [ ] Multiple consecutive uploads succeed successfully.
+* [ ] Checkpoint/commit is created after final successful verification.

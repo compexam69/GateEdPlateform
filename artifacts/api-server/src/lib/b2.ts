@@ -7,6 +7,7 @@ const B2_APPLICATION_KEY = process.env["B2_APPLICATION_KEY"] ?? "";
 const B2_BUCKET_NAME = process.env["B2_BUCKET_NAME"] ?? "";
 
 let authToken: string | null = null;
+let authorizedAccountId: string | null = null;
 let apiUrl: string | null = null;
 let downloadUrl: string | null = null;
 let bucketId: string | null = null;
@@ -42,20 +43,25 @@ async function authorizeB2(): Promise<void> {
 
   const data = (await res.json()) as {
     authorizationToken: string;
+    accountId: string;
     apiUrl: string;
     downloadUrl: string;
   };
 
   authToken = data.authorizationToken;
+  // Always use the accountId returned by B2 — not the raw env var.
+  // With application keys, B2 may return a different accountId than the
+  // master account ID, and using the wrong one causes "accountId invalid".
+  authorizedAccountId = data.accountId;
   apiUrl = data.apiUrl;
   downloadUrl = data.downloadUrl;
   authExpiry = Date.now() + 23 * 60 * 60 * 1000;
-  logger.info("[b2] Authorized successfully, resolving bucket...");
+  logger.info({ accountId: authorizedAccountId }, "[b2] Authorized successfully, resolving bucket...");
 
   const bucketRes = await fetch(`${apiUrl}/b2api/v2/b2_list_buckets`, {
     method: "POST",
     headers: { Authorization: authToken, "Content-Type": "application/json" },
-    body: JSON.stringify({ accountId: B2_ACCOUNT_ID, bucketName: B2_BUCKET_NAME }),
+    body: JSON.stringify({ accountId: authorizedAccountId, bucketName: B2_BUCKET_NAME }),
   });
 
   if (!bucketRes.ok) {
@@ -79,6 +85,7 @@ async function authorizeB2(): Promise<void> {
 // Force re-auth on next call (called when an upload URL returns 401)
 function invalidateAuth(): void {
   authToken = null;
+  authorizedAccountId = null;
   authExpiry = 0;
 }
 

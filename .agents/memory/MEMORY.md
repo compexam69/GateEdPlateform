@@ -1,1 +1,2 @@
 - [Auth Role Source](auth-role-source.md) — role/is_approved must be read from profiles table, never from user_metadata (trigger only writes to profiles)
+- [B2 Account ID Auth](b2-account-id-auth.md) — use accountId from b2_authorize_account response in all subsequent B2 calls, not B2_ACCOUNT_ID env var
