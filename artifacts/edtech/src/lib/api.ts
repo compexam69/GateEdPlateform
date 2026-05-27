@@ -3,7 +3,7 @@ import { supabase } from "./supabase";
 export function getApiBase(): string {
   const envUrl = import.meta.env.VITE_API_URL as string | undefined;
   if (envUrl) return envUrl;
-  return `${window.location.protocol}//${window.location.hostname}:8080/api`;
+  return `/api`;
 }
 
 export async function apiFetch(path: string, options: RequestInit = {}): Promise<unknown> {
