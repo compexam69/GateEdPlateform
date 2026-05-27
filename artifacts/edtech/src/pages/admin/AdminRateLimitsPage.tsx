@@ -1,4 +1,5 @@
 import { AppLayout } from "@/components/layout/AppLayout";
+import { AdminBackButton } from "@/components/layout/AdminBackButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -87,6 +88,7 @@ export default function AdminRateLimitsPage() {
   return (
     <AppLayout requireAdmin>
       <div className="space-y-6">
+        <AdminBackButton />
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Rate Limit Monitor</h1>

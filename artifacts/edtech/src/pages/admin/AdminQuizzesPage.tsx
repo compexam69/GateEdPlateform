@@ -1,4 +1,5 @@
 import { AppLayout } from "@/components/layout/AppLayout";
+import { AdminBackButton } from "@/components/layout/AdminBackButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -93,6 +94,7 @@ export default function AdminQuizzesPage() {
   return (
     <AppLayout requireAdmin>
       <div className="space-y-6">
+        <AdminBackButton />
         <div className="flex items-start justify-between flex-wrap gap-3">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Quiz & Question Editor</h1>
