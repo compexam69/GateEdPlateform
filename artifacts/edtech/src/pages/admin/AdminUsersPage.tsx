@@ -386,26 +386,31 @@ export default function AdminUsersPage() {
     const status = String(user.status || "pending_approval");
 
     return (
-      <div className="flex items-center justify-between p-4 border border-border rounded-lg gap-3">
-        <div className="min-w-0 flex-1">
+      <div className="p-4 border border-border rounded-lg space-y-3">
+        {/* ── User details (full width, no compression) ───────────────────── */}
+        <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold truncate">{userName}</span>
+            <span className="font-semibold break-words">{userName}</span>
             {roleBadge(role)}
             {statusBadge(status)}
           </div>
           {/* Admins see only name + role for super_admin rows; sensitive fields are masked at the API level */}
           {role === "super_admin" && currentRole !== "super_admin" ? (
-            <div className="mt-1">
+            <div className="mt-1.5">
               <span className="inline-flex items-center gap-1 text-xs text-muted-foreground/60 italic">
                 <Shield className="w-3 h-3" /> Details restricted
               </span>
             </div>
           ) : (
-            <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground flex-wrap">
-              {!!user.email && <span className="break-all">{String(user.email)}</span>}
-              {!!user.mobile_number && <span>{String(user.mobile_number)}</span>}
+            <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-0.5 sm:gap-x-3 sm:gap-y-1 mt-1.5 text-sm text-muted-foreground">
+              {!!user.email && (
+                <span className="break-all">{String(user.email)}</span>
+              )}
+              {!!user.mobile_number && (
+                <span>{String(user.mobile_number)}</span>
+              )}
               {!!user.created_at && (
-                <span className="flex items-center gap-1">
+                <span className="flex items-center gap-1 shrink-0">
                   <Clock className="w-3 h-3" />
                   {format(new Date(String(user.created_at)), "MMM d, yyyy")}
                 </span>
@@ -414,56 +419,60 @@ export default function AdminUsersPage() {
           )}
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
-          {/* Eye (detail view) button is hidden for super_admin rows when actor is not super_admin */}
+        {/* ── Action buttons — always below user details, wrap on small screens ── */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* View detail — hidden for super_admin rows when actor is not super_admin */}
           {(role !== "super_admin" || currentRole === "super_admin") && (
             <Button
               size="sm"
               variant="ghost"
-              className="gap-1"
+              className="h-8 gap-1.5"
               onClick={() => setDetailUserId(userId)}
               title="View user details"
             >
               <Eye className="w-3.5 h-3.5" />
+              <span>View</span>
             </Button>
           )}
 
-          {/* Edit profile button — visible when actor has permission to edit this target.
-              Super admins may also edit their own row from the admin dashboard. */}
-          {(userId !== currentUser?.id || currentRole === "super_admin") && canActorEditTarget(currentRole ?? "", role) && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="gap-1"
-              title="Edit profile fields"
-              onClick={() => {
-                setEditProfileDialog({
-                  userId,
-                  userName,
-                  targetRole: role,
-                  current: {
+          {/* Edit profile — visible when actor has permission to edit this target */}
+          {(userId !== currentUser?.id || currentRole === "super_admin") &&
+            canActorEditTarget(currentRole ?? "", role) && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 gap-1.5"
+                title="Edit profile fields"
+                onClick={() => {
+                  setEditProfileDialog({
+                    userId,
+                    userName,
+                    targetRole: role,
+                    current: {
+                      full_name: String(user.full_name ?? ""),
+                      email: String(user.email ?? ""),
+                      mobile_number: String(user.mobile_number ?? ""),
+                    },
+                  });
+                  setEditForm({
                     full_name: String(user.full_name ?? ""),
                     email: String(user.email ?? ""),
                     mobile_number: String(user.mobile_number ?? ""),
-                  },
-                });
-                setEditForm({
-                  full_name: String(user.full_name ?? ""),
-                  email: String(user.email ?? ""),
-                  mobile_number: String(user.mobile_number ?? ""),
-                });
-              }}
-            >
-              <Pencil className="w-3.5 h-3.5" />
-            </Button>
-          )}
+                  });
+                }}
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                <span>Edit</span>
+              </Button>
+            )}
 
+          {/* Pending: Reject + Approve */}
           {status === "pending_approval" && (
             <>
               <Button
                 size="sm"
                 variant="outline"
-                className="text-destructive hover:bg-destructive/10 border-destructive/30"
+                className="h-8 text-destructive hover:bg-destructive/10 border-destructive/30"
                 onClick={() => reject.mutate({ userId })}
                 disabled={reject.isPending}
               >
@@ -471,7 +480,7 @@ export default function AdminUsersPage() {
               </Button>
               <Button
                 size="sm"
-                className="bg-success hover:bg-success/90 text-white"
+                className="h-8 bg-success hover:bg-success/90 text-white"
                 onClick={() => approve.mutate({ userId })}
                 disabled={approve.isPending}
               >
@@ -479,21 +488,25 @@ export default function AdminUsersPage() {
               </Button>
             </>
           )}
+
+          {/* Active student: Suspend */}
           {status === "active" && role === "student" && (
             <Button
               size="sm"
               variant="outline"
-              className="text-destructive hover:bg-destructive/10 border-destructive/30"
+              className="h-8 text-destructive hover:bg-destructive/10 border-destructive/30"
               onClick={() => reject.mutate({ userId })}
               disabled={reject.isPending}
             >
               <XCircle className="w-4 h-4 mr-1" /> Suspend
             </Button>
           )}
+
+          {/* Suspended: Reinstate */}
           {status === "suspended" && (
             <Button
               size="sm"
-              className="bg-success hover:bg-success/90 text-white"
+              className="h-8 bg-success hover:bg-success/90 text-white"
               onClick={() => approve.mutate({ userId })}
               disabled={approve.isPending}
             >
@@ -501,6 +514,7 @@ export default function AdminUsersPage() {
             </Button>
           )}
 
+          {/* Role change (super_admin only, not on their own row) */}
           {currentRole === "super_admin" && userId !== currentUser?.id && (
             <Select
               value={role}
@@ -518,16 +532,17 @@ export default function AdminUsersPage() {
             </Select>
           )}
 
+          {/* Reset progress (students only) */}
           {role === "student" && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button size="sm" variant="outline" className="gap-1">
+                <Button size="sm" variant="outline" className="h-8 gap-1.5">
                   <RotateCcw className="w-3.5 h-3.5" />
                   Reset
                   <ChevronDown className="w-3.5 h-3.5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="start">
                 <DropdownMenuItem
                   className="text-warning focus:text-warning"
                   onClick={() => setResetDialog({ userId, userName, scope: "topic" })}
