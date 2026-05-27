@@ -1,4 +1,4 @@
-import { Router } from "express";
+import express, { Router } from "express";
 import { supabase } from "../lib/supabase";
 import { getUploadPresignedUrl, getDownloadPresignedUrl, deleteB2File, getB2FileIdByPath, generateStoragePath, generateProfilePhotoPath } from "../lib/b2";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
@@ -121,13 +121,83 @@ router.post("/b2/download-url", requireAuth, async (req: AuthRequest, res) => {
   }
 });
 
+// ── Server-side profile photo proxy upload ────────────────────────────────────
+// The browser cannot upload directly to Backblaze B2 upload pod domains
+// because those pods do not send CORS headers. This endpoint accepts the raw
+// image bytes from the browser, uploads to B2 server-side (no CORS involved),
+// then updates the profile — one round-trip, no CORS issues.
+router.post(
+  "/b2/profile-upload",
+  requireAuth,
+  express.raw({ type: "*/*", limit: "10mb" }),
+  async (req: AuthRequest, res) => {
+    const userId = req.user!.id;
+    const body = req.body as Buffer;
+
+    if (!Buffer.isBuffer(body) || body.length === 0) {
+      res.status(400).json({ error: "No image data received" });
+      return;
+    }
+
+    const storagePath = generateProfilePhotoPath(userId);
+    try {
+      // Delete old profile photo (best-effort, non-blocking failure)
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("avatar_url")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (profile?.avatar_url) {
+        try {
+          const oldFileId = await getB2FileIdByPath(String(profile.avatar_url));
+          if (oldFileId) await deleteB2File(String(profile.avatar_url), oldFileId);
+        } catch (e) {
+          logger.warn({ err: e, userId }, "[storage] Old profile photo cleanup failed (non-fatal)");
+        }
+      }
+
+      // Get upload URL and push bytes to B2 entirely server-side — no CORS
+      const { uploadUrl, uploadAuthToken } = await getUploadPresignedUrl(storagePath);
+      logger.info({ userId, storagePath, bytes: body.length }, "[storage] Uploading profile photo to B2...");
+
+      const b2Res = await fetch(uploadUrl, {
+        method: "POST",
+        headers: {
+          Authorization: uploadAuthToken,
+          "Content-Type": "image/jpeg",
+          "X-Bz-File-Name": encodeURIComponent(storagePath),
+          "X-Bz-Content-Sha1": "do_not_verify",
+          "Content-Length": String(body.length),
+        },
+        body: body,
+      });
+
+      if (!b2Res.ok) {
+        const errText = await b2Res.text().catch(() => "");
+        logger.error({ status: b2Res.status, errText, userId }, "[storage] B2 upload failed");
+        throw new Error(`B2 upload failed (${b2Res.status})${errText ? ": " + errText : ""}`);
+      }
+
+      // Persist the storage path on the profile
+      await supabase.from("profiles").update({ avatar_url: storagePath }).eq("id", userId);
+      logger.info({ userId, storagePath }, "[storage] Profile photo uploaded and profile updated");
+      res.json({ storage_path: storagePath });
+    } catch (e) {
+      logger.error({ err: e, userId }, "[storage] Failed to upload profile photo");
+      const msg = e instanceof Error ? e.message : "Failed to upload profile photo";
+      res.status(500).json({ error: msg });
+    }
+  },
+);
+
+// Kept for backward compatibility (PDF notes still use the upload-url flow)
 router.post("/b2/profile-upload-url", requireAuth, async (req: AuthRequest, res) => {
   const userId = req.user!.id;
 
   const storagePath = generateProfilePhotoPath(userId);
   const expiry = new Date(Date.now() + 15 * 60 * 1000).toISOString();
   try {
-    // Delete old profile photo from B2 before issuing new upload URL (best-effort)
     const { data: profile } = await supabase
       .from("profiles")
       .select("avatar_url")

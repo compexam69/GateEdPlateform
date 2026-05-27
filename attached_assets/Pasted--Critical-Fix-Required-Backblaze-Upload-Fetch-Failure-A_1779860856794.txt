@@ -1,0 +1,205 @@
+🟢 Critical Fix Required: Backblaze Upload Fetch Failure After Profile Photo Upload Implementation
+
+Goal: Fully resolve the new Backblaze upload failure:
+"Upload failed — Failed to fetch (pod-052-1006-04.backblaze.com)"
+and stabilize the complete profile photo upload system so uploads work reliably across all devices, browsers, and network conditions.
+
+Context: Previous implementations already added:
+
+* Image cropping
+* Smart compression
+* Upload optimization
+* Signed upload URL generation
+* Storage integration improvements
+* Error handling enhancements
+
+However, after the latest implementation, a new runtime/network error now occurs during the actual upload request:
+
+"Upload failed — Failed to fetch (pod-052-1006-04.backblaze.com)"
+
+This indicates that the upload request is reaching the upload stage but failing during the fetch/network/storage communication process.
+
+A screenshot/error log showing the failure is attached/provided. Deeply analyze the screenshot, network requests, browser console logs, Backblaze integration, and entire upload architecture before implementing any changes.
+
+Important:
+Do NOT implement temporary fixes, retries without root-cause analysis, hardcoded URLs, unsafe CORS bypasses, or unstable workarounds. The issue must be fixed properly at the architectural/configuration level.
+
+Instructions:
+
+1. Analyze Screenshot, Network Logs & Existing Errors:
+
+* Deeply inspect:
+
+  * Browser console errors
+  * Network tab failures
+  * Failed fetch requests
+  * Upload request headers
+  * CORS errors
+  * Backblaze API responses
+  * Upload endpoint generation
+  * Request payload structure
+* Correlate the error with the exact upload stage and execution flow.
+
+2. Perform Deep Root Cause Analysis:
+
+* Analyze the entire upload pipeline end-to-end, including:
+
+  * Crop/compression output
+  * Blob/file conversion
+  * Fetch request generation
+  * Signed upload URL creation
+  * Backblaze authorization flow
+  * Upload headers/content-type
+  * Storage bucket configuration
+  * CORS policies
+  * Environment variables
+  * Authentication/session state
+  * API/network restrictions
+  * Browser-specific behavior
+  * Mobile/PWA upload handling
+* Determine:
+
+  * Why the fetch request fails
+  * Whether the upload URL is malformed or inaccessible
+  * Whether Backblaze bucket/API permissions are incorrect
+  * Whether CORS restrictions block the request
+  * Whether upload tokens expire or mismatch
+  * Whether compression/cropping affects payload integrity
+
+3. Verify Backblaze Integration Completely:
+
+* Validate:
+
+  * Backblaze account connectivity
+  * Bucket accessibility
+  * Application keys
+  * Upload authorization token generation
+  * Upload endpoint correctness
+  * Allowed origins/CORS rules
+  * Request signing/authentication logic
+* Explicitly confirm whether:
+
+  * Backblaze credentials are valid
+  * Bucket configuration is production-ready
+  * Upload endpoints remain accessible from browser/PWA environments
+
+4. Implement Permanent Production-Ready Fix:
+
+* Correct the upload architecture fully.
+* Ensure:
+
+  * Upload fetch requests succeed consistently
+  * Browser/network restrictions are handled correctly
+  * Upload URLs remain valid and reachable
+  * Cropped/compressed files upload successfully
+  * Database/profile image updates complete correctly
+  * UI refreshes immediately after successful upload
+* Refactor unstable upload logic if necessary.
+
+5. Improve Error Handling & Recovery:
+
+* Replace generic errors with detailed actionable messages.
+* Handle:
+
+  * Network failures
+  * CORS restrictions
+  * Expired upload authorization
+  * Storage service downtime
+  * Invalid upload endpoints
+  * Browser fetch failures
+* Prevent:
+
+  * Infinite loading states
+  * Silent failures
+  * Broken previews
+  * Duplicate uploads
+  * Corrupted profile image states
+
+6. Add Detailed Debug Logging:
+
+* Add temporary debugging for:
+
+  * Generated upload URLs
+  * Fetch request payloads
+  * Response status codes
+  * Upload authorization responses
+  * Storage API failures
+  * Compression/crop output validation
+* Ensure future upload issues become easier to diagnose.
+
+7. Full Regression & Stability Testing:
+
+* Test:
+
+  * Fresh uploads
+  * Cropped image uploads
+  * Large compressed uploads
+  * Multiple consecutive uploads
+  * Mobile browsers
+  * Desktop browsers
+  * Installed PWA mode
+  * Slow/interrupted internet
+  * Replacing existing profile photos
+* Verify:
+
+  * Upload works consistently
+  * No new regressions occur
+  * Previous features remain stable
+  * Upload remains successful after refresh/re-login
+
+8. Storage / Backend / Environment / SQL Changes:
+
+* If any:
+
+  * Backblaze bucket settings
+  * CORS configuration
+  * Environment variables
+  * Backend/API handlers
+  * Auth token generation
+  * Storage permissions
+  * SQL/RLS policies
+    require changes:
+  * Clearly explain every required change.
+  * Provide exact updated configuration/code separately.
+  * Mention exactly where and how to apply the changes.
+  * Mention whether existing uploads/data may be affected.
+* Explicitly state if no infrastructure/config changes are required.
+
+9. Mandatory Final Verification:
+
+* Before completing:
+
+  * Verify uploads succeed multiple consecutive times without failure.
+  * Confirm no fetch/CORS/network/storage errors remain.
+  * Ensure issue is fully resolved rather than partially hidden.
+  * Verify stability across devices and browsers.
+
+10. Checkpoint Requirement:
+
+* After the issue is fully resolved and verified:
+
+  * Create a proper checkpoint/commit immediately.
+  * Ensure the checkpoint represents a stable production-ready upload system.
+  * Provide a final implementation summary including:
+
+    * Exact root cause identified
+    * Screenshot/network error analysis
+    * Files modified
+    * Backblaze/storage fixes applied
+    * Upload architecture improvements
+    * CORS/auth/environment changes
+    * Remaining risks/issues (if any)
+
+Acceptance Criteria:
+
+* [ ] `"Failed to fetch (pod-052-1006-04.backblaze.com)"` error is fully resolved.
+* [ ] Backblaze upload requests succeed consistently.
+* [ ] Cropping and compression remain fully functional.
+* [ ] Upload works correctly across mobile, desktop, and PWA environments.
+* [ ] No CORS, fetch, or network failures remain.
+* [ ] Signed upload authorization works reliably.
+* [ ] Database/profile image updates succeed correctly.
+* [ ] No broken previews, stale states, or silent failures remain.
+* [ ] No unstable hacks or temporary workarounds exist.
+* [ ] Multiple consecutive uploads succeed successfully.
+* [ ] Checkpoint/commit is created after successful implementation and testing.
