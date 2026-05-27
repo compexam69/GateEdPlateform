@@ -11,8 +11,9 @@ export interface TopicInput {
   /** @nullable */
   description?: string | null;
   order_index: number;
-  /** @nullable */
-  telegram_chat_id?: string | null;
-  /** @nullable */
-  telegram_message_id?: string | null;
+  /**
+     * Direct private Telegram message URL
+     * @nullable
+     */
+  telegram_link?: string | null;
 }

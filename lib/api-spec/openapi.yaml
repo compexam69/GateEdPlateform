@@ -1201,10 +1201,9 @@ components:
           type: integer
         is_active:
           type: boolean
-        telegram_chat_id:
+        telegram_link:
           type: ["string", "null"]
-        telegram_message_id:
-          type: ["string", "null"]
+          description: "Direct private Telegram message URL (e.g. https://t.me/c/1234567890/42)"
       required: [id, chapter_id, title, order_index, is_active]
 
     TopicInput:
@@ -1216,10 +1215,9 @@ components:
           type: ["string", "null"]
         order_index:
           type: integer
-        telegram_chat_id:
+        telegram_link:
           type: ["string", "null"]
-        telegram_message_id:
-          type: ["string", "null"]
+          description: "Direct private Telegram message URL"
       required: [title, order_index]
 
     TopicUpdate:
@@ -1231,10 +1229,9 @@ components:
           type: ["string", "null"]
         order_index:
           type: integer
-        telegram_chat_id:
+        telegram_link:
           type: ["string", "null"]
-        telegram_message_id:
-          type: ["string", "null"]
+          description: "Direct private Telegram message URL"
         is_active:
           type: boolean
 

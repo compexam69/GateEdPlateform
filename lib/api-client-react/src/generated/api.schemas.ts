@@ -132,10 +132,11 @@ export interface Topic {
   description?: string | null;
   order_index: number;
   is_active: boolean;
-  /** @nullable */
-  telegram_chat_id?: string | null;
-  /** @nullable */
-  telegram_message_id?: string | null;
+  /**
+     * Direct private Telegram message URL (e.g. https://t.me/c/1234567890/42)
+     * @nullable
+     */
+  telegram_link?: string | null;
 }
 
 export interface TopicInput {
@@ -143,10 +144,11 @@ export interface TopicInput {
   /** @nullable */
   description?: string | null;
   order_index: number;
-  /** @nullable */
-  telegram_chat_id?: string | null;
-  /** @nullable */
-  telegram_message_id?: string | null;
+  /**
+     * Direct private Telegram message URL
+     * @nullable
+     */
+  telegram_link?: string | null;
 }
 
 export interface TopicUpdate {
@@ -154,10 +156,11 @@ export interface TopicUpdate {
   /** @nullable */
   description?: string | null;
   order_index?: number;
-  /** @nullable */
-  telegram_chat_id?: string | null;
-  /** @nullable */
-  telegram_message_id?: string | null;
+  /**
+     * Direct private Telegram message URL
+     * @nullable
+     */
+  telegram_link?: string | null;
   is_active?: boolean;
 }
 

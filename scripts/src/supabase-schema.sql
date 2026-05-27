@@ -135,8 +135,7 @@ create table if not exists topics (
   description         text,
   order_index         int     not null default 0,
   is_active           boolean not null default true,
-  telegram_chat_id    text,              -- Telegram group/channel for lecture video
-  telegram_message_id text,             -- Specific message ID within the chat
+  telegram_link       text,              -- Direct private Telegram message URL (e.g. https://t.me/c/1234567890/42)
   created_at          timestamptz not null default now(),
   updated_at          timestamptz not null default now()
 );
@@ -147,8 +146,7 @@ create table if not exists topics (
 create table if not exists lectures (
   id                  uuid    primary key default uuid_generate_v4(),
   topic_id            uuid    not null references topics(id) on delete cascade,
-  telegram_chat_id    text,
-  telegram_message_id text,
+  telegram_link       text,              -- Direct private Telegram message URL
   is_active           boolean not null default true,
   created_at          timestamptz not null default now()
 );

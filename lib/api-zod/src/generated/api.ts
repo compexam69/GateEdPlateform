@@ -211,8 +211,7 @@ export const GetTopicsResponseItem = zod.object({
   "description": zod.string().nullish(),
   "order_index": zod.number(),
   "is_active": zod.boolean(),
-  "telegram_chat_id": zod.string().nullish(),
-  "telegram_message_id": zod.string().nullish()
+  "telegram_link": zod.string().nullish().describe('Direct private Telegram message URL (e.g. https:\/\/t.me\/c\/1234567890\/42)')
 })
 export const GetTopicsResponse = zod.array(GetTopicsResponseItem)
 
@@ -228,8 +227,7 @@ export const CreateTopicBody = zod.object({
   "title": zod.string(),
   "description": zod.string().nullish(),
   "order_index": zod.number(),
-  "telegram_chat_id": zod.string().nullish(),
-  "telegram_message_id": zod.string().nullish()
+  "telegram_link": zod.string().nullish().describe('Direct private Telegram message URL')
 })
 
 
@@ -244,8 +242,7 @@ export const UpdateTopicBody = zod.object({
   "title": zod.string().optional(),
   "description": zod.string().nullish(),
   "order_index": zod.number().optional(),
-  "telegram_chat_id": zod.string().nullish(),
-  "telegram_message_id": zod.string().nullish(),
+  "telegram_link": zod.string().nullish().describe('Direct private Telegram message URL'),
   "is_active": zod.boolean().optional()
 })
 
@@ -256,8 +253,7 @@ export const UpdateTopicResponse = zod.object({
   "description": zod.string().nullish(),
   "order_index": zod.number(),
   "is_active": zod.boolean(),
-  "telegram_chat_id": zod.string().nullish(),
-  "telegram_message_id": zod.string().nullish()
+  "telegram_link": zod.string().nullish().describe('Direct private Telegram message URL (e.g. https:\/\/t.me\/c\/1234567890\/42)')
 })
 
 
