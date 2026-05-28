@@ -1,0 +1,310 @@
+Here’s the updated version with the additional requirement that the profile photo in the sidebar/navigation area must also stop reloading and remain persistent during module navigation.
+
+🟢 Checkpoint 12: Fix Unnecessary Profile Image Reloading During Module Navigation (Including Sidebar Avatar)
+
+Goal: Identify and fix the issue causing the profile image to reload every time the user navigates between modules/pages, including the profile photo displayed in the sidebar/navigation area. Optimize the image rendering, caching, and state management system so the profile image remains persistent everywhere without unnecessary re-fetching or visual reloading.
+
+Context:
+The profile image persistence issue was partially fixed:
+
+* The profile image now remains visible after refresh/navigation.
+* Supabase Storage integration is working.
+
+Current issue:
+
+* Every time the user navigates between modules/pages:
+
+  * The profile image reloads again unnecessarily.
+  * The avatar flickers, flashes, or briefly disappears before rendering again.
+  * The sidebar/navigation profile photo also reloads repeatedly.
+  * This creates poor UX and unnecessary network/storage requests.
+
+Possible causes may include:
+
+* Re-fetching profile data on every route change
+* Context/provider re-rendering
+* Sidebar/layout remounting
+* Non-memoized image components
+* Re-generating image URLs repeatedly
+* Signed URL regeneration
+* Cache invalidation problems
+* State reset during navigation
+* Improper dependency arrays in hooks
+* Duplicate API/storage fetch calls
+* PWA caching inconsistencies
+
+New Requirement:
+
+* The profile image must:
+
+  * Stay loaded persistently across module navigation
+  * Avoid unnecessary re-rendering/re-fetching
+  * Avoid flickering/flashing
+  * Avoid repeated storage/API requests
+  * Remain stable in BOTH:
+
+    * Profile module
+    * Sidebar/navigation/avatar areas
+
+Instructions:
+
+1. Analyze Existing Codebase:
+
+* Review:
+
+  * Profile image rendering components
+  * Sidebar/navigation avatar component
+  * User context/provider logic
+  * Navigation/routing structure
+  * Layout persistence behavior
+  * State management
+  * Supabase Storage URL handling
+  * Profile fetching logic
+  * Shared avatar/header/sidebar components
+  * React hooks/dependency arrays
+  * Cache handling
+  * PWA/service worker behavior
+* Identify:
+
+  * Why image reload occurs on navigation
+  * Why sidebar avatar reloads repeatedly
+  * Which components are unnecessarily remounting
+  * Which API/storage calls repeat unnecessarily
+  * Whether state/context resets during route changes
+  * Whether URLs are regenerated repeatedly
+
+2. Fix Unnecessary Image Reloading:
+
+* Refactor:
+
+  * Image rendering logic
+  * Sidebar avatar rendering
+  * Global profile state management
+  * Navigation persistence behavior
+* Ensure:
+
+  * Profile image remains mounted/persisted
+  * Sidebar avatar remains persistent
+  * No unnecessary re-fetch occurs on module switch
+  * No repeated signed/public URL generation
+  * Minimal re-renders occur
+
+3. Optimize Shared Avatar State:
+
+* Ensure:
+
+  * Profile module avatar and sidebar avatar use the same centralized state source
+  * Both update instantly after upload/update
+  * Both remain synchronized globally
+* Prevent:
+
+  * Different avatar states across modules
+  * Sidebar image lag/desynchronization
+  * Duplicate image fetches
+
+4. Optimize State Management:
+
+* Improve:
+
+  * Context/provider architecture
+  * User session hydration
+  * Shared avatar state synchronization
+  * Memoization logic
+* Prevent:
+
+  * Full component tree re-renders
+  * Avatar flickering
+  * Sidebar remount reloads
+  * State resets on navigation
+
+5. Optimize Supabase Storage Handling:
+
+* Verify:
+
+  * Public/private bucket strategy
+  * URL generation method
+  * Cache-control behavior
+  * Signed URL expiration handling
+* Ensure:
+
+  * Stable reusable image URLs
+  * Proper caching headers
+  * No unnecessary storage requests
+
+6. Cache Optimization:
+
+* Detect:
+
+  * Browser cache bypassing
+  * Repeated image downloads
+  * Stale cache invalidation
+  * PWA image cache conflicts
+* Implement:
+
+  * Proper image caching strategy
+  * Optimized cache invalidation only after upload/update
+  * Efficient avatar refresh behavior
+
+7. Prevent Duplicate Fetch Requests:
+
+* Detect:
+
+  * Duplicate API calls
+  * Repeated profile fetches
+  * Duplicate realtime listeners
+  * Multiple storage requests for same image
+* Refactor:
+
+  * Shared centralized profile loading logic
+* Ensure:
+
+  * Single source of truth for profile image state
+
+8. Improve UI/UX Stability:
+
+* Ensure:
+
+  * No avatar flickering/flashing
+  * No sidebar image reload flashes
+  * No layout shifts
+  * Smooth navigation transitions
+  * Consistent avatar rendering across:
+
+    * Profile module
+    * Dashboard
+    * Navigation/sidebar
+    * Shared headers
+* Prevent:
+
+  * Loading spinners for already-cached avatars
+  * Delayed rendering after route changes
+
+9. Performance Optimization:
+
+* Optimize:
+
+  * React rendering behavior
+  * State updates
+  * Layout persistence
+  * Lazy loading
+  * Bundle efficiency
+  * Image rendering performance
+* Ensure:
+
+  * Better mobile/PWA performance
+  * Reduced bandwidth usage
+  * Reduced Supabase Storage requests
+
+10. Mobile & PWA Verification:
+
+* Verify:
+
+  * Mobile navigation behavior
+  * Sidebar responsiveness
+  * PWA standalone mode
+  * Offline caching behavior
+  * Service worker interactions
+* Ensure:
+
+  * No repeated image reloads on mobile/PWA navigation
+
+11. Error Handling & Fallbacks:
+
+* Ensure:
+
+  * Stable fallback avatar handling
+  * No broken image states
+  * Graceful recovery if image fails
+* Prevent:
+
+  * Infinite reload loops
+  * Broken image placeholders
+
+12. Beginner-Friendly Explanation:
+
+* After implementation, clearly explain:
+
+  * Why the image kept reloading previously
+  * Why the sidebar avatar also reloaded
+  * Which components/hooks caused the issue
+  * What was optimized
+  * How caching now works
+  * How state persistence now works
+  * How Supabase Storage requests were reduced
+  * What happens now during:
+
+    * Navigation
+    * Sidebar rendering
+    * Refresh
+    * Upload/update
+    * PWA usage
+
+13. Important Changes & Guidance:
+
+* Clearly show:
+
+  * Which files/components were modified
+  * Which sidebar/layout components changed
+  * Which hooks/state systems changed
+  * Which fetch logic was optimized
+  * Whether any cache-control/storage settings changed
+  * Whether any SQL/storage policy updates are required
+* Mention:
+
+  * Any commands/rebuild/redeployment required
+  * Any environment/config changes required
+* Provide:
+
+  * Exact SQL/config separately if needed
+
+14. Testing & Validation:
+
+* Fully test:
+
+  * Navigation between modules
+  * Sidebar avatar rendering
+  * Profile image rendering
+  * Page refresh
+  * Logout/login
+  * Mobile responsiveness
+  * PWA mode
+  * Different browsers
+* Verify:
+
+  * No unnecessary image reloads occur
+  * No sidebar avatar flickering occurs
+  * No repeated network/storage requests occur
+  * No console/runtime/build errors occur
+
+15. Checkpoint Requirement:
+
+* After completing and verifying the optimization:
+
+  * Create a proper checkpoint/commit immediately.
+  * Ensure the avatar/profile image system is fully optimized and stable.
+  * Provide a final implementation summary including:
+
+    * Root cause identified
+    * Files modified
+    * Sidebar/layout optimizations
+    * State management optimizations
+    * Cache optimizations
+    * Storage optimizations
+    * Performance improvements
+    * Remaining limitations/issues (if any)
+
+Acceptance Criteria:
+
+* [ ] Profile image no longer reloads unnecessarily during module navigation.
+* [ ] Sidebar/navigation avatar no longer reloads unnecessarily.
+* [ ] No avatar flickering/flashing occurs.
+* [ ] No repeated Supabase Storage requests occur unnecessarily.
+* [ ] State persists correctly across navigation.
+* [ ] Sidebar and profile avatars remain synchronized.
+* [ ] Navigation remains smooth on mobile and desktop.
+* [ ] PWA mode behaves correctly.
+* [ ] No duplicate profile fetches occur.
+* [ ] Performance is improved.
+* [ ] No console/runtime/build errors occur.
+* [ ] Beginner-friendly explanation and guidance are provided after implementation.
+* [ ] Checkpoint/commit is created after successful optimization and testing.

@@ -3,12 +3,15 @@ import { BookOpen, Home, Settings, Timer, CheckSquare, LineChart, FileText, Shie
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { NotificationBell } from "@/components/NotificationBell";
-import { useAvatarUrl } from "@/hooks/useAvatarUrl";
+import { useState } from "react";
 
 export function Sidebar() {
   const [location] = useLocation();
-  const { role, user } = useAuth();
-  const { photoUrl, setPhotoUrl } = useAvatarUrl(user);
+  const { role, user, avatarUrl } = useAuth();
+
+  // Local error flag: if the image fails to load (broken URL, network error)
+  // fall back to the initials avatar without touching the global store.
+  const [imgError, setImgError] = useState(false);
 
   const links = [
     { href: "/dashboard", label: "Dashboard", icon: Home },
@@ -26,6 +29,10 @@ export function Sidebar() {
 
   const firstName = user?.user_metadata?.full_name?.split(" ")[0] || "Student";
 
+  // Reset error flag when avatarUrl changes (new upload / removal).
+  // Using the URL as a key on the <img> element handles this automatically.
+  const showImage = !!avatarUrl && !imgError;
+
   return (
     <div className="w-64 h-full border-r border-border bg-card flex flex-col">
       {/* Logo + Notifications */}
@@ -41,12 +48,13 @@ export function Sidebar() {
       <div className="px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden shrink-0 ring-1 ring-border">
-            {photoUrl
+            {showImage
               ? <img
-                  src={photoUrl}
+                  key={avatarUrl}
+                  src={avatarUrl}
                   alt={firstName}
                   className="w-full h-full object-cover"
-                  onError={() => setPhotoUrl(null)}
+                  onError={() => setImgError(true)}
                 />
               : <span className="text-xs font-bold text-primary select-none">
                   {firstName.charAt(0).toUpperCase()}

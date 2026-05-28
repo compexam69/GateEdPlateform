@@ -1,84 +1,82 @@
-import { useState, useEffect, useRef } from "react";
-import { supabase } from "@/lib/supabase";
+import { useState, useRef } from "react";
+import { resolveAvatarUrl } from "@/lib/avatarUtils";
+import { useAuth } from "@/hooks/useAuth";
 import type { User } from "@supabase/supabase-js";
 
-// Converts a Supabase Storage path ("<userId>/photo.jpg") to a public URL.
-// Returns null for legacy B2 paths, blobs, or missing values.
-// The optional `version` param is appended as ?v=<n> to bust the browser cache.
-export function resolveAvatarUrl(path: string | null, version?: number): string | null {
-  if (!path) return null;
-  if (path.startsWith("blob:") || path.startsWith("http")) return path;
-  if (path.startsWith("users/")) return null; // legacy B2 path — not resolvable in browser
-  const { data } = supabase.storage.from("avatars").getPublicUrl(path);
-  if (!data.publicUrl) return null;
-  return version != null ? `${data.publicUrl}?v=${version}` : data.publicUrl;
-}
+export { resolveAvatarUrl };
 
 interface UseAvatarUrlReturn {
-  /** Resolved, cache-busted public URL (or null if no photo). */
+  /** Resolved public URL (or null if no photo). */
   photoUrl: string | null;
-  /** Set the URL directly (e.g. blob URL during upload, permanent URL after). */
+  /**
+   * Set the URL directly (e.g. blob URL during upload, permanent URL after).
+   * Non-blob URLs are also pushed to the global auth store so every avatar
+   * component (Sidebar, etc.) stays in sync without an extra round-trip.
+   */
   setPhotoUrl: (url: string | null) => void;
   /**
-   * Bump the internal cache-buster to `Date.now()`.
-   * Call this after a successful upload or delete so the next resolved URL
-   * bypasses the browser cache.  Returns the new version number.
+   * Bump the internal cache-buster to Date.now().
+   * Call this before computing the final post-upload URL so the browser
+   * doesn't serve the old cached image.  Returns the new version number.
    */
   bumpVersion: () => number;
   /**
    * Resolve an arbitrary storage path using the current version number.
-   * Useful for building revert URLs (error paths) or explicit URL construction.
+   * Use this to build the permanent URL right after bumpVersion().
    */
   buildUrl: (path: string | null) => string | null;
 }
 
 /**
- * Manages the resolved avatar URL for a given Supabase user.
+ * Manages the avatar URL for ProfilePage upload/removal flows.
  *
- * Sources (in order of precedence at mount time):
- *   1. `user.user_metadata.avatar_url` — cached in the Zustand auth store.
- *   2. `profiles.avatar_url` — authoritative DB value, fetched on mount as a
- *      belt-and-suspenders fallback for stale JWTs after a hard reload.
+ * Key design change — what was fixed and why:
  *
- * Stays live automatically: the sync effect fires whenever the auth store
- * propagates a USER_UPDATED event (e.g. right after an upload).
+ * OLD behaviour (caused avatar flickering on every navigation):
+ *   • avatarVersionRef was initialised to Date.now() on every hook mount.
+ *   • Because Sidebar called this hook and AppLayout (with Sidebar) is
+ *     re-created on each page, every navigation produced a new ?v=<timestamp>
+ *     on the URL.  The browser saw a brand-new URL and re-downloaded the image.
+ *   • A profiles DB fetch also fired on every Sidebar mount.
+ *
+ * NEW behaviour (stable, no flicker):
+ *   • The global auth store (useAuth) holds avatarUrl, populated once on login.
+ *   • Sidebar reads avatarUrl directly from useAuth — no hook, no DB fetch.
+ *   • This hook is used only in ProfilePage for upload/removal flows.
+ *   • avatarVersionRef starts at 0; bumped to Date.now() ONLY on upload/remove.
+ *   • setPhotoUrl() pushes non-blob URLs to the auth store so Sidebar updates
+ *     instantly without any extra fetch.
  */
-export function useAvatarUrl(user: User | null): UseAvatarUrlReturn {
-  const storedAvatarPath: string | null = user?.user_metadata?.avatar_url || null;
+export function useAvatarUrl(_user: User | null): UseAvatarUrlReturn {
+  // Version ref starts at 0; bumped to Date.now() only after actual upload/remove.
+  const avatarVersionRef = useRef<number>(0);
 
-  // Initialised to Date.now() on each mount so revisiting the page always
-  // fetches the latest image (bypasses stale browser / CDN cache).
-  const avatarVersionRef = useRef<number>(Date.now());
+  // Read the current avatar URL from the global auth store.
+  // useAuth is a Zustand React hook: this component re-renders automatically
+  // whenever avatarUrl changes in the store (e.g. after another component
+  // calls setAvatarUrl, or after login resolves).
+  const storeAvatarUrl = useAuth((state) => state.avatarUrl);
 
-  const [photoUrl, setPhotoUrl] = useState<string | null>(() =>
-    resolveAvatarUrl(storedAvatarPath, avatarVersionRef.current)
+  // Local state holds the blob URL during the upload preview phase and the
+  // final permanent URL while this page instance is mounted.
+  // Initialised from the store so the image shows immediately without a fetch.
+  const [localUrl, setLocalUrl] = useState<string | null>(
+    () => useAuth.getState().avatarUrl
   );
 
-  // Sync when the auth store's user_metadata changes (USER_UPDATED event).
-  // avatarVersionRef is read via ref — intentionally not in deps — so this
-  // effect only fires when storedAvatarPath changes, not on every version bump.
-  useEffect(() => {
-    setPhotoUrl(resolveAvatarUrl(storedAvatarPath, avatarVersionRef.current));
-  }, [storedAvatarPath]);
+  // Displayed URL: local state during upload preview, otherwise store value.
+  // Using storeAvatarUrl as a fallback means changes made by the store
+  // (e.g. login resolving for the first time) also show up here.
+  const photoUrl = localUrl ?? storeAvatarUrl;
 
-  // Belt-and-suspenders: fetch from profiles table on mount so the photo shows
-  // even when the JWT metadata is stale (e.g. hard reload before token rotated).
-  useEffect(() => {
-    if (!user?.id) return;
-    let cancelled = false;
-    supabase
-      .from("profiles")
-      .select("avatar_url")
-      .eq("id", user.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (cancelled) return;
-        const dbPath = (data?.avatar_url as string | null) ?? null;
-        setPhotoUrl(resolveAvatarUrl(dbPath, avatarVersionRef.current));
-      });
-    return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  function setPhotoUrl(url: string | null) {
+    setLocalUrl(url);
+    // Push non-blob URLs to the global store so Sidebar/header avatars
+    // update instantly without requiring a page reload or navigation.
+    if (!url?.startsWith("blob:")) {
+      useAuth.getState().setAvatarUrl(url);
+    }
+  }
 
   function bumpVersion(): number {
     avatarVersionRef.current = Date.now();
@@ -86,7 +84,7 @@ export function useAvatarUrl(user: User | null): UseAvatarUrlReturn {
   }
 
   function buildUrl(path: string | null): string | null {
-    return resolveAvatarUrl(path, avatarVersionRef.current);
+    return resolveAvatarUrl(path, avatarVersionRef.current || undefined);
   }
 
   return { photoUrl, setPhotoUrl, bumpVersion, buildUrl };
