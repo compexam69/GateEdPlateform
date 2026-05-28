@@ -1,0 +1,255 @@
+Here’s the updated structured implementation prompt in the same checkpoint format:
+
+🟢 Checkpoint 10: Fix Persistent Profile Photo Display Across Modules
+
+Goal: Fix the issue where the uploaded profile photo disappears or fails to display after navigating to another module/page and then returning to the Profile module.
+
+Context:
+The profile photo upload system is partially working:
+
+* Users can upload/update profile pictures successfully.
+* Image cropping/compression functionality already exists.
+* Storage upload appears successful.
+
+Current issue:
+
+* After uploading a profile photo:
+
+  * The image displays correctly initially.
+  * But when navigating to another module/page and returning to the Profile module, the profile photo is missing, blank, stale, or fails to reload properly.
+* This creates inconsistent UI behavior and poor user experience.
+
+Possible causes may include:
+
+* State reset after navigation
+* Incorrect image URL persistence
+* Cache invalidation issues
+* Expired signed URLs
+* Missing database refresh
+* Incorrect Supabase Storage URL handling
+* Local state not syncing with backend data
+* Async race conditions
+* Improper profile re-fetching
+* Session/profile hydration issues
+* PWA caching behavior
+
+New Requirement:
+
+* Ensure the profile photo remains persistent and consistently visible across:
+
+  * Page refreshes
+  * Module navigation
+  * Dashboard switching
+  * PWA mode
+  * Mobile and desktop devices
+* Ensure the image always reloads correctly from the database/storage source.
+
+Instructions:
+
+1. Analyze Existing Codebase:
+
+* Review:
+
+  * Profile module
+  * Profile image upload flow
+  * Supabase Storage integration
+  * User/profile state management
+  * Authentication/session hydration
+  * Navigation/routing logic
+  * Profile fetch/re-fetch logic
+  * Image URL generation
+  * Cache handling
+  * PWA caching behavior
+* Identify:
+
+  * Why the profile photo disappears after navigation
+  * Whether image state is being reset
+  * Whether storage URLs expire or fail
+  * Whether database updates are not syncing properly
+  * Whether stale cached state exists
+
+2. Fix Persistent Profile Image Loading:
+
+* Ensure:
+
+  * Profile image URL is stored correctly in the database
+  * Latest image always loads after navigation
+  * State remains synchronized across modules
+  * Profile data rehydrates correctly after refresh/navigation
+* Prevent:
+
+  * Blank profile image
+  * Broken image URLs
+  * Stale cached image state
+  * Missing image after routing changes
+
+3. Fix Supabase Storage URL Handling:
+
+* Verify:
+
+  * Public/private bucket configuration
+  * Signed URL generation
+  * URL expiration behavior
+  * Correct storage path handling
+* Ensure:
+
+  * Image URLs remain stable and accessible
+  * Correct fallback logic exists if URL refresh is needed
+  * Old cached URLs do not override new uploads
+
+4. Improve State Management:
+
+* Refactor:
+
+  * Profile state handling
+  * User context/store synchronization
+  * Re-fetch logic after upload
+* Ensure:
+
+  * Updated image propagates globally across the app
+  * Navigation does not reset image state
+  * Session reload restores correct image instantly
+
+5. Fix Mobile & PWA Behavior:
+
+* Verify:
+
+  * Mobile browser behavior
+  * PWA standalone mode
+  * Offline/cache handling
+  * Image rendering consistency
+* Ensure:
+
+  * No disappearing images on mobile navigation
+  * No stale PWA cached profile image
+  * Smooth image rendering across devices
+
+6. Cache & Refresh Optimization:
+
+* Detect:
+
+  * Browser cache issues
+  * Stale image rendering
+  * CDN/storage caching conflicts
+* Implement:
+
+  * Proper cache invalidation/versioning
+  * Safe image refresh handling
+  * Optimized re-render behavior
+
+7. UI/UX Consistency:
+
+* Ensure:
+
+  * Profile image remains visible in:
+
+    * Profile module
+    * Dashboard headers
+    * Navigation/avatar sections
+    * Any shared user components
+* Prevent:
+
+  * Flashing placeholders
+  * Layout shifts
+  * Delayed image rendering
+
+8. Error Handling:
+
+* Implement:
+
+  * Proper fallback avatar handling
+  * Retry/re-fetch behavior if image fails
+  * Clear console/debug logging for failures
+* Ensure:
+
+  * No silent failures occur
+  * No broken image elements appear
+
+9. Security & Storage Validation:
+
+* Verify:
+
+  * Storage permissions
+  * RLS policies
+  * User ownership validation
+* Ensure:
+
+  * Users can only access their own profile image
+  * Unauthorized access is prevented
+
+10. Beginner-Friendly Explanation:
+
+* After implementation, explain:
+
+  * Why the image disappeared previously
+  * What caused the inconsistency
+  * What was fixed
+  * How profile image persistence now works
+  * How Supabase Storage URLs are managed
+  * What happens during:
+
+    * Upload
+    * Navigation
+    * Refresh
+    * Session restoration
+    * PWA mode
+
+11. Testing & Validation:
+
+* Fully test:
+
+  * Profile upload
+  * Profile update
+  * Navigation between modules
+  * Page refresh
+  * Logout/login
+  * Mobile responsiveness
+  * PWA mode
+  * Different browsers
+* Verify:
+
+  * Profile image remains visible consistently
+  * No broken/stale image appears
+  * No console/runtime/build errors occur
+
+12. Backend / Storage / Environment Changes:
+
+* Clearly explain:
+
+  * Modified files
+  * Storage configuration changes
+  * Cache handling changes
+  * State management changes
+  * Whether SQL/storage policy updates are required
+* Provide:
+
+  * Exact SQL separately if needed
+
+13. Checkpoint Requirement:
+
+* After completing and verifying the fix:
+
+  * Create a proper checkpoint/commit immediately.
+  * Ensure the profile image system is fully stable and production-ready.
+  * Provide a final implementation summary including:
+
+    * Root cause identified
+    * Files modified
+    * State management fixes
+    * Storage fixes
+    * Cache fixes
+    * Remaining limitations/issues (if any)
+
+Acceptance Criteria:
+
+* [ ] Uploaded profile photo remains visible after navigating between modules/pages.
+* [ ] Profile photo remains visible after page refresh.
+* [ ] Profile photo persists correctly after logout/login.
+* [ ] Mobile and PWA behavior remain stable.
+* [ ] No stale or broken image URLs appear.
+* [ ] State synchronization works correctly across modules.
+* [ ] No console/runtime/build errors occur.
+* [ ] Proper fallback handling exists for failed image loads.
+* [ ] Supabase Storage integration remains stable.
+* [ ] Beginner-friendly explanation is provided after implementation.
+* [ ] Checkpoint/commit is created after successful implementation and testing.
