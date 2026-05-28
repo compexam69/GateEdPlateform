@@ -24,14 +24,17 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Public URLs are permanent — no signing, no expiry, no cache needed.
 // Old B2 paths (users/<id>/profile/photo.jpg) are treated as absent so the
 // user simply re-uploads once.
-function resolveAvatarDisplayUrl(path: string | null): string | null {
+// `version` is appended as ?v=<n> to bust the browser/CDN cache after an
+// upload or delete.  Pass undefined to get the base public URL.
+function resolveAvatarDisplayUrl(path: string | null, version?: number): string | null {
   if (!path) return null;
   if (path.startsWith("blob:") || path.startsWith("http")) return path;
   // Legacy B2 path — cannot be resolved without B2 credentials in the browser
   if (path.startsWith("users/")) return null;
   // Supabase Storage path: "<userId>/photo.jpg"
   const { data } = supabase.storage.from("avatars").getPublicUrl(path);
-  return data.publicUrl ?? null;
+  if (!data.publicUrl) return null;
+  return version != null ? `${data.publicUrl}?v=${version}` : data.publicUrl;
 }
 
 interface NotifPrefs {
@@ -71,10 +74,15 @@ export default function ProfilePage() {
 
   const storedAvatarPath: string | null = user?.user_metadata?.avatar_url || null;
 
+  // Stable cache-buster ref — initialised to Date.now() on each mount so
+  // revisiting the page always fetches the latest image from the origin
+  // (bypasses stale browser / CDN cache).  Bumped after each upload or delete.
+  const avatarVersionRef = useRef<number>(Date.now());
+
   // Supabase Storage public URLs are permanent and resolve synchronously.
-  // No cache layer needed — getPublicUrl() is a pure string transform.
+  // We append ?v=<version> to bust the browser cache after mutations.
   const [photoUrl, setPhotoUrl] = useState<string | null>(() =>
-    resolveAvatarDisplayUrl(storedAvatarPath)
+    resolveAvatarDisplayUrl(storedAvatarPath, avatarVersionRef.current)
   );
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -258,11 +266,35 @@ export default function ProfilePage() {
     return () => document.removeEventListener("keydown", onKey);
   }, [photoViewerOpen]);
 
-  // Keep photoUrl in sync when the auth metadata changes (e.g. after upload
-  // or delete the JWT refreshes and storedAvatarPath changes).
+  // Keep photoUrl in sync when the auth store's user_metadata changes
+  // (e.g. after the USER_UPDATED event propagates the new avatar_url into the
+  // Zustand store).  We read avatarVersionRef via the ref — intentionally not
+  // listed in deps — so this effect only fires when storedAvatarPath changes,
+  // not on every version bump (which we handle directly in the mutation paths).
   useEffect(() => {
-    setPhotoUrl(resolveAvatarDisplayUrl(storedAvatarPath));
+    setPhotoUrl(resolveAvatarDisplayUrl(storedAvatarPath, avatarVersionRef.current));
   }, [storedAvatarPath]);
+
+  // Belt-and-suspenders: fetch avatar_url from the profiles table on mount.
+  // This covers the case where the Supabase session was restored from a cached
+  // JWT whose user_metadata is stale (e.g. hard page refresh before the token
+  // rotated after the last upload).  The profiles table is always authoritative.
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    supabase
+      .from("profiles")
+      .select("avatar_url")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+        const dbPath = (data?.avatar_url as string | null) ?? null;
+        setPhotoUrl(resolveAvatarDisplayUrl(dbPath, avatarVersionRef.current));
+      });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const rawPrefs = user?.user_metadata?.notification_prefs;
   const [notifPrefs, setNotifPrefs] = useState<NotifPrefs>({
@@ -384,10 +416,18 @@ export default function ProfilePage() {
       // Persist the Supabase Storage path in the profile table and JWT metadata
       await supabase.from("profiles").update({ avatar_url: storagePath }).eq("id", user!.id);
       await supabase.auth.updateUser({ data: { avatar_url: storagePath } });
+      // Transition from the temporary blob URL to the permanent Storage URL.
+      // Bump the cache-buster so the browser doesn't serve the old cached photo.
+      avatarVersionRef.current = Date.now();
+      URL.revokeObjectURL(blobUrl);
+      const { data: publicData } = supabase.storage.from("avatars").getPublicUrl(storagePath);
+      if (publicData.publicUrl) {
+        setPhotoUrl(`${publicData.publicUrl}?v=${avatarVersionRef.current}`);
+      }
       toast({ title: "Photo updated!" });
     } catch (err: unknown) {
       // On failure, revert to the previous URL (or null)
-      setPhotoUrl(resolveAvatarDisplayUrl(storedAvatarPath));
+      setPhotoUrl(resolveAvatarDisplayUrl(storedAvatarPath, avatarVersionRef.current));
       URL.revokeObjectURL(blobUrl);
       toast({ title: "Upload failed", description: (err as Error).message, variant: "destructive" });
     } finally {
@@ -397,6 +437,7 @@ export default function ProfilePage() {
 
   async function handleRemovePhoto() {
     setPhotoUrl(null);
+    avatarVersionRef.current = Date.now();
     try {
       // Remove from Supabase Storage bucket
       if (storedAvatarPath && !storedAvatarPath.startsWith("users/")) {

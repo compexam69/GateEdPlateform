@@ -92,6 +92,15 @@ supabase.auth.onAuthStateChange((event, session) => {
     return
   }
 
+  // USER_UPDATED fires whenever user_metadata changes (avatar upload, name
+  // edit, notification prefs, etc.).  Only the user object needs patching —
+  // role and is_approved live in the profiles table and haven't changed, so
+  // we skip the extra DB round-trip that setAuth() would trigger.
+  if (event === 'USER_UPDATED' && session?.user) {
+    useAuth.setState({ user: session.user })
+    return
+  }
+
   // If this session is already in the store (e.g. signIn() already called
   // setAuth), skip to avoid a double profile-fetch / loading flicker.
   const current = useAuth.getState().session
