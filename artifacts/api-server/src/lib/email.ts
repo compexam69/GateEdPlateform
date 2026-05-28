@@ -2,6 +2,7 @@ import { Resend } from "resend";
 
 const RESEND_API_KEY = process.env["RESEND_API_KEY"];
 const FROM_ADDRESS = process.env["RESEND_FROM"] ?? "EdTech Platform <noreply@yourdomain.com>";
+const APP_URL = process.env["APP_URL"] ?? "https://yourdomain.com";
 
 let resend: Resend | null = null;
 
@@ -52,6 +53,11 @@ function baseTemplate(title: string, body: string): string {
 </html>`;
 }
 
+/**
+ * Sent automatically right after account creation.
+ * Tells the user their account exists and is pending admin approval,
+ * and reminds them to verify their email first.
+ */
 export async function sendWelcomeEmail(to: string, name: string): Promise<void> {
   const client = getClient();
   if (!client) {
@@ -60,20 +66,25 @@ export async function sendWelcomeEmail(to: string, name: string): Promise<void> 
   }
   const body = `
     <p class="lead">Welcome, ${name}!</p>
-    <p>Your account has been created. Before you can access the platform, an admin needs to approve your registration. This usually takes less than 24 hours.</p>
-    <p>Once approved, you'll receive a confirmation email and can sign in at:</p>
-    <a class="btn" href="${process.env["APP_URL"] ?? "https://yourdomain.com"}/login">Sign In to EdTech</a>
+    <p>Your account has been created successfully. There are two quick steps before you can start learning:</p>
+    <p><strong>Step 1:</strong> Verify your email — check your inbox for a separate verification email and click the link inside.</p>
+    <p><strong>Step 2:</strong> Wait for admin approval — once your email is verified, an admin will review and approve your account. This usually takes less than 24 hours.</p>
+    <p>Once approved, you will receive a confirmation email and can sign in at:</p>
+    <a class="btn" href="${APP_URL}/login">Sign In to EdTech</a>
     <hr class="divider" />
-    <p>In the meantime, make sure you've verified your email address by clicking the link in the separate verification email we sent you.</p>
+    <p>If you did not create this account, you can safely ignore this email.</p>
   `;
   await client.emails.send({
     from: FROM_ADDRESS,
     to,
-    subject: "Welcome to EdTech Study Platform — Pending Approval",
+    subject: "Welcome to EdTech Study Platform — Account Created",
     html: baseTemplate("Welcome to EdTech", body),
   });
 }
 
+/**
+ * Sent when an admin approves a student's account.
+ */
 export async function sendApprovalEmail(to: string, name: string): Promise<void> {
   const client = getClient();
   if (!client) {
@@ -83,7 +94,7 @@ export async function sendApprovalEmail(to: string, name: string): Promise<void>
   const body = `
     <p class="lead">Great news, ${name}! Your account has been approved.</p>
     <p>You now have full access to the EdTech Study Platform. Start your mastery journey with structured, gated learning for JEE, NEET, and GATE.</p>
-    <a class="btn" href="${process.env["APP_URL"] ?? "https://yourdomain.com"}/login">Start Learning Now</a>
+    <a class="btn" href="${APP_URL}/login">Start Learning Now</a>
     <hr class="divider" />
     <p>What you can do now:</p>
     <p>• Follow your personalized mastery learning path<br/>
@@ -99,27 +110,9 @@ export async function sendApprovalEmail(to: string, name: string): Promise<void>
   });
 }
 
-export async function sendPasswordResetEmail(to: string, name: string, resetLink: string): Promise<void> {
-  const client = getClient();
-  if (!client) {
-    console.warn("[email] RESEND_API_KEY not set — password reset email skipped");
-    return;
-  }
-  const body = `
-    <p class="lead">Hi ${name}, here is your password reset link.</p>
-    <p>We received a request to reset the password for your EdTech account. Click the button below to set a new password. This link expires in 1 hour.</p>
-    <a class="btn" href="${resetLink}">Reset My Password</a>
-    <hr class="divider" />
-    <p>If you did not request a password reset, you can safely ignore this email. Your password will not change unless you click the link above.</p>
-  `;
-  await client.emails.send({
-    from: FROM_ADDRESS,
-    to,
-    subject: "EdTech — Reset Your Password",
-    html: baseTemplate("Password Reset", body),
-  });
-}
-
+/**
+ * Sent to all admins when B2 storage exceeds the configured threshold.
+ */
 export async function sendStorageAlertEmail(to: string, usedGb: number, limitGb: number): Promise<void> {
   const client = getClient();
   if (!client) return;
@@ -127,7 +120,7 @@ export async function sendStorageAlertEmail(to: string, usedGb: number, limitGb:
   const body = `
     <p class="lead">Storage Alert: ${pct}% used (${usedGb.toFixed(2)} GB / ${limitGb} GB)</p>
     <p>The platform's Backblaze B2 storage is running low. Immediate action may be required to prevent upload failures for students.</p>
-    <a class="btn" href="${process.env["APP_URL"] ?? "https://yourdomain.com"}/admin">Open Admin Panel</a>
+    <a class="btn" href="${APP_URL}/admin">Open Admin Panel</a>
   `;
   await client.emails.send({
     from: FROM_ADDRESS,

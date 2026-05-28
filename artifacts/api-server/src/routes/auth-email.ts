@@ -6,25 +6,6 @@ import { checkRateLimitDb } from "../middlewares/rateLimitDb";
 
 const router = Router();
 
-// ── Welcome email ─────────────────────────────────────────────────────────────
-router.post("/auth/welcome", requireAuth, async (req: AuthRequest, res) => {
-  const userId = req.user!.id;
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name, email")
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (!profile) {
-    res.status(404).json({ error: "Profile not found" });
-    return;
-  }
-
-  await sendWelcomeEmail(profile.email, profile.full_name ?? "Student");
-  res.json({ message: "Welcome email sent" });
-});
-
 // ── Resend verification email (max 3/hour per email) ─────────────────────────
 router.post("/auth/verify-email", async (req, res) => {
   const { email } = req.body as { email?: string };
@@ -82,18 +63,19 @@ router.post("/auth/register", async (req, res) => {
   }
 
   const normalizedEmail = email.toLowerCase().trim();
+  const normalizedName = full_name.trim();
 
   const { data, error } = await supabase.auth.admin.createUser({
     email: normalizedEmail,
     password,
     user_metadata: {
-      full_name: full_name.trim(),
+      full_name: normalizedName,
       mobile_number: mobile_number ?? null,
       role: "student",
     },
     // email_confirm: false means the user starts unverified.
     // admin.createUser() intentionally does NOT send any emails —
-    // we must trigger the verification email ourselves below.
+    // we must trigger both emails ourselves below.
     email_confirm: false,
   });
 
@@ -102,9 +84,9 @@ router.post("/auth/register", async (req, res) => {
     return;
   }
 
-  // ── Send the verification email ──────────────────────────────────────────
+  // ── 1. Supabase verification email ─────────────────────────────────────────
   // admin.createUser() never sends emails. We call auth.resend() immediately
-  // after creation to dispatch exactly ONE verification email.
+  // after creation to dispatch exactly ONE verification email via Supabase.
   // This call is outside the rate-limiter, so it does NOT consume the
   // user's 3/hour manual-resend quota.
   let emailSent = false;
@@ -120,6 +102,15 @@ router.post("/auth/register", async (req, res) => {
     }
   } catch (e) {
     console.warn("[auth/register] verification email exception:", e);
+  }
+
+  // ── 2. Resend welcome / pending-approval email ─────────────────────────────
+  // Sends a styled "account created, pending approval" notification via Resend.
+  // Best-effort — silently skipped if RESEND_API_KEY is not configured.
+  try {
+    await sendWelcomeEmail(normalizedEmail, normalizedName);
+  } catch (e) {
+    console.warn("[auth/register] welcome email exception:", e);
   }
 
   res.status(201).json({
