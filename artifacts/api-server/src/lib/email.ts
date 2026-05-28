@@ -4,6 +4,48 @@ const RESEND_API_KEY = process.env["RESEND_API_KEY"];
 const FROM_ADDRESS = process.env["RESEND_FROM"] ?? "EdTech Platform <noreply@yourdomain.com>";
 const APP_URL = process.env["APP_URL"] ?? "https://yourdomain.com";
 
+// ── Startup configuration log ─────────────────────────────────────────────────
+// Runs once when the module is first imported (server boot).
+// Lets developers see the exact email capability state in the server logs
+// without having to inspect secrets manually.
+(function logEmailConfig() {
+  const hasKey = !!RESEND_API_KEY;
+  const hasFrom = !!process.env["RESEND_FROM"];
+  const hasAppUrl = !!process.env["APP_URL"];
+  const fromIsPlaceholder = FROM_ADDRESS.includes("yourdomain.com");
+  const urlIsPlaceholder = APP_URL.includes("yourdomain.com");
+
+  if (!hasKey) {
+    console.warn(
+      "[email] RESEND_API_KEY not set — welcome/approval/storage-alert emails are DISABLED. " +
+      "Supabase handles verification and password-reset emails independently."
+    );
+    return;
+  }
+
+  const warnings: string[] = [];
+  if (!hasFrom || fromIsPlaceholder) {
+    warnings.push(
+      "RESEND_FROM not set or uses placeholder 'yourdomain.com' — " +
+      "Resend will reject outbound emails until a verified sender domain is configured. " +
+      "Set RESEND_FROM to e.g. 'EdTech <noreply@yourdomain.com>' with a domain verified in resend.com/domains."
+    );
+  }
+  if (!hasAppUrl || urlIsPlaceholder) {
+    warnings.push(
+      "APP_URL not set — email buttons link to placeholder 'yourdomain.com'. " +
+      "Set APP_URL to your Replit dev URL (e.g. https://xxxx.replit.dev) or production domain."
+    );
+  }
+
+  if (warnings.length === 0) {
+    console.info("[email] Resend configured — welcome/approval/storage-alert emails ACTIVE");
+  } else {
+    console.warn("[email] Resend API key present but partially misconfigured:");
+    warnings.forEach(w => console.warn(`  • ${w}`));
+  }
+})();
+
 let resend: Resend | null = null;
 
 function getClient(): Resend | null {

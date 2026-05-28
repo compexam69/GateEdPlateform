@@ -1,0 +1,304 @@
+🟢 Checkpoint Investigation: Verify Whether Resend Service Is Actually Required or Whether Supabase Alone Can Replace It (Without Custom Domain / Testing-Ready Setup)
+
+Goal: Analyze the entire existing codebase, authentication system, and email architecture to determine whether the Resend email service is truly required, or whether Supabase built-in email functionality alone can fully replace it during the current development/testing stage without a permanent custom domain.
+
+Context: The project currently uses:
+
+* Supabase built-in authentication and email verification
+* Possible Resend integration for custom transactional emails
+
+Current situation:
+
+* No permanent/custom production domain exists yet.
+* A temporary/personal domain is currently being used only for testing.
+* Supabase email verification appears to work correctly.
+* Some custom email features may currently use Resend API.
+
+Existing Resend-related implementations possibly include:
+
+* “Welcome — account pending approval”
+
+  * sendWelcomeEmail() → Resend API
+* “Your account has been approved”
+
+  * sendApprovalEmail() → Resend API
+* “B2 storage threshold alert”
+
+  * sendStorageAlertEmail() → Resend API
+
+Problem:
+
+* It is unclear whether Resend is truly necessary right now.
+* It is unclear whether Supabase alone can replace the current email system during development/testing.
+* It is unclear which features will fail without:
+
+  * Custom domain
+  * Resend service
+  * External SMTP/email provider
+
+New Requirement:
+
+* Fully analyze the entire existing codebase and email architecture.
+* Determine whether Supabase alone can replace Resend during the current testing/development stage.
+* Verify whether the project can function correctly WITHOUT:
+
+  * Resend
+  * Custom domain
+  * External email provider
+* Explain which features truly require Resend and which can rely entirely on Supabase.
+
+Instructions:
+
+1. Analyze Entire Email & Authentication Architecture:
+
+* Review:
+
+  * Registration/signup flow
+  * Email verification flow
+  * Resend verification flow
+  * Password reset flow
+  * Pending approval email flow
+  * Approval confirmation email flow
+  * Storage alert email flow
+  * Backend/serverless email functions
+  * Environment variables
+  * Email utility/helper files
+  * Existing API integrations
+  * Supabase auth configuration
+* Identify:
+
+  * Which emails are sent by Supabase
+  * Which emails are sent by Resend
+  * Whether duplicate email systems exist
+  * Whether some flows are partially implemented
+
+2. Verify Whether Supabase Alone Can Replace Resend:
+
+* Determine whether Supabase can fully handle:
+
+  * Signup verification emails
+  * Resend verification emails
+  * Password reset emails
+  * Welcome emails
+  * Approval emails
+  * Notification emails
+* Clearly explain:
+
+  * Which features Supabase supports natively
+  * Which features require external email providers
+  * Whether Supabase alone is enough during testing/development
+
+3. Analyze Existing Resend Integration:
+
+* Check for:
+
+  * Resend SDK/packages
+  * Resend API calls
+  * sendWelcomeEmail()
+  * sendApprovalEmail()
+  * sendStorageAlertEmail()
+  * Resend environment variables
+  * Email templates
+  * Custom SMTP/provider logic
+* Determine:
+
+  * Whether these implementations are fully functional
+  * Whether they currently fail because no permanent domain exists
+  * Whether they are actually triggered anywhere in the codebase
+  * Whether they are production-ready or incomplete
+
+4. Verify Custom Domain Dependency:
+
+* Analyze whether current Resend implementations require:
+
+  * Verified custom domain
+  * DNS records
+  * SPF/DKIM setup
+  * Production sender identity
+* Determine:
+
+  * Whether temporary/personal domain testing is sufficient
+  * Whether Resend works correctly without production domain setup
+  * Which features break without verified domain configuration
+
+5. Determine Whether Resend Is Necessary Right Now:
+
+* Clearly explain:
+
+  * Whether Resend is required during testing/development
+  * Whether Supabase alone can replace it temporarily
+  * Whether Resend should only be added later for production
+  * Whether the current project architecture is overcomplicated unnecessarily
+* Compare:
+
+  * Supabase-only setup
+  * Supabase + Resend setup
+  * Complexity
+  * Reliability
+  * Maintenance overhead
+  * Free-tier limitations
+  * Scalability
+
+6. Test Existing Email Flows:
+
+* Verify functionality for:
+
+  * Signup verification email
+  * Resend verification email
+  * Password reset email
+  * Welcome pending-approval email
+  * Approval confirmation email
+  * B2 storage alert email
+* Check:
+
+  * Which service actually sends each email
+  * Whether delivery succeeds
+  * Whether delivery silently fails
+  * Whether any logs/errors exist
+  * Whether duplicate email sending occurs
+
+7. Identify Redundant or Unused Email Code:
+
+* Detect:
+
+  * Dead Resend code
+  * Duplicate email logic
+  * Unused serverless functions
+  * Redundant environment variables
+  * Incomplete integrations
+  * Unused email utilities/helpers
+* Recommend:
+
+  * Safe cleanup/removal if unnecessary
+
+8. Security & Configuration Review:
+
+* Verify:
+
+  * Environment variables are secure
+  * API keys are not exposed
+  * Redirect/callback URLs are configured correctly
+  * Email sender configuration is valid
+* Check:
+
+  * Whether Resend introduces unnecessary configuration complexity currently
+
+9. Beginner-Friendly Explanation:
+
+* After analysis, clearly explain:
+
+  * How Supabase built-in email verification works
+  * What Resend service normally does
+  * Which emails Supabase can handle directly
+  * Which emails require external transactional email services
+  * What happens without a custom domain
+  * Whether Supabase can temporarily replace Resend
+  * Which setup is best during testing/development
+  * What happens in different scenarios:
+
+    * No custom domain
+    * Temporary domain testing
+    * Production deployment
+    * Resend failure
+    * Supabase-only architecture
+    * Future scaling requirements
+
+10. Final Recommendation:
+
+* Clearly provide:
+
+  * Whether Resend should:
+
+    * Be kept now
+    * Be removed temporarily
+    * Be disabled until production
+    * Be replaced fully by Supabase
+    * Be used only for specific emails later
+* Explain:
+
+  * Benefits
+  * Risks
+  * Recommended architecture
+  * Migration considerations
+  * Best approach for current project stage
+
+11. Optional Cleanup / Refactor:
+
+* If Resend is unnecessary currently:
+
+  * Optionally remove or disable:
+
+    * Unused packages
+    * Dead API logic
+    * Environment variables
+    * Broken integrations
+* Ensure:
+
+  * Existing auth/email flows remain stable
+  * Future Resend integration can still be added later safely
+
+12. Testing & Validation:
+
+* Test:
+
+  * Signup verification email
+  * Resend verification flow
+  * Password reset email
+  * Welcome email
+  * Approval email
+  * Storage alert email
+  * Mobile responsiveness
+  * PWA mode
+* Verify:
+
+  * Which service sends each email
+  * Existing flows remain operational
+  * No duplicate/conflicting email systems exist
+  * No console/runtime errors occur
+
+13. Backend / Environment / Deployment Changes:
+
+* If any:
+
+  * Auth configuration updates
+  * SMTP/provider updates
+  * Domain verification changes
+  * Environment variable cleanup
+  * Package removals
+  * Serverless function updates
+    are required:
+  * Clearly explain every required step.
+  * Mention exactly where changes must be applied.
+  * Mention whether redeployment/rebuild is required.
+
+14. Checkpoint Requirement:
+
+* After completing the analysis and/or cleanup:
+
+  * Create a proper checkpoint/commit immediately.
+  * Ensure the authentication/email architecture remains stable and testing-ready.
+  * Provide a final implementation/analysis summary including:
+
+    * Files analyzed
+    * Resend-related implementations found
+    * Supabase auth findings
+    * Domain dependency findings
+    * Whether Supabase can replace Resend
+    * Cleanup/refactor performed (if any)
+    * Final recommendation
+    * Remaining limitations/issues (if any)
+
+Acceptance Criteria:
+
+* [ ] Entire authentication/email architecture is fully analyzed.
+* [ ] It is clearly identified whether Resend is actually required currently.
+* [ ] It is clearly identified whether Supabase alone can replace Resend during testing/development.
+* [ ] It is verified whether the project can function without a custom domain currently.
+* [ ] Existing Resend implementations are tested and validated.
+* [ ] It is clearly identified which emails are sent by Supabase vs Resend.
+* [ ] Any redundant/unused Resend-related code is identified.
+* [ ] Existing email flows remain operational.
+* [ ] Beginner-friendly explanation is provided.
+* [ ] No duplicate/conflicting email systems remain.
+* [ ] No console/runtime errors occur after analysis/cleanup.
+* [ ] Checkpoint/commit is created after successful verification and testing.
