@@ -99,8 +99,13 @@ export function NotificationBell() {
   function handleToggle() {
     const next = !open;
     setOpen(next);
-    // Refresh from API when the panel opens so the list is never stale
-    if (next) refresh();
+    if (next) {
+      // Refresh from API when the panel opens so the list is never stale
+      refresh();
+      // Opening the panel means the student has seen all notifications —
+      // mark everything as read immediately so the badge clears.
+      if (unreadCount > 0) markAllRead();
+    }
   }
 
   return (
