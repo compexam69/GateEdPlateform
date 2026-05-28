@@ -67,7 +67,7 @@ export default function AdminAnalyticsPage() {
   const maxClicks = Math.max(1, ...lectureCtr.map(r => r.total_clicks));
 
   return (
-    <AppLayout requireAdmin>
+    <AppLayout>
       <div className="space-y-6">
         <AdminBreadcrumb pageName="Platform Analytics" />
         <div>

@@ -105,7 +105,7 @@ export default function AdminGatePage() {
   }
 
   return (
-    <AppLayout requireAdmin>
+    <AppLayout>
       <div className="space-y-6 max-w-2xl mx-auto">
         <AdminBreadcrumb pageName="Gate Configuration" />
         <div className="flex items-center justify-between flex-wrap gap-3">

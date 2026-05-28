@@ -13,10 +13,3 @@
  * any future email provider needs to be plugged in here.
  */
 
-(function logEmailConfig() {
-  console.info(
-    "[email] Supabase-only architecture active — " +
-    "verification and password-reset emails are sent by Supabase. " +
-    "Welcome/approval/storage-alert notifications use in-app + push delivery."
-  );
-})();

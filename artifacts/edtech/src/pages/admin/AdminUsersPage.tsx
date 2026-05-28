@@ -578,7 +578,7 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <AppLayout requireAdmin>
+    <AppLayout>
       <div className="space-y-6">
         <AdminBreadcrumb pageName="User Management" />
         {/* Header */}

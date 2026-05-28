@@ -2,6 +2,7 @@ import { Router } from "express";
 import { supabase } from "../lib/supabase";
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth";
 import { checkRateLimitDb } from "../middlewares/rateLimitDb";
+import { logger } from "../lib/logger";
 
 const router = Router();
 
@@ -150,7 +151,7 @@ router.post("/exam/submit", requireAuth, async (req: AuthRequest, res) => {
       await handleSubjectQuizProgress(userId, subjectId, quizType, passed);
     }
   } catch (cascadeErr) {
-    console.error("Progress cascade error:", cascadeErr);
+    logger.error({ err: cascadeErr }, "Progress cascade error");
   }
 
   res.json({

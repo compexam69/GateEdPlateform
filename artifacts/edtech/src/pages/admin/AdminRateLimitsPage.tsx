@@ -86,7 +86,7 @@ export default function AdminRateLimitsPage() {
   const lastUpdated = dataUpdatedAt ? new Date(dataUpdatedAt).toLocaleTimeString() : "—";
 
   return (
-    <AppLayout requireAdmin>
+    <AppLayout>
       <div className="space-y-6">
         <AdminBreadcrumb pageName="Rate Limit Monitor" />
         <div className="flex items-start justify-between gap-4">

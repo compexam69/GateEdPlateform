@@ -151,11 +151,6 @@ router.post(
   },
 );
 
-// Kept for reference — superseded by /b2/notes-upload (proxy)
-router.post("/b2/upload-url", requireAuth, async (req: AuthRequest, res) => {
-  res.status(410).json({ error: "This endpoint is no longer used. PDF uploads now go through /b2/notes-upload." });
-});
-
 router.post("/b2/download-url", requireAuth, async (req: AuthRequest, res) => {
   const { storage_path } = req.body as { storage_path: string };
   const userId = req.user!.id;

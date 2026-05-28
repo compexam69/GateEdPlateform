@@ -92,7 +92,7 @@ export default function AdminQuizzesPage() {
   }
 
   return (
-    <AppLayout requireAdmin>
+    <AppLayout>
       <div className="space-y-6">
         <AdminBreadcrumb pageName="Quiz & Question Editor" />
         <div className="flex items-start justify-between flex-wrap gap-3">

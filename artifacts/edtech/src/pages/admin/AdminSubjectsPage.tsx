@@ -45,6 +45,7 @@ function validateTelegramLink(v: string): string | undefined {
   } catch {
     return 'Must be a valid URL starting with https://t.me/';
   }
+  return undefined;
 }
 
 // ── Page component ─────────────────────────────────────────────────────────────
@@ -149,7 +150,7 @@ export default function AdminSubjectsPage() {
   const hasErrors = !!linkError;
 
   return (
-    <AppLayout requireAdmin>
+    <AppLayout>
       <div className="space-y-6">
         <AdminBreadcrumb pageName="Content Editor" />
         <div className="flex items-start justify-between flex-wrap gap-3">

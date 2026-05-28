@@ -3,7 +3,7 @@ import { Sidebar } from "./Sidebar";
 import { BottomNav } from "./BottomNav";
 import { PomodoroWidget } from "@/components/PomodoroWidget";
 
-export function AppLayout({ children }: { children: ReactNode; requireAdmin?: boolean }) {
+export function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex h-[100dvh] w-full overflow-hidden bg-background text-foreground">
       <div className="hidden md:flex">

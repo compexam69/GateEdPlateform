@@ -8,13 +8,16 @@ if (!supabaseUrl || !supabaseServiceKey) {
   throw new Error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set");
 }
 
+// Node.js 20 does not have native WebSocket — ws must be supplied as the
+// realtime transport so the Supabase client can initialise without crashing,
+// even though this server never opens any realtime subscriptions.
 export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false,
   },
   realtime: {
-    transport: ws,
+    transport: ws as unknown as typeof globalThis.WebSocket,
   },
 });
 

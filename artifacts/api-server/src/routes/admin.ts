@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { supabase } from "../lib/supabase";
 import { requireAdmin, type AuthRequest } from "../middlewares/auth";
-import { sendPushToUser, sendPushToAll } from "../lib/push";
+import { sendPushToUser } from "../lib/push";
 
 const router = Router();
 
