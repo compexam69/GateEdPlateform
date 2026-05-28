@@ -1,8 +1,9 @@
-import { ReactNode, useEffect } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { Sidebar } from "./Sidebar";
 import { BottomNav } from "./BottomNav";
 import { MobileHeader } from "./MobileHeader";
+import { MobileDrawer } from "./MobileDrawer";
 import { PomodoroWidget } from "@/components/PomodoroWidget";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotificationStore } from "@/store/notificationStore";
@@ -43,8 +44,9 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [location] = useLocation();
   const { unreadCount } = useNotificationStore();
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // One realtime notification channel for the entire authenticated session.
+  // ── Notification channel ────────────────────────────────────────────────
   useEffect(() => {
     const store = useNotificationStore.getState();
     if (user?.id) {
@@ -54,7 +56,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
     }
   }, [user?.id]);
 
-  // Keep browser tab title in sync with current page + unread badge.
+  // ── Tab title ───────────────────────────────────────────────────────────
   useEffect(() => {
     const label = pageLabel(location);
     const badge = unreadCount > 0
@@ -64,6 +66,33 @@ export function AppLayout({ children }: { children: ReactNode }) {
     return () => { document.title = DEFAULT_TITLE; };
   }, [location, unreadCount]);
 
+  // ── Left-edge swipe-to-open gesture ────────────────────────────────────
+  // Detects a finger starting within 20px of the left edge and dragging
+  // at least 60px to the right — opens the drawer without blocking scrolling.
+  const swipeStartX = useRef(0);
+  const swipeStartY = useRef(0);
+
+  useEffect(() => {
+    function onTouchStart(e: TouchEvent) {
+      swipeStartX.current = e.touches[0].clientX;
+      swipeStartY.current = e.touches[0].clientY;
+    }
+    function onTouchEnd(e: TouchEvent) {
+      const dx = e.changedTouches[0].clientX - swipeStartX.current;
+      const dy = Math.abs(e.changedTouches[0].clientY - swipeStartY.current);
+      // Only fire when swipe starts from left edge AND moves right more than down
+      if (swipeStartX.current <= 20 && dx >= 60 && dy < dx) {
+        setDrawerOpen(true);
+      }
+    }
+    document.addEventListener("touchstart", onTouchStart, { passive: true });
+    document.addEventListener("touchend", onTouchEnd, { passive: true });
+    return () => {
+      document.removeEventListener("touchstart", onTouchStart);
+      document.removeEventListener("touchend", onTouchEnd);
+    };
+  }, []);
+
   return (
     <div className="flex h-[100dvh] w-full overflow-hidden bg-background text-foreground">
 
@@ -72,13 +101,14 @@ export function AppLayout({ children }: { children: ReactNode }) {
         <Sidebar />
       </div>
 
-      {/* Mobile top header — hidden on desktop */}
-      <MobileHeader />
+      {/* Mobile top header + slide-out drawer — hidden on desktop */}
+      <MobileHeader onMenuClick={() => setDrawerOpen(true)} />
+      <MobileDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
 
       {/* Main content
-          • pt-14 on mobile to clear the fixed MobileHeader (56px = 14 * 4px)
-          • pb-20 on mobile to clear the fixed BottomNav (80px ≈ 20 * 4px)
-          • No extra padding on desktop (sidebar/header handled by flex layout) */}
+          • pt-14 on mobile to clear the fixed MobileHeader (56px)
+          • pb-20 on mobile to clear the fixed BottomNav (80px)
+          • Desktop padding handled by flex sidebar layout */}
       <main className="flex-1 overflow-y-auto pt-14 pb-20 md:pt-0 md:pb-0">
         <div className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-8">
           {children}
