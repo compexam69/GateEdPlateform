@@ -3,61 +3,12 @@ import { BookOpen, Home, Settings, Timer, CheckSquare, LineChart, FileText, Shie
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { NotificationBell } from "@/components/NotificationBell";
-import { useState, useEffect, useRef } from "react";
-import { supabase } from "@/lib/supabase";
-
-// Converts a Supabase Storage path ("<userId>/photo.jpg") to a public URL.
-// Returns null for legacy B2 paths, blobs, or missing values.
-// The optional `version` param is appended as ?v=<n> to bust the browser cache.
-function resolveAvatarUrl(path: string | null, version?: number): string | null {
-  if (!path) return null;
-  if (path.startsWith("blob:") || path.startsWith("http")) return path;
-  if (path.startsWith("users/")) return null; // legacy B2 path — not resolvable in browser
-  const { data } = supabase.storage.from("avatars").getPublicUrl(path);
-  if (!data.publicUrl) return null;
-  return version != null ? `${data.publicUrl}?v=${version}` : data.publicUrl;
-}
+import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 
 export function Sidebar() {
   const [location] = useLocation();
   const { role, user } = useAuth();
-
-  // ── Avatar URL resolution (mirrors ProfilePage logic) ────────────────────
-  const storedAvatarPath: string | null = user?.user_metadata?.avatar_url || null;
-
-  // Initialised to Date.now() on each mount so revisiting always fetches the
-  // latest image (bypasses stale browser cache).
-  const avatarVersionRef = useRef<number>(Date.now());
-
-  const [photoUrl, setPhotoUrl] = useState<string | null>(() =>
-    resolveAvatarUrl(storedAvatarPath, avatarVersionRef.current)
-  );
-
-  // Sync when the auth store's user_metadata updates (USER_UPDATED event).
-  // avatarVersionRef is read via ref intentionally — not listed in deps.
-  useEffect(() => {
-    setPhotoUrl(resolveAvatarUrl(storedAvatarPath, avatarVersionRef.current));
-  }, [storedAvatarPath]);
-
-  // Belt-and-suspenders: fetch from the profiles table on mount so the photo
-  // shows even when the JWT metadata is stale after a hard reload.
-  useEffect(() => {
-    if (!user?.id) return;
-    let cancelled = false;
-    supabase
-      .from("profiles")
-      .select("avatar_url")
-      .eq("id", user.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (cancelled) return;
-        const dbPath = (data?.avatar_url as string | null) ?? null;
-        setPhotoUrl(resolveAvatarUrl(dbPath, avatarVersionRef.current));
-      });
-    return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
-  // ─────────────────────────────────────────────────────────────────────────
+  const { photoUrl, setPhotoUrl } = useAvatarUrl(user);
 
   const links = [
     { href: "/dashboard", label: "Dashboard", icon: Home },
