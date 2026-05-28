@@ -13,33 +13,25 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { PhotoCropModal } from "@/components/PhotoCropModal";
 
-import { getApiBase, apiFetch } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 
 const MOBILE_REGEX = /^(\+91)[\s-]?[6-9]\d{9}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// ── Module-level photo URL cache ───────────────────────────────────────────
-// Lives outside the component so it survives route unmount/remount cycles.
-// Key: `${userId}__${storagePath}`.  Value: { url, fetchedAt }.
-// TTL is 30 min — well within B2 signed-URL validity (~1 h).
-// Cache is pre-populated on upload and cleared on delete so it never
-// serves stale data after a photo mutation.
-interface PhotoCacheEntry { url: string; fetchedAt: number }
-const photoUrlCache = new Map<string, PhotoCacheEntry>();
-const PHOTO_URL_TTL_MS = 30 * 60 * 1000;
-
-function getCacheKey(userId: string, path: string) {
-  return `${userId}__${path}`;
-}
-function readCache(userId: string | undefined, path: string | null): string | null {
-  if (!userId || !path || path.startsWith("blob:") || path.startsWith("http")) return null;
-  const entry = photoUrlCache.get(getCacheKey(userId, path));
-  if (!entry) return null;
-  if (Date.now() - entry.fetchedAt > PHOTO_URL_TTL_MS) {
-    photoUrlCache.delete(getCacheKey(userId, path));
-    return null;
-  }
-  return entry.url;
+// ── Supabase Storage avatar helper ─────────────────────────────────────────
+// Profile photos now live in Supabase Storage ("avatars" bucket, public).
+// avatar_url in the profile holds the storage path: "<userId>/photo.jpg".
+// Public URLs are permanent — no signing, no expiry, no cache needed.
+// Old B2 paths (users/<id>/profile/photo.jpg) are treated as absent so the
+// user simply re-uploads once.
+function resolveAvatarDisplayUrl(path: string | null): string | null {
+  if (!path) return null;
+  if (path.startsWith("blob:") || path.startsWith("http")) return path;
+  // Legacy B2 path — cannot be resolved without B2 credentials in the browser
+  if (path.startsWith("users/")) return null;
+  // Supabase Storage path: "<userId>/photo.jpg"
+  const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+  return data.publicUrl ?? null;
 }
 
 interface NotifPrefs {
@@ -79,17 +71,11 @@ export default function ProfilePage() {
 
   const storedAvatarPath: string | null = user?.user_metadata?.avatar_url || null;
 
-  // Initialize from cache synchronously so returning to the Profile page
-  // shows the photo immediately — no loading flash, no network request.
-  const [photoUrl, setPhotoUrl] = useState<string | null>(() => {
-    if (!storedAvatarPath) return null;
-    // If it's already a blob or full URL (e.g. after a fresh upload in the
-    // same session), use it directly without touching the cache.
-    if (storedAvatarPath.startsWith("blob:") || storedAvatarPath.startsWith("http")) {
-      return storedAvatarPath;
-    }
-    return readCache(user?.id, storedAvatarPath);
-  });
+  // Supabase Storage public URLs are permanent and resolve synchronously.
+  // No cache layer needed — getPublicUrl() is a pure string transform.
+  const [photoUrl, setPhotoUrl] = useState<string | null>(() =>
+    resolveAvatarDisplayUrl(storedAvatarPath)
+  );
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -272,48 +258,11 @@ export default function ProfilePage() {
     return () => document.removeEventListener("keydown", onKey);
   }, [photoViewerOpen]);
 
+  // Keep photoUrl in sync when the auth metadata changes (e.g. after upload
+  // or delete the JWT refreshes and storedAvatarPath changes).
   useEffect(() => {
-    // Null path → no photo
-    if (!storedAvatarPath) {
-      setPhotoUrl(null);
-      return;
-    }
-    // Blob or full HTTP URL → usable directly, no network request needed
-    if (storedAvatarPath.startsWith("blob:") || storedAvatarPath.startsWith("http")) {
-      setPhotoUrl(storedAvatarPath);
-      return;
-    }
-    // ── Cache hit → apply immediately, skip the network entirely ──────────
-    const hit = readCache(user?.id, storedAvatarPath);
-    if (hit) {
-      setPhotoUrl(hit);
-      return;
-    }
-    // ── Cache miss → fetch a new signed download URL from the API ─────────
-    let cancelled = false;
-    supabase.auth.getSession().then(({ data }) => {
-      const token = data.session?.access_token;
-      if (!token || cancelled) return;
-      fetch(`${getApiBase()}/b2/profile-download-url`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ user_id: user!.id }),
-      })
-        .then(r => (r.ok ? r.json() : null))
-        .then(d => {
-          if (!cancelled && d?.download_url) {
-            // Populate cache so the next navigation to this page is instant
-            photoUrlCache.set(getCacheKey(user!.id, storedAvatarPath), {
-              url: d.download_url,
-              fetchedAt: Date.now(),
-            });
-            setPhotoUrl(d.download_url);
-          }
-        })
-        .catch(() => {});
-    });
-    return () => { cancelled = true; };
-  }, [user?.id, storedAvatarPath]);
+    setPhotoUrl(resolveAvatarDisplayUrl(storedAvatarPath));
+  }, [storedAvatarPath]);
 
   const rawPrefs = user?.user_metadata?.notification_prefs;
   const [notifPrefs, setNotifPrefs] = useState<NotifPrefs>({
@@ -420,39 +369,26 @@ export default function ProfilePage() {
       setCropSrc("");
     }
     setUploadingPhoto(true);
+    // Show blob URL immediately for zero-latency visual feedback
+    const blobUrl = URL.createObjectURL(blob);
+    setPhotoUrl(blobUrl);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      if (!token) throw new Error("Not authenticated — please sign in again.");
+      // Upload directly to Supabase Storage — handles CORS natively, no proxy needed.
+      // "avatars" is a public bucket; upsert:true overwrites any previous photo.
+      const storagePath = `${user!.id}/photo.jpg`;
+      const { error: uploadErr } = await supabase.storage
+        .from("avatars")
+        .upload(storagePath, blob, { contentType: "image/jpeg", upsert: true });
+      if (uploadErr) throw new Error(uploadErr.message);
 
-      // Send the image bytes to our API server, which uploads to B2 server-side.
-      // Direct browser→B2 uploads fail because B2 upload pod domains don't send
-      // CORS headers, causing "Failed to fetch" in every browser. Proxying through
-      // Express eliminates the CORS issue entirely.
-      const uploadRes = await fetch(`${getApiBase()}/b2/profile-upload`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "image/jpeg",
-          Authorization: `Bearer ${token}`,
-        },
-        body: blob,
-      });
-
-      if (!uploadRes.ok) {
-        const errData = await uploadRes.json().catch(() => ({}));
-        throw new Error((errData as { error?: string }).error || `Upload failed (${uploadRes.status})`);
-      }
-
-      const { storage_path } = await uploadRes.json() as { storage_path: string };
-      // Sync storage path into the JWT so the profile photo persists across refreshes
-      await supabase.auth.updateUser({ data: { avatar_url: storage_path } });
-      // Pre-populate cache with the blob URL so navigating away and back to
-      // Profile immediately shows the new photo without another network round-trip.
-      const blobUrl = URL.createObjectURL(blob);
-      photoUrlCache.set(getCacheKey(user!.id, storage_path), { url: blobUrl, fetchedAt: Date.now() });
-      setPhotoUrl(blobUrl);
+      // Persist the Supabase Storage path in the profile table and JWT metadata
+      await supabase.from("profiles").update({ avatar_url: storagePath }).eq("id", user!.id);
+      await supabase.auth.updateUser({ data: { avatar_url: storagePath } });
       toast({ title: "Photo updated!" });
     } catch (err: unknown) {
+      // On failure, revert to the previous URL (or null)
+      setPhotoUrl(resolveAvatarDisplayUrl(storedAvatarPath));
+      URL.revokeObjectURL(blobUrl);
       toast({ title: "Upload failed", description: (err as Error).message, variant: "destructive" });
     } finally {
       setUploadingPhoto(false);
@@ -460,14 +396,15 @@ export default function ProfilePage() {
   }
 
   async function handleRemovePhoto() {
-    // Evict cache entry immediately so the next visit doesn't serve a stale URL
-    if (storedAvatarPath && user?.id && !storedAvatarPath.startsWith("blob:") && !storedAvatarPath.startsWith("http")) {
-      photoUrlCache.delete(getCacheKey(user.id, storedAvatarPath));
-    }
     setPhotoUrl(null);
     try {
-      await apiFetch("/b2/profile-photo", { method: "DELETE" });
-    } catch { /* best-effort — profile update still proceeds */ }
+      // Remove from Supabase Storage bucket
+      if (storedAvatarPath && !storedAvatarPath.startsWith("users/")) {
+        await supabase.storage.from("avatars").remove([storedAvatarPath]);
+      }
+    } catch { /* best-effort — profile clear still proceeds */ }
+    // Clear in profiles table and JWT metadata
+    await supabase.from("profiles").update({ avatar_url: null }).eq("id", user!.id);
     await supabase.auth.updateUser({ data: { avatar_url: null } });
     toast({ title: "Photo removed" });
   }

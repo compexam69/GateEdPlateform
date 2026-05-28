@@ -49,7 +49,7 @@ create table if not exists profiles (
   is_approved    boolean     not null default false,
   status         user_status not null default 'pending_approval',
   email_verified boolean     not null default false,
-  avatar_url     text,                          -- B2 storage path for profile photo
+  avatar_url     text,                          -- Supabase Storage path: "<userId>/photo.jpg"
   created_at     timestamptz not null default now(),
   updated_at     timestamptz not null default now()
 );
@@ -670,3 +670,58 @@ alter table study_tasks   add column if not exists order_index int not null defa
 alter table user_notes    add column if not exists content_text text;
 alter table user_notes    add column if not exists file_hash    text;
 alter table user_notes    add column if not exists b2_file_id   text;
+
+-- ── 21. Supabase Storage: avatars bucket ──────────────────────────────────────
+-- Profile photos are stored here. Bucket is public so permanent public URLs
+-- are served via getPublicUrl() — no signing, no expiry.
+-- Path convention: "<userId>/photo.jpg"
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'avatars',
+  'avatars',
+  true,
+  524288,   -- 512 KB max per photo
+  '{image/jpeg,image/png,image/webp}'
+)
+on conflict (id) do update set
+  public           = excluded.public,
+  file_size_limit  = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
+
+-- RLS: authenticated users can upload/overwrite only their own folder
+do $$ begin
+  create policy "avatars: owner upload"
+    on storage.objects for insert
+    to authenticated
+    with check (
+      bucket_id = 'avatars'
+      and (storage.foldername(name))[1] = auth.uid()::text
+    );
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create policy "avatars: owner update"
+    on storage.objects for update
+    to authenticated
+    using (
+      bucket_id = 'avatars'
+      and (storage.foldername(name))[1] = auth.uid()::text
+    );
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create policy "avatars: owner delete"
+    on storage.objects for delete
+    to authenticated
+    using (
+      bucket_id = 'avatars'
+      and (storage.foldername(name))[1] = auth.uid()::text
+    );
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create policy "avatars: public read"
+    on storage.objects for select
+    to public
+    using (bucket_id = 'avatars');
+exception when duplicate_object then null; end $$;

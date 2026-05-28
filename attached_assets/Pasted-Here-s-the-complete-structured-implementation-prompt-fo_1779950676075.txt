@@ -1,0 +1,339 @@
+Here’s the complete structured implementation prompt for migrating your project to a mostly Supabase-only backend architecture while keeping:
+
+* B2 only for PDF upload/storage
+* Supabase Storage for profile pictures
+* Telegram direct message links for lectures/videos
+
+🟢 Checkpoint 8: Migrate Project to Mostly Supabase-Only Backend Architecture
+
+Goal: Refactor and optimize the entire project architecture to use Supabase as the primary backend service for authentication, database, storage, realtime features, and backend logic while keeping:
+
+* Backblaze B2 only for PDF uploads/storage
+* Supabase Storage for profile picture uploads
+* Telegram direct message/private group links for lectures/videos
+
+The final architecture must remain:
+
+* Free-tier friendly
+* Testing-ready
+* Production-scalable
+* Fully mobile responsive
+* Stable without verified custom domain
+
+Target Final Architecture:
+
+Frontend:
+
+* React/Vite/PWA
+
+Backend:
+
+* Supabase
+
+Authentication:
+
+* Supabase Auth
+
+Database:
+
+* Supabase PostgreSQL
+
+Profile Picture Storage:
+
+* Supabase Storage
+
+PDF Storage:
+
+* Backblaze B2
+
+Lectures/Videos:
+
+* Telegram direct message/private group links
+
+Notifications:
+
+* In-app notification system
+
+Realtime:
+
+* Supabase Realtime
+
+Serverless Logic:
+
+* Supabase Edge Functions (if needed)
+
+Context:
+The current codebase contains mixed architecture implementations including:
+
+* Partial Resend integration
+* Backblaze integrations
+* Profile picture upload complexity
+* Telegram lecture linking
+* Custom notification/email logic
+* Existing admin/student approval system
+
+The project now needs a simplified and maintainable architecture optimized for:
+
+* Free-tier development
+* Lower maintenance
+* Reduced backend complexity
+* Better scalability
+* Stable testing without verified domain
+
+Instructions:
+
+1. Analyze Entire Existing Architecture:
+
+* Review:
+
+  * Authentication flow
+  * User management system
+  * Admin/Super Admin logic
+  * Profile system
+  * Image upload system
+  * PDF upload system
+  * Lecture/video delivery system
+  * Existing storage integrations
+  * Existing serverless/backend functions
+  * Existing environment variables
+  * Existing email/notification systems
+* Identify:
+
+  * Redundant integrations
+  * Unnecessary backend complexity
+  * Broken/free-tier incompatible features
+  * Storage inconsistencies
+  * Duplicate logic
+  * Security risks
+
+2. Implement Supabase-Only Core Backend:
+
+* Refactor project so Supabase becomes the primary backend for:
+
+  * Authentication
+  * Database
+  * Role management
+  * Profile management
+  * Session handling
+  * Route protection
+  * Notifications
+  * Realtime features
+  * Audit logs
+* Ensure:
+
+  * Existing workflows continue working
+  * No auth/session issues occur
+  * RLS policies remain secure
+
+3. Migrate Profile Pictures to Supabase Storage:
+
+* Completely replace existing profile picture upload/storage implementation with Supabase Storage.
+* Ensure:
+
+  * Upload works correctly
+  * Image compression works
+  * Cropping functionality remains operational
+  * Mobile upload works
+  * Old images are removed automatically after replacement
+  * Public/private bucket permissions are configured correctly
+* Prevent:
+
+  * Upload URL generation failures
+  * Broken preview URLs
+  * Expired URL issues
+  * Storage permission errors
+
+4. Keep Backblaze B2 Only for PDF Storage:
+
+* Keep existing B2 implementation ONLY for:
+
+  * PDFs
+  * Notes
+  * Study materials
+* Ensure:
+
+  * PDF uploads remain stable
+  * Existing preview/download functionality works
+  * Upload security remains intact
+  * Large file handling remains optimized
+* Remove:
+
+  * Any unnecessary B2 usage outside PDFs
+
+5. Keep Telegram for Lecture/Video Delivery:
+
+* Continue using Telegram direct links/private group links for lectures/videos.
+* Ensure:
+
+  * Existing Telegram integration remains stable
+  * Chat ID + Message ID system works correctly
+  * Lecture click tracking continues functioning
+  * Only joined students can access private content
+* Prevent:
+
+  * Broken Telegram deep links
+  * Invalid message routing
+  * Tracking failures
+
+6. Replace Email-Based Non-Auth Notifications:
+
+* Since Resend is removed:
+
+  * Replace unsupported transactional emails with:
+
+    * In-app notifications
+    * Dashboard alerts
+    * Status banners
+    * Database-driven notifications
+* Apply this to:
+
+  * Pending approval alerts
+  * Approval notifications
+  * Storage warnings
+  * System announcements
+
+7. Improve Free-Tier Optimization:
+
+* Ensure final architecture:
+
+  * Avoids unnecessary third-party services
+  * Minimizes bandwidth/storage usage
+  * Uses Supabase free-tier efficiently
+  * Prevents hidden costs
+  * Reduces backend maintenance complexity
+
+8. Security & RLS Review:
+
+* Review all:
+
+  * RLS policies
+  * Storage permissions
+  * Admin permissions
+  * Super Admin privileges
+  * Student restrictions
+* Ensure:
+
+  * Students access only allowed data
+  * Admin permissions remain restricted
+  * Super Admin retains highest authority
+  * Storage buckets remain secure
+
+9. Realtime & Notification Optimization:
+
+* Use Supabase Realtime for:
+
+  * Live approval updates
+  * Notification badges
+  * Admin alerts
+  * Dashboard updates
+* Ensure:
+
+  * No excessive realtime subscriptions
+  * Free-tier usage remains optimized
+
+10. Clean Up Existing Codebase:
+
+* Remove:
+
+  * Resend integrations
+  * Dead serverless functions
+  * Unused packages
+  * Duplicate upload logic
+  * Broken storage implementations
+  * Redundant environment variables
+* Ensure:
+
+  * Clean architecture
+  * Stable builds
+  * No runtime errors
+  * Reduced technical debt
+
+11. Beginner-Friendly Explanation:
+
+* After implementation, explain:
+
+  * Final architecture overview
+  * Which service handles what
+  * Why Supabase is now primary backend
+  * Why B2 is only used for PDFs
+  * Why Telegram is used for lectures/videos
+  * Why Supabase Storage is better for profile pictures
+  * What changed from previous architecture
+  * What happens in different scenarios:
+
+    * Profile upload
+    * PDF upload
+    * Lecture access
+    * Approval flow
+    * Notifications
+    * Authentication
+
+12. Testing & Validation:
+
+* Test:
+
+  * Signup/login
+  * Email verification
+  * Password reset
+  * Profile picture upload/update/delete
+  * Image cropping/compression
+  * PDF upload/download/preview
+  * Telegram lecture links
+  * Admin approval flow
+  * Notifications
+  * Mobile responsiveness
+  * PWA mode
+* Verify:
+
+  * No broken integrations remain
+  * Storage systems work correctly
+  * Authentication remains stable
+  * No console/runtime/build errors occur
+
+13. Backend / SQL / Storage / Environment Changes:
+
+* Clearly explain:
+
+  * Required SQL updates
+  * Required bucket creation/configuration
+  * Required environment variable updates
+  * Removed packages
+  * Storage permission setup
+  * Deployment/rebuild requirements
+* Provide:
+
+  * Exact SQL separately if required
+  * Exact Supabase bucket setup instructions
+  * Exact environment variable changes
+
+14. Checkpoint Requirement:
+
+* After completing and verifying the migration:
+
+  * Create a proper checkpoint/commit immediately.
+  * Ensure the project is fully stable and testing-ready.
+  * Provide a final implementation summary including:
+
+    * Files modified
+    * Architecture changes
+    * Storage changes
+    * Removed integrations
+    * Supabase implementations
+    * Remaining limitations/issues (if any)
+
+Acceptance Criteria:
+
+* [ ] Supabase becomes the primary backend architecture.
+* [ ] Supabase Auth handles authentication completely.
+* [ ] Supabase Storage handles profile pictures successfully.
+* [ ] Backblaze B2 is used only for PDFs/notes.
+* [ ] Telegram direct links handle lectures/videos correctly.
+* [ ] Resend integrations are fully removed.
+* [ ] Unsupported emails are replaced with in-app notifications.
+* [ ] Existing approval/admin workflows remain operational.
+* [ ] Storage systems function correctly on mobile and desktop.
+* [ ] No broken integrations or duplicate systems remain.
+* [ ] Project remains free-tier/testing-ready.
+* [ ] No console/runtime/build errors occur after migration.
+* [ ] Beginner-friendly explanation is provided after implementation.
+* [ ] Checkpoint/commit is created after successful implementation and testing.

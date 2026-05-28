@@ -16,7 +16,7 @@ A mastery-gated PWA for Indian students (JEE, NEET, GATE) — students cannot sk
 - **Frontend:** React 18 + Vite, Tailwind CSS, Framer Motion, Zustand, Wouter, Recharts
 - **Auth:** Supabase Auth (email/password + email verification)
 - **DB:** Supabase PostgreSQL + RLS (NOT Replit DB)
-- **File Storage:** Backblaze B2 (PDFs + profile photos)
+- **File Storage:** Backblaze B2 (PDFs/notes only) + Supabase Storage (profile photos — `avatars` bucket, public)
 - **Backend:** Express 5 API server (Supabase service role key)
 - **Validation:** Zod, Orval codegen from OpenAPI spec
 
@@ -77,7 +77,8 @@ To serve B2 files through Cloudflare's CDN for lower latency:
 
 ## Gotchas
 
-- **MUST run Supabase schema first:** Before the app works end-to-end, run `scripts/src/supabase-schema.sql` in your Supabase project's SQL Editor. This creates all tables, RLS policies, triggers, and seed data.
+- **MUST run Supabase schema first:** Before the app works end-to-end, run `scripts/src/supabase-schema.sql` in your Supabase project's SQL Editor. This creates all tables, RLS policies, triggers, seed data, and the `avatars` Supabase Storage bucket with its RLS policies.
+- **avatars bucket:** Section 21 of the schema SQL creates the public `avatars` Storage bucket and the four RLS policies required for profile photo upload/update/delete/read. If the bucket was already created manually, re-running the SQL is safe (idempotent `ON CONFLICT` + `DO $$ BEGIN … EXCEPTION WHEN duplicate_object THEN NULL; END $$` guards).
 - **Environment variables:** VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set as shared env vars (VITE_ prefix for frontend access). SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, B2_* are secrets for the API server.
 - **After OpenAPI spec changes:** Always run `pnpm --filter @workspace/api-spec run codegen` before using updated types.
 - **Gate check latency target:** < 50ms (purely a Supabase RLS lookup, no complex joins).
