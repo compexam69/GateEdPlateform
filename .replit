@@ -77,6 +77,7 @@ externalPort = 3000
 [userenv.shared]
 VITE_SUPABASE_URL = "https://kczzmthgcvirodrnzqnw.supabase.co"
 VITE_SUPABASE_ANON_KEY = "sb_publishable_cn9Gjrf9_D3e3ZS6W-SBDQ_kIJzcqel"
+APP_URL = "https://b302f153-ca82-459e-9d13-c1d74a29fb95-00-2609qieu0mpx.sisko.replit.dev"
 
 [nix]
 channel = "stable-25_05"
