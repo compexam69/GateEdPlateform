@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { supabase } from "../lib/supabase";
 import { requireAdmin, type AuthRequest } from "../middlewares/auth";
-import { sendApprovalEmail, sendStorageAlertEmail } from "../lib/email";
 import { sendPushToUser, sendPushToAll } from "../lib/push";
 
 const router = Router();
@@ -107,7 +106,6 @@ router.post("/admin/users/:userId/approve", requireAdmin, async (req: AuthReques
       created_at: new Date().toISOString(),
     }),
     writeAuditLog(req.user!.id, "user_approved", "profile", userId, { status: "active" }),
-    profile ? sendApprovalEmail(profile.email, profile.full_name ?? "Student") : Promise.resolve(),
     sendPushToUser(userId, {
       title: "Account Approved",
       body: "Your account has been approved. Start your learning journey now!",
@@ -401,7 +399,6 @@ router.get("/admin/storage", requireAdmin, async (req: AuthRequest, res) => {
         if (!admins) return;
         for (const admin of admins as { id: string; email: string; full_name: string }[]) {
           try { await sendPushToUser(admin.id, { title: alertTitle, body: alertBody, url: "/admin/storage", tag: "storage-alert" }); } catch { /* best-effort */ }
-          try { await sendStorageAlertEmail(admin.email, totalBytes / (1024 * 1024 * 1024), GLOBAL_LIMIT / (1024 * 1024 * 1024)); } catch { /* best-effort */ }
         }
       } catch { /* best-effort */ }
     })();

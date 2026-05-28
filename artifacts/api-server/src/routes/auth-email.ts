@@ -1,6 +1,5 @@
 import { Router } from "express";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
-import { sendWelcomeEmail } from "../lib/email";
 import { supabase } from "../lib/supabase";
 import { checkRateLimitDb } from "../middlewares/rateLimitDb";
 
@@ -104,13 +103,25 @@ router.post("/auth/register", async (req, res) => {
     console.warn("[auth/register] verification email exception:", e);
   }
 
-  // ── 2. Resend welcome / pending-approval email ─────────────────────────────
-  // Sends a styled "account created, pending approval" notification via Resend.
-  // Best-effort — silently skipped if RESEND_API_KEY is not configured.
-  try {
-    await sendWelcomeEmail(normalizedEmail, normalizedName);
-  } catch (e) {
-    console.warn("[auth/register] welcome email exception:", e);
+  // ── 2. In-app welcome notification ────────────────────────────────────────
+  // Resend has been removed. We write a welcome notification directly to the
+  // notifications table so the user sees it as soon as they log in.
+  // Best-effort — a DB failure here must not block the registration response.
+  if (data.user?.id) {
+    try {
+      await supabase.from("notifications").insert({
+        user_id: data.user.id,
+        title: "Welcome to EdTech Study Platform",
+        message:
+          "Your account has been created and is pending admin approval. " +
+          "Please verify your email first, then wait for an admin to approve your account (usually within 24 hours).",
+        type: "info",
+        is_read: false,
+        created_at: new Date().toISOString(),
+      });
+    } catch (e) {
+      console.warn("[auth/register] welcome notification insert failed:", e);
+    }
   }
 
   res.status(201).json({
