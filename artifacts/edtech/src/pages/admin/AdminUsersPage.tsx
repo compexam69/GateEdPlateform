@@ -26,6 +26,7 @@ import {
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 const USERS_KEY = ["admin-users"];
 
@@ -58,11 +59,6 @@ interface EditProfileDialogState {
   current: { full_name: string; email: string; mobile_number: string };
 }
 
-/**
- * Mirrors the backend canActorEditTarget logic.
- * super_admin → can edit student and admin
- * admin       → can edit student ONLY
- */
 function canActorEditTarget(actorRole: string, targetRole: string): boolean {
   if (actorRole === "super_admin") return targetRole === "student" || targetRole === "admin";
   if (actorRole === "admin") return targetRole === "student";
@@ -368,20 +364,22 @@ export default function AdminUsersPage() {
   const suspended = filtered.filter((u: { status: string }) => u.status === "suspended");
 
   function statusBadge(status: string) {
-    if (status === "active") return <Badge className="bg-success/10 text-success border-success/20">Active</Badge>;
-    if (status === "pending_approval") return <Badge className="bg-warning/10 text-warning border-warning/20">Pending</Badge>;
-    return <Badge variant="destructive">Suspended</Badge>;
+    if (status === "active")
+      return <Badge className="bg-success/15 text-success border-success/25 text-[10px] px-1.5 py-0">Active</Badge>;
+    if (status === "pending_approval")
+      return <Badge className="bg-warning/15 text-warning border-warning/25 text-[10px] px-1.5 py-0">Pending</Badge>;
+    return <Badge variant="destructive" className="text-[10px] px-1.5 py-0">Suspended</Badge>;
   }
 
   function roleBadge(role: string) {
-    if (role === "super_admin") return <Badge className="bg-primary/10 text-primary border-primary/20"><Shield className="w-3 h-3 mr-1" />Super Admin</Badge>;
-    if (role === "admin") return <Badge variant="outline"><Shield className="w-3 h-3 mr-1" />Admin</Badge>;
-    return <Badge variant="secondary"><User className="w-3 h-3 mr-1" />Student</Badge>;
+    if (role === "super_admin")
+      return <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] px-1.5 py-0"><Shield className="w-2.5 h-2.5 mr-1" />Super Admin</Badge>;
+    if (role === "admin")
+      return <Badge variant="outline" className="text-[10px] px-1.5 py-0"><Shield className="w-2.5 h-2.5 mr-1" />Admin</Badge>;
+    return <Badge variant="secondary" className="text-[10px] px-1.5 py-0"><User className="w-2.5 h-2.5 mr-1" />Student</Badge>;
   }
 
   // ── User card ──────────────────────────────────────────────────────────────
-  // Layout: avatar · info · ⋮ overflow menu (View, Edit, Role, Reset)
-  //         primary action buttons at the bottom (Approve/Reject, Suspend, Reinstate)
   function UserRow({ user }: { user: Record<string, unknown> }) {
     const userId = String(user.id);
     const userName = String(user.full_name || "Unknown");
@@ -401,19 +399,33 @@ export default function AdminUsersPage() {
       (currentRole === "super_admin" && !isSelf) ||
       role === "student";
 
+    const hasPrimaryAction =
+      status === "pending_approval" ||
+      (status === "active" && role === "student") ||
+      status === "suspended";
+
     return (
       <div className="border border-border rounded-xl bg-card overflow-hidden">
+
+        {/* Status colour bar — instant visual cue without reading text */}
+        <div className={cn("h-[3px]",
+          status === "pending_approval" && "bg-warning",
+          status === "active"           && "bg-success",
+          status === "suspended"        && "bg-destructive/70",
+        )} />
+
         {/* ── Info row ──────────────────────────────────────────────── */}
         <div className="flex items-start gap-3 p-4">
+
           {/* Avatar initial */}
-          <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5 select-none">
+          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0 select-none">
             <span className="text-sm font-bold text-primary">{userName.charAt(0).toUpperCase()}</span>
           </div>
 
           {/* Name + badges + contact */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="font-semibold text-sm">{userName}</span>
+              <span className="font-semibold text-sm leading-snug">{userName}</span>
               {roleBadge(role)}
               {statusBadge(status)}
             </div>
@@ -423,20 +435,26 @@ export default function AdminUsersPage() {
                 <Shield className="w-3 h-3" /> Details restricted
               </span>
             ) : (
-              <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-0.5 sm:gap-x-3 mt-1 text-xs text-muted-foreground">
-                {!!user.email && <span className="truncate">{String(user.email)}</span>}
-                {!!user.mobile_number && <span>{String(user.mobile_number)}</span>}
-                {!!user.created_at && (
-                  <span className="flex items-center gap-1 shrink-0">
-                    <Clock className="w-3 h-3" />
-                    {format(new Date(String(user.created_at)), "MMM d, yyyy")}
-                  </span>
+              <div className="flex flex-col mt-1.5 gap-0.5 text-xs text-muted-foreground">
+                {!!user.email && (
+                  <span className="truncate">{String(user.email)}</span>
                 )}
+                <div className="flex items-center gap-3 flex-wrap">
+                  {!!user.mobile_number && (
+                    <span>{String(user.mobile_number)}</span>
+                  )}
+                  {!!user.created_at && (
+                    <span className="flex items-center gap-1 shrink-0">
+                      <Clock className="w-3 h-3" />
+                      {format(new Date(String(user.created_at)), "MMM d, yyyy")}
+                    </span>
+                  )}
+                </div>
               </div>
             )}
           </div>
 
-          {/* ⋮ Overflow menu */}
+          {/* ⋮ Overflow menu — View, Edit, Role, Reset all live here */}
           {hasOverflowItems && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -481,7 +499,7 @@ export default function AdminUsersPage() {
                   </DropdownMenuItem>
                 )}
 
-                {/* Role change — super_admin only, not on own row */}
+                {/* Role change — super_admin only, never on own row */}
                 {currentRole === "super_admin" && !isSelf && (
                   <>
                     {(canView || canEdit) && <DropdownMenuSeparator />}
@@ -534,54 +552,57 @@ export default function AdminUsersPage() {
           )}
         </div>
 
-        {/* ── Primary status-action buttons ─────────────────────────── */}
-        {status === "pending_approval" && (
-          <div className="flex gap-2 px-4 pb-4">
-            <Button
-              size="sm"
-              variant="outline"
-              className="flex-1 h-9 gap-1.5 text-destructive hover:bg-destructive/10 border-destructive/30"
-              onClick={() => reject.mutate({ userId })}
-              disabled={reject.isPending}
-            >
-              <XCircle className="w-4 h-4 shrink-0" /> Reject
-            </Button>
-            <Button
-              size="sm"
-              className="flex-1 h-9 gap-1.5 bg-success hover:bg-success/90 text-white"
-              onClick={() => approve.mutate({ userId })}
-              disabled={approve.isPending}
-            >
-              <CheckCircle className="w-4 h-4 shrink-0" /> Approve
-            </Button>
-          </div>
-        )}
+        {/* ── Primary action footer ──────────────────────────────────── */}
+        {hasPrimaryAction && (
+          <>
+            <div className="h-px bg-border mx-4" />
+            <div className="px-4 py-3">
+              {status === "pending_approval" && (
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 h-9 gap-1.5 text-destructive hover:bg-destructive/10 border-destructive/30 font-medium"
+                    onClick={() => reject.mutate({ userId })}
+                    disabled={reject.isPending}
+                  >
+                    <XCircle className="w-4 h-4 shrink-0" /> Reject
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="flex-1 h-9 gap-1.5 bg-success hover:bg-success/90 text-white font-medium"
+                    onClick={() => approve.mutate({ userId })}
+                    disabled={approve.isPending}
+                  >
+                    <CheckCircle className="w-4 h-4 shrink-0" /> Approve
+                  </Button>
+                </div>
+              )}
 
-        {status === "active" && role === "student" && (
-          <div className="px-4 pb-4">
-            <Button
-              size="sm"
-              variant="outline"
-              className="w-full h-9 gap-1.5 text-destructive hover:bg-destructive/10 border-destructive/30"
-              onClick={() => reject.mutate({ userId })}
-              disabled={reject.isPending}
-            >
-              <XCircle className="w-4 h-4 shrink-0" /> Suspend User
-            </Button>
-          </div>
-        )}
+              {status === "active" && role === "student" && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full h-9 gap-1.5 text-destructive hover:bg-destructive/10 border-destructive/30 font-medium"
+                  onClick={() => reject.mutate({ userId })}
+                  disabled={reject.isPending}
+                >
+                  <XCircle className="w-4 h-4 shrink-0" /> Suspend User
+                </Button>
+              )}
 
-        {status === "suspended" && (
-          <div className="px-4 pb-4">
-            <Button
-              size="sm"
-              className="w-full h-9 gap-1.5 bg-success hover:bg-success/90 text-white"
-              onClick={() => approve.mutate({ userId })}
-              disabled={approve.isPending}
-            >
-              <CheckCircle className="w-4 h-4 shrink-0" /> Reinstate User
-            </Button>
-          </div>
+              {status === "suspended" && (
+                <Button
+                  size="sm"
+                  className="w-full h-9 gap-1.5 bg-success hover:bg-success/90 text-white font-medium"
+                  onClick={() => approve.mutate({ userId })}
+                  disabled={approve.isPending}
+                >
+                  <CheckCircle className="w-4 h-4 shrink-0" /> Reinstate User
+                </Button>
+              )}
+            </div>
+          </>
         )}
       </div>
     );
@@ -589,52 +610,52 @@ export default function AdminUsersPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="space-y-5">
         <AdminBreadcrumb pageName="User Management" />
 
-        {/* ── Page header — mobile-first ──────────────────────────────── */}
+        {/* ── Page header ─────────────────────────────────────────────── */}
         <div className="space-y-3">
-          {/* Title + action buttons on one row */}
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">User Management</h1>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                {users.length} total · {pending.length} pending approval
-              </p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5"
-                onClick={() => setImportDialog(true)}
-                title="Import users from CSV/JSON"
-              >
-                <Upload className="w-4 h-4 shrink-0" />
-                <span className="hidden sm:inline">Import</span>
-              </Button>
-              <Button
-                size="sm"
-                className="gap-1.5"
-                onClick={() => setCreateDialog(true)}
-                title="Create a new user"
-              >
-                <UserPlus className="w-4 h-4 shrink-0" />
-                <span className="hidden sm:inline">Create User</span>
-              </Button>
-            </div>
+
+          {/* Title + stats */}
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">User Management</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {users.length} total users · {pending.length} pending approval
+            </p>
           </div>
 
-          {/* Search — full width on all screen sizes */}
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-            <Input
-              placeholder="Search by name or email…"
-              className="pl-9"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
+          {/* Search + Import on the same row */}
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              <Input
+                placeholder="Search by name or email…"
+                className="pl-9"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+              />
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 h-10 px-3 shrink-0"
+              onClick={() => setImportDialog(true)}
+              title="Import users from CSV/JSON"
+            >
+              <Upload className="w-4 h-4 shrink-0" />
+              <span className="hidden xs:inline sm:inline">Import Users</span>
+            </Button>
           </div>
+
+          {/* Create User — sits below search, left-aligned, prominent */}
+          <Button
+            size="sm"
+            className="gap-1.5 h-9"
+            onClick={() => setCreateDialog(true)}
+          >
+            <UserPlus className="w-4 h-4 shrink-0" />
+            Create User
+          </Button>
         </div>
 
         {/* ── User list ──────────────────────────────────────────────── */}
@@ -644,10 +665,40 @@ export default function AdminUsersPage() {
           </div>
         ) : (
           <Tabs defaultValue="pending">
-            <TabsList>
-              <TabsTrigger value="pending">Pending ({pending.length})</TabsTrigger>
-              <TabsTrigger value="active">Active ({active.length})</TabsTrigger>
-              <TabsTrigger value="suspended">Suspended ({suspended.length})</TabsTrigger>
+            <TabsList className="w-full sm:w-auto grid grid-cols-3 sm:flex h-auto p-1 gap-1 rounded-xl">
+              <TabsTrigger
+                value="pending"
+                className="rounded-lg text-xs sm:text-sm py-2 px-3 data-[state=active]:bg-background data-[state=active]:shadow-sm"
+              >
+                Pending
+                {pending.length > 0 && (
+                  <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-warning/20 text-warning text-[10px] font-bold px-1">
+                    {pending.length}
+                  </span>
+                )}
+              </TabsTrigger>
+              <TabsTrigger
+                value="active"
+                className="rounded-lg text-xs sm:text-sm py-2 px-3 data-[state=active]:bg-background data-[state=active]:shadow-sm"
+              >
+                Active
+                {active.length > 0 && (
+                  <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-success/20 text-success text-[10px] font-bold px-1">
+                    {active.length}
+                  </span>
+                )}
+              </TabsTrigger>
+              <TabsTrigger
+                value="suspended"
+                className="rounded-lg text-xs sm:text-sm py-2 px-3 data-[state=active]:bg-background data-[state=active]:shadow-sm"
+              >
+                Suspended
+                {suspended.length > 0 && (
+                  <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-destructive/20 text-destructive text-[10px] font-bold px-1">
+                    {suspended.length}
+                  </span>
+                )}
+              </TabsTrigger>
             </TabsList>
 
             {[
@@ -657,7 +708,7 @@ export default function AdminUsersPage() {
             ].map(({ key, list, empty }) => (
               <TabsContent key={key} value={key} className="space-y-2.5 mt-4">
                 {list.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">{empty}</div>
+                  <div className="text-center py-12 text-muted-foreground text-sm">{empty}</div>
                 ) : (
                   list.map((user: Record<string, unknown>) => (
                     <UserRow key={String(user.id)} user={user} />
@@ -1028,9 +1079,9 @@ export default function AdminUsersPage() {
             <div className="space-y-5">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {[
-                  { icon: TrendingUp, label: "Attempts", value: String(userDetail.stats.total_attempts) },
-                  { icon: FileText,   label: "Notes",    value: String(userDetail.stats.total_notes) },
-                  { icon: BookOpen,   label: "Storage",  value: formatBytes(userDetail.stats.total_notes_bytes) },
+                  { icon: TrendingUp, label: "Attempts",   value: String(userDetail.stats.total_attempts) },
+                  { icon: FileText,   label: "Notes",      value: String(userDetail.stats.total_notes) },
+                  { icon: BookOpen,   label: "Storage",    value: formatBytes(userDetail.stats.total_notes_bytes) },
                   { icon: Timer,      label: "Focus Time", value: formatDuration(userDetail.stats.total_pomodoro_seconds) },
                 ].map(({ icon: Icon, label, value }) => (
                   <Card key={label} className="bg-muted/30">
@@ -1055,13 +1106,9 @@ export default function AdminUsersPage() {
                             {attempt.submitted_at ? format(new Date(attempt.submitted_at), "MMM d, yyyy HH:mm") : "In progress"}
                           </p>
                         </div>
-                        <div className="flex items-center gap-3 shrink-0">
-                          <span className={`font-semibold ${attempt.accuracy >= 60 ? "text-success" : "text-destructive"}`}>
-                            {Math.round(attempt.accuracy)}%
-                          </span>
-                          <Badge variant={attempt.status === "submitted" ? "secondary" : "outline"} className="text-xs">
-                            {attempt.status}
-                          </Badge>
+                        <div className="text-right shrink-0 ml-3">
+                          <p className="font-semibold">{attempt.score}/{attempt.total_marks}</p>
+                          <p className="text-xs text-muted-foreground">{attempt.accuracy.toFixed(0)}%</p>
                         </div>
                       </div>
                     ))}
@@ -1077,26 +1124,38 @@ export default function AdminUsersPage() {
                       <div key={note.id} className="flex items-center justify-between p-3 bg-muted/20 rounded-lg text-sm">
                         <div className="min-w-0 flex-1">
                           <p className="font-medium truncate">{note.title}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {note.chapters?.title ?? "Unknown Chapter"} · {format(new Date(note.created_at), "MMM d, yyyy")}
-                          </p>
+                          <p className="text-xs text-muted-foreground">{note.chapters?.title ?? "Unknown Chapter"}</p>
                         </div>
-                        <span className="text-xs text-muted-foreground shrink-0">{formatBytes(note.pdf_size_bytes)}</span>
+                        <div className="text-right shrink-0 ml-3">
+                          <p className="text-xs text-muted-foreground">{formatBytes(note.pdf_size_bytes)}</p>
+                          <p className="text-xs text-muted-foreground">{format(new Date(note.created_at), "MMM d")}</p>
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
 
-              {userDetail.attempts.length === 0 && userDetail.notes.length === 0 && (
-                <p className="text-center text-muted-foreground py-6 text-sm">No activity recorded for this user yet.</p>
+              {userDetail.pomodoro_sessions.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold mb-2 text-muted-foreground uppercase tracking-wider">Recent Focus Sessions</h3>
+                  <div className="space-y-2">
+                    {userDetail.pomodoro_sessions.slice(0, 5).map(session => (
+                      <div key={session.id} className="flex items-center justify-between p-3 bg-muted/20 rounded-lg text-sm">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium truncate">{session.topic_context ?? "General Focus"}</p>
+                          <p className="text-xs text-muted-foreground">{format(new Date(session.start_time), "MMM d, yyyy HH:mm")}</p>
+                        </div>
+                        <p className="text-sm font-semibold shrink-0 ml-3">{formatDuration(session.duration_seconds)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
-          ) : null}
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDetailUserId(null)}>Close</Button>
-          </DialogFooter>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground text-sm">No details available.</div>
+          )}
         </DialogContent>
       </Dialog>
     </AppLayout>
