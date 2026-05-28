@@ -55,14 +55,6 @@ export function MobileHeader({ onMenuClick }: Props) {
         aria-label="Open navigation menu"
       >
         <Menu className="w-5 h-5" />
-
-        {/* Active-route dot — only visible on drawer-only pages */}
-        {isDrawerRoute && (
-          <span
-            className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-primary"
-            aria-hidden="true"
-          />
-        )}
       </button>
 
       {/* Right side: notification bell + avatar shortcut */}
