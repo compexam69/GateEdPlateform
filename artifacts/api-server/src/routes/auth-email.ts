@@ -81,14 +81,19 @@ router.post("/auth/register", async (req, res) => {
     return;
   }
 
+  const normalizedEmail = email.toLowerCase().trim();
+
   const { data, error } = await supabase.auth.admin.createUser({
-    email: email.toLowerCase().trim(),
+    email: normalizedEmail,
     password,
     user_metadata: {
       full_name: full_name.trim(),
       mobile_number: mobile_number ?? null,
       role: "student",
     },
+    // email_confirm: false means the user starts unverified.
+    // admin.createUser() intentionally does NOT send any emails —
+    // we must trigger the verification email ourselves below.
     email_confirm: false,
   });
 
@@ -97,9 +102,30 @@ router.post("/auth/register", async (req, res) => {
     return;
   }
 
+  // ── Send the verification email ──────────────────────────────────────────
+  // admin.createUser() never sends emails. We call auth.resend() immediately
+  // after creation to dispatch exactly ONE verification email.
+  // This call is outside the rate-limiter, so it does NOT consume the
+  // user's 3/hour manual-resend quota.
+  let emailSent = false;
+  try {
+    const { error: resendErr } = await supabase.auth.resend({
+      type: "signup",
+      email: normalizedEmail,
+    });
+    if (resendErr) {
+      console.warn("[auth/register] verification email failed:", resendErr.message);
+    } else {
+      emailSent = true;
+    }
+  } catch (e) {
+    console.warn("[auth/register] verification email exception:", e);
+  }
+
   res.status(201).json({
     message: "Account created. Please check your email to verify your account.",
     user_id: data.user?.id,
+    email_sent: emailSent,
   });
 });
 
