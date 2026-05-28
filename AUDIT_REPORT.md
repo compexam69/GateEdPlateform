@@ -81,7 +81,7 @@ Each PATCH handler now explicitly destructures and whitelists only the intended 
 
 - `subjects.ts`: whitelisted `title`, `description`, `order_index`, `icon_url`, `is_active`  
 - `chapters.ts`: whitelisted `title`, `description`, `order_index`, `is_active`  
-- `topics.ts`: whitelisted `title`, `description`, `order_index`, `is_active`, `telegram_chat_id`, `telegram_message_id`  
+- `topics.ts`: whitelisted `title`, `description`, `order_index`, `is_active`, `telegram_link`  
 
 Returns `400 { error: "No valid fields to update" }` when the caller sends an empty or entirely unknown payload.
 
