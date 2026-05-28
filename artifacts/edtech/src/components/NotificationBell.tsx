@@ -1,35 +1,15 @@
-import { useState, useEffect, useRef, useCallback, useLayoutEffect } from "react";
+import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { Bell, X, CheckCheck, Info, AlertCircle, Sparkles, UserCheck, BellOff, BellRing } from "lucide-react";
-import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
-import { getApiBase } from "@/lib/api";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
-
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  type: string;
-  is_read: boolean;
-  created_at: string;
-}
+import { useNotificationStore, type Notification } from "@/store/notificationStore";
 
 interface DropdownPos {
   top: number;
   left: number;
   maxHeight: number;
-}
-
-async function apiFetch(path: string, opts: RequestInit = {}) {
-  const { data: { session } } = await supabase.auth.getSession();
-  const token = session?.access_token;
-  return fetch(`${getApiBase()}${path}`, {
-    ...opts,
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...(opts.headers ?? {}) },
-  });
 }
 
 function typeIcon(type: string) {
@@ -66,59 +46,17 @@ function calcDropdownPos(btn: HTMLButtonElement): DropdownPos {
 }
 
 export function NotificationBell() {
-  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<DropdownPos | null>(null);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [loading, setLoading] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const push = usePushNotifications();
 
-  const fetchNotifications = useCallback(async () => {
-    if (!user) return;
-    setLoading(true);
-    try {
-      const res = await apiFetch("/notifications");
-      if (res.ok) {
-        const json = await res.json();
-        setNotifications(json.notifications ?? []);
-        setUnreadCount(json.unread_count ?? 0);
-      }
-    } catch {}
-    setLoading(false);
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) return;
-
-    fetchNotifications();
-
-    const channel = supabase
-      .channel(`notifications:${user.id}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
-        (payload) => {
-          const newNotif = payload.new as Notification;
-          setNotifications(prev => [newNotif, ...prev]);
-          setUnreadCount(c => c + 1);
-        }
-      )
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
-        (payload) => {
-          const updated = payload.new as Notification;
-          setNotifications(prev => prev.map(n => n.id === updated.id ? updated : n));
-          if (updated.is_read) setUnreadCount(c => Math.max(0, c - 1));
-        }
-      )
-      .subscribe();
-
-    const fallbackInterval = setInterval(fetchNotifications, 5 * 60 * 1000);
-    return () => {
-      supabase.removeChannel(channel);
-      clearInterval(fallbackInterval);
-    };
-  }, [user, fetchNotifications]);
+  // All notification data and mutations come from the shared store.
+  // The store's connection lifecycle is managed by AppLayout — no setup
+  // is needed here.
+  const { notifications, unreadCount, loading, refresh, markRead, markAllRead } =
+    useNotificationStore();
 
   // Recalculate position on open and on window resize
   useLayoutEffect(() => {
@@ -161,19 +99,8 @@ export function NotificationBell() {
   function handleToggle() {
     const next = !open;
     setOpen(next);
-    if (next) fetchNotifications();
-  }
-
-  async function markRead(id: string) {
-    await apiFetch(`/notifications/${id}/read`, { method: "PATCH" });
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
-    setUnreadCount(c => Math.max(0, c - 1));
-  }
-
-  async function markAllRead() {
-    await apiFetch("/notifications/read-all", { method: "PATCH" });
-    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
-    setUnreadCount(0);
+    // Refresh from API when the panel opens so the list is never stale
+    if (next) refresh();
   }
 
   return (
@@ -275,7 +202,7 @@ export function NotificationBell() {
                 <p className="text-sm">No notifications yet</p>
               </div>
             ) : (
-              notifications.map(n => (
+              notifications.map((n: Notification) => (
                 <div
                   key={n.id}
                   onClick={() => { if (!n.is_read) markRead(n.id); }}

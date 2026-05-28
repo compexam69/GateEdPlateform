@@ -1,44 +1,15 @@
 import { Link, useLocation } from "wouter";
 import { BookOpen, Home, Timer, CheckSquare, MoreHorizontal, FileText, LineChart, User, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { getApiBase } from "@/lib/api";
+import { useNotificationStore } from "@/store/notificationStore";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-
-function useUnreadCount() {
-  const { user } = useAuth();
-  const [count, setCount] = useState(0);
-
-  useEffect(() => {
-    if (!user) return;
-    async function fetch() {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const token = session?.access_token;
-        const base = getApiBase();
-        const res = await globalThis.fetch(`${base}/notifications`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) {
-          const json = await res.json();
-          setCount(json.unread_count ?? 0);
-        }
-      } catch {}
-    }
-    fetch();
-    const interval = setInterval(fetch, 60000);
-    return () => clearInterval(interval);
-  }, [user]);
-
-  return count;
-}
 
 export function BottomNav() {
   const [location] = useLocation();
   const { role } = useAuth();
-  const unread = useUnreadCount();
+  const { unreadCount: unread } = useNotificationStore();
   const [moreOpen, setMoreOpen] = useState(false);
 
   const primaryLinks = [
