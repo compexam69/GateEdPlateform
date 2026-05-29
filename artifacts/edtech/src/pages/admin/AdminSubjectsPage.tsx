@@ -4,14 +4,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Edit, Trash2, ChevronDown, ChevronRight, BookOpen, ExternalLink, Info, Link } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Plus, Edit, Trash2, ChevronDown, ChevronRight, BookOpen, ExternalLink, Info, Link, Eye, Shield, Lock } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getSubjects, getGetSubjectsUrl,
   useCreateSubject, useUpdateSubject, useDeleteSubject,
   getChapters, getGetChaptersUrl,
   useCreateChapter, useDeleteChapter,
-  useCreateTopic, useUpdateTopic,
   getTopics, getGetTopicsUrl,
 } from "@workspace/api-client-react";
 import type { Subject, Chapter, Topic } from "@workspace/api-client-react";
@@ -19,24 +19,37 @@ import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/lib/supabase";
+import { apiFetch } from "@/lib/api";
+import { Separator } from "@/components/ui/separator";
+
+// ── Augmented topic type with access-control fields ───────────────────────────
+type TopicWithAccess = Topic & {
+  telegram_link?: string;
+  allowed_roles?: string[];
+  is_creator_only?: boolean;
+  creator_id?: string | null;
+};
 
 type EditTarget =
   | { type: "subject"; id?: string; data: { title: string; description: string } }
   | { type: "chapter"; subjectId: string; id?: string; data: { title: string; description: string } }
-  | { type: "topic"; chapterId: string; id?: string; data: { title: string; description: string; telegram_link: string } };
+  | {
+      type: "topic";
+      chapterId: string;
+      id?: string;
+      data: {
+        title: string;
+        description: string;
+        telegram_link: string;
+        allowed_roles: string[];
+        is_creator_only: boolean;
+      };
+    };
 
 // ── Telegram link validation ───────────────────────────────────────────────────
-
-/**
- * Validates a direct Telegram message URL.
- * Accepts:
- *   https://t.me/c/1234567890/42        (private channel/group)
- *   https://t.me/channelname/42         (public channel post)
- * Returns an error string if invalid, undefined if valid or empty.
- */
 function validateTelegramLink(v: string): string | undefined {
   const trimmed = v.trim();
-  if (!trimmed) return undefined; // empty is OK (optional field)
+  if (!trimmed) return undefined;
   try {
     const url = new URL(trimmed);
     if (url.hostname !== "t.me") {
@@ -46,6 +59,42 @@ function validateTelegramLink(v: string): string | undefined {
     return 'Must be a valid URL starting with https://t.me/';
   }
   return undefined;
+}
+
+// ── Visibility helpers ────────────────────────────────────────────────────────
+const ALL_ROLES = ["student", "admin", "super_admin"];
+
+function visibilityLabel(roles: string[], creatorOnly: boolean): string {
+  if (creatorOnly) return "Creator only";
+  if (roles.length === 0) return "No access";
+  if (ALL_ROLES.every(r => roles.includes(r))) return "All roles";
+  const labels: string[] = [];
+  if (roles.includes("student")) labels.push("Students");
+  if (roles.includes("admin")) labels.push("Admins");
+  if (roles.includes("super_admin")) labels.push("Super Admins");
+  return labels.join(" + ");
+}
+
+function VisibilityBadge({ roles, creatorOnly }: { roles: string[]; creatorOnly: boolean }) {
+  if (creatorOnly) {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs text-amber-400 shrink-0" title="Creator only">
+        <Lock className="w-3 h-3" /> Creator only
+      </span>
+    );
+  }
+  const allRoles = ALL_ROLES.every(r => roles.includes(r));
+  if (allRoles) return null; // default — no badge needed
+  const studentAccess = roles.includes("student");
+  return (
+    <span
+      className={`inline-flex items-center gap-1 text-xs shrink-0 ${studentAccess ? "text-emerald-400" : "text-amber-400"}`}
+      title={visibilityLabel(roles, creatorOnly)}
+    >
+      {studentAccess ? <Eye className="w-3 h-3" /> : <Shield className="w-3 h-3" />}
+      {visibilityLabel(roles, creatorOnly)}
+    </span>
+  );
 }
 
 // ── Page component ─────────────────────────────────────────────────────────────
@@ -77,12 +126,6 @@ export default function AdminSubjectsPage() {
   });
   const deleteChapter = useDeleteChapter({
     mutation: { onSuccess: () => { queryClient.invalidateQueries(); toast({ title: "Chapter deleted" }); } },
-  });
-  const createTopic = useCreateTopic({
-    mutation: { onSuccess: (_data, vars) => { queryClient.invalidateQueries({ queryKey: [getGetTopicsUrl(vars.chapterId)] }); toast({ title: "Topic created" }); setEditTarget(null); } },
-  });
-  const updateTopic = useUpdateTopic({
-    mutation: { onSuccess: () => { queryClient.invalidateQueries(); toast({ title: "Topic updated" }); setEditTarget(null); } },
   });
 
   function toggleSubject(id: string) {
@@ -127,17 +170,40 @@ export default function AdminSubjectsPage() {
           setSaving(false);
           return;
         }
+        if (!d.is_creator_only && d.allowed_roles.length === 0) {
+          toast({ title: "Access control error", description: "Select at least one role, or enable Creator Only.", variant: "destructive" });
+          setSaving(false);
+          return;
+        }
+
         const topicPayload = {
           title: d.title,
           description: d.description,
           telegram_link: d.telegram_link.trim() || undefined,
+          allowed_roles: d.is_creator_only ? ["super_admin"] : d.allowed_roles,
+          is_creator_only: d.is_creator_only,
+          order_index: 0,
         };
+
         if (editTarget.id) {
-          await updateTopic.mutateAsync({ topicId: editTarget.id, data: topicPayload });
+          await apiFetch(`/topics/${editTarget.id}`, {
+            method: "PATCH",
+            body: JSON.stringify(topicPayload),
+          });
+          queryClient.invalidateQueries();
+          toast({ title: "Topic updated" });
         } else {
-          await createTopic.mutateAsync({ chapterId: editTarget.chapterId, data: { ...topicPayload, order_index: 0 } });
+          await apiFetch(`/chapters/${editTarget.chapterId}/topics`, {
+            method: "POST",
+            body: JSON.stringify(topicPayload),
+          });
+          queryClient.invalidateQueries({ queryKey: [getGetTopicsUrl(editTarget.chapterId)] });
+          toast({ title: "Topic created" });
         }
+        setEditTarget(null);
       }
+    } catch (err) {
+      toast({ title: "Error saving", description: (err as Error).message, variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -147,7 +213,21 @@ export default function AdminSubjectsPage() {
   const topicData = editTarget?.type === "topic" ? editTarget.data : null;
   const linkError = topicData ? validateTelegramLink(topicData.telegram_link) : undefined;
   const previewLink = topicData?.telegram_link.trim() && !linkError ? topicData.telegram_link.trim() : null;
-  const hasErrors = !!linkError;
+  const hasErrors = !!linkError || (!topicData?.is_creator_only && (topicData?.allowed_roles.length ?? 1) === 0);
+
+  function setTopicField<K extends keyof NonNullable<typeof topicData>>(key: K, value: NonNullable<typeof topicData>[K]) {
+    setEditTarget(prev => {
+      if (!prev || prev.type !== "topic") return prev;
+      return { ...prev, data: { ...prev.data, [key]: value } } as EditTarget;
+    });
+  }
+
+  function toggleRole(role: string) {
+    if (!topicData) return;
+    const current = topicData.allowed_roles;
+    const next = current.includes(role) ? current.filter(r => r !== role) : [...current, role];
+    setTopicField("allowed_roles", next);
+  }
 
   return (
     <AppLayout>
@@ -183,7 +263,11 @@ export default function AdminSubjectsPage() {
                 onDelete={() => deleteSubject.mutate({ subjectId: subject.id })}
                 onAddChapter={() => setEditTarget({ type: "chapter", subjectId: subject.id, data: { title: "", description: "" } })}
                 onDeleteChapter={(id) => deleteChapter.mutate({ chapterId: id })}
-                onAddTopic={(chapterId) => setEditTarget({ type: "topic", chapterId, data: { title: "", description: "", telegram_link: "" } })}
+                onAddTopic={(chapterId) => setEditTarget({
+                  type: "topic",
+                  chapterId,
+                  data: { title: "", description: "", telegram_link: "", allowed_roles: [...ALL_ROLES], is_creator_only: false },
+                })}
                 onEditTopic={(topic) => setEditTarget({
                   type: "topic",
                   chapterId: topic.chapter_id,
@@ -191,7 +275,9 @@ export default function AdminSubjectsPage() {
                   data: {
                     title: topic.title,
                     description: topic.description || "",
-                    telegram_link: (topic as Topic & { telegram_link?: string }).telegram_link || "",
+                    telegram_link: (topic as TopicWithAccess).telegram_link || "",
+                    allowed_roles: (topic as TopicWithAccess).allowed_roles ?? [...ALL_ROLES],
+                    is_creator_only: (topic as TopicWithAccess).is_creator_only ?? false,
                   },
                 })}
                 onDeleteTopic={handleDeleteTopic}
@@ -203,7 +289,7 @@ export default function AdminSubjectsPage() {
 
       {/* ── Create / Edit Dialog ── */}
       <Dialog open={!!editTarget} onOpenChange={(open) => !open && setEditTarget(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editTarget?.type === "subject"
@@ -233,7 +319,7 @@ export default function AdminSubjectsPage() {
                 />
               </div>
 
-              {/* ── Topic-only: Telegram lecture link ── */}
+              {/* ── Topic-only fields ── */}
               {editTarget.type === "topic" && (
                 <>
                   {/* Setup hint */}
@@ -247,9 +333,7 @@ export default function AdminSubjectsPage() {
                         The link looks like{" "}
                         <span className="font-mono bg-muted px-1 rounded">https://t.me/c/1234567890/42</span>.
                       </p>
-                      <p>
-                        On mobile: long-press the message → <span className="font-medium">Copy Link</span>.
-                      </p>
+                      <p>On mobile: long-press the message → <span className="font-medium">Copy Link</span>.</p>
                     </div>
                   </div>
 
@@ -283,6 +367,71 @@ export default function AdminSubjectsPage() {
                       </a>
                     </div>
                   )}
+
+                  {/* ── Access Control ── */}
+                  <Separator />
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Lock className="w-3.5 h-3.5 text-primary" />
+                      <span className="text-sm font-medium">Access Control</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Control who can view and access this lecture topic. Changes take effect immediately for all users.
+                    </p>
+
+                    {/* Creator Only toggle */}
+                    <label className="flex items-start gap-3 cursor-pointer rounded-md border border-border bg-muted/20 px-3 py-2.5 hover:bg-muted/40 transition-colors">
+                      <Checkbox
+                        id="creator-only"
+                        checked={editTarget.data.is_creator_only}
+                        onCheckedChange={(checked) => setTopicField("is_creator_only", checked === true)}
+                        className="mt-0.5"
+                      />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium flex items-center gap-1.5">
+                          <Lock className="w-3.5 h-3.5 text-amber-400" />
+                          Creator Only
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Only you (the creator) can access this topic. Super admins with an explicit grant can also access it.
+                        </p>
+                      </div>
+                    </label>
+
+                    {/* Role checkboxes (disabled when creator-only) */}
+                    {!editTarget.data.is_creator_only && (
+                      <div className="space-y-2">
+                        <p className="text-xs text-muted-foreground font-medium">Visible to:</p>
+                        {[
+                          { role: "student", label: "Students", desc: "Regular enrolled students can view and take this topic." },
+                          { role: "admin", label: "Admins", desc: "Admin accounts can access and manage this topic." },
+                          { role: "super_admin", label: "Super Admins", desc: "Super admin accounts can access this topic." },
+                        ].map(({ role, label, desc }) => (
+                          <label key={role} className="flex items-start gap-3 cursor-pointer rounded-md px-3 py-2 hover:bg-muted/30 transition-colors">
+                            <Checkbox
+                              id={`role-${role}`}
+                              checked={editTarget.data.allowed_roles.includes(role)}
+                              onCheckedChange={() => toggleRole(role)}
+                              className="mt-0.5"
+                            />
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium">{label}</p>
+                              <p className="text-xs text-muted-foreground">{desc}</p>
+                            </div>
+                          </label>
+                        ))}
+                        {editTarget.data.allowed_roles.length === 0 && (
+                          <p className="text-xs text-destructive px-3">Select at least one role.</p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Preview */}
+                    <div className="rounded-md bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground/80">Current visibility: </span>
+                      {visibilityLabel(editTarget.data.allowed_roles, editTarget.data.is_creator_only)}
+                    </div>
+                  </div>
                 </>
               )}
 
@@ -394,9 +543,16 @@ function ChapterRow({ chapter, expanded, onToggle, onDelete, onAddTopic, onEditT
       </div>
       {expanded && (
         <div className="border-t border-border px-4 pb-3 pt-2 space-y-1">
-          {(topics as (Topic & { telegram_link?: string })[]).map((topic) => (
-            <div key={topic.id} className="flex items-center gap-1 py-1 group">
+          {(topics as TopicWithAccess[]).map((topic) => (
+            <div key={topic.id} className="flex items-center gap-1.5 py-1 group">
               <span className="text-sm text-muted-foreground flex-1 min-w-0 truncate">• {topic.title}</span>
+
+              {/* Visibility badge */}
+              <VisibilityBadge
+                roles={topic.allowed_roles ?? ALL_ROLES}
+                creatorOnly={topic.is_creator_only ?? false}
+              />
+
               {/* Telegram link indicator */}
               {topic.telegram_link && (
                 <Link className="w-3 h-3 text-primary/60 shrink-0 hidden sm:block" />
@@ -405,7 +561,7 @@ function ChapterRow({ chapter, expanded, onToggle, onDelete, onAddTopic, onEditT
                 size="icon"
                 variant="ghost"
                 className="h-6 w-6 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={() => onEditTopic(topic as Topic)}
+                onClick={() => onEditTopic(topic as unknown as Topic)}
                 title="Edit topic"
               >
                 <Edit className="w-3 h-3" />

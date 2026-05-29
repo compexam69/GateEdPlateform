@@ -920,9 +920,9 @@ router.post("/admin/content/grants", requireAdmin, async (req: AuthRequest, res)
     res.status(400).json({ error: "content_type, content_id, and granted_to are required." });
     return;
   }
-  const VALID_TYPES = ["subject", "quiz"];
+  const VALID_TYPES = ["subject", "quiz", "topic"];
   if (!VALID_TYPES.includes(content_type)) {
-    res.status(400).json({ error: "content_type must be 'subject' or 'quiz'." });
+    res.status(400).json({ error: "content_type must be 'subject', 'quiz', or 'topic'." });
     return;
   }
 

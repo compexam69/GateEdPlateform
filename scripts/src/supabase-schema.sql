@@ -770,3 +770,39 @@ create index if not exists idx_quizzes_creator_id     on quizzes(creator_id);
 create index if not exists idx_quizzes_allowed_roles  on quizzes using gin(allowed_roles);
 create index if not exists idx_grants_type_content    on content_access_grants(content_type, content_id);
 create index if not exists idx_grants_grantee         on content_access_grants(granted_to);
+
+-- ============================================================
+-- SECTION 23: Topic Lecture Access Control (Checkpoint X)
+-- Run in Supabase SQL Editor after Section 22.
+-- Safe to re-run (all statements are idempotent).
+-- ============================================================
+
+-- 1. Add role-based visibility to topics.
+--    Defaults match existing behaviour: all roles can access all topics.
+alter table topics
+  add column if not exists allowed_roles text[]
+    not null default array['student','admin','super_admin'];
+
+alter table topics
+  add column if not exists is_creator_only boolean
+    not null default false;
+
+-- 2. Extend the content_access_grants constraint to include topics.
+--    Drop the old 2-value check and replace it with a 3-value check.
+alter table content_access_grants
+  drop constraint if exists content_access_grants_content_type_check;
+
+alter table content_access_grants
+  add constraint content_access_grants_content_type_check
+    check (content_type in ('subject','quiz','topic'));
+
+-- 3. Performance indexes.
+create index if not exists idx_topics_allowed_roles
+  on topics using gin(allowed_roles);
+
+create index if not exists idx_topics_is_creator_only
+  on topics(is_creator_only);
+
+-- 4. Existing data: nothing to migrate.
+--    All topics get the defaults above (all-roles accessible, not creator-only),
+--    which exactly matches the pre-migration behaviour.

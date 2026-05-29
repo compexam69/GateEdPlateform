@@ -1,0 +1,495 @@
+Here’s the upgraded enterprise-grade prompt specifically for the Content Editor lecture/content creation module with role-based access control, Super Admin isolation, SQL guidance, migration planning, RLS considerations, and implementation workflow.
+
+🟢 Checkpoint X: Content Editor Lecture Access Control System (Role-Based Visibility + Super Admin Isolation)
+
+Goal:
+
+Implement a secure and production-ready role-based access control system inside the Content Editor module for lecture/content creation, ensuring creators can control who can access specific lecture content while enforcing strict Super Admin isolation and preserving all existing content workflows.
+
+Context:
+
+Currently, the Content Editor module allows Admins/Super Admins to create lecture content, but there is no flexible role-based visibility/access control system attached to lecture-level content.
+
+As a result:
+
+* Content visibility is overly broad or system-dependent.
+* There is no granular access configuration.
+* Super Admin content isolation is not enforced properly.
+* One Super Admin may unintentionally gain visibility into another Super Admin’s lecture content.
+* Existing lecture delivery workflows do not support role-based visibility filtering.
+
+New Requirement:
+
+Add a role-based multi-selection access control system directly inside the Content Editor lecture creation/edit workflow.
+
+The creator must be able to define who can access a lecture/content item.
+
+Supported access targets:
+
+* Creator Only
+* Admins
+* Students
+* Specific Super Admin access (explicit sharing only)
+
+Critical Business Rule:
+
+* Super Admins can view:
+
+  * Their own lecture content
+  * Admin-created lecture content
+  * Student-accessible lecture content (if allowed)
+* BUT:
+
+  * One Super Admin MUST NOT automatically access another Super Admin’s lecture content.
+* Cross-Super-Admin visibility requires:
+
+  * Explicit permission/share access.
+
+Examples:
+
+* Creator only lecture
+* Admin-only lecture
+* Student-accessible lecture
+* Shared lecture between selected Super Admins
+* Mixed Admin + Student lecture access
+
+Instructions:
+
+1. Analyze Existing Content Editor Architecture
+
+Review:
+
+* Content Editor module
+* Lecture creation workflow
+* Topic/chapter/subject hierarchy
+* Existing lecture ownership structure
+* Existing permissions/authentication logic
+* API authorization logic
+* Student-side lecture rendering
+* Dashboard content lists
+* Database schema
+* Existing RLS/security policies
+* Existing analytics/tracking systems
+
+Identify:
+
+* How lecture ownership is currently stored
+* Whether lecture visibility fields already exist
+* Which APIs/services require permission filtering
+* Which content queries expose all lectures globally
+* Potential permission/security loopholes
+
+2. Implement Lecture Access Control UI
+
+Inside the Content Editor:
+
+Add a dedicated:
+
+* “Access Control”
+  OR
+* “Visibility Settings”
+  section during lecture creation/editing.
+
+Add multi-selection access options:
+
+* Creator Only
+* Admins
+* Students
+* Explicit Super Admin sharing
+
+Requirements:
+
+* Clean responsive UI
+* Multi-select checkbox/chip/tag interface
+* Clear descriptions/tooltips
+* Mobile-friendly layout
+* Easy-to-understand visibility states
+
+Ensure:
+
+* Existing editor layout remains stable
+* No overflow/responsive issues occur
+* Validation states remain clear
+
+3. Implement Super Admin Isolation Logic
+
+Critical Requirement:
+
+One Super Admin MUST NOT automatically gain access to another Super Admin’s lecture content.
+
+Implement:
+
+* Explicit Super Admin sharing system.
+
+Possible implementation approaches:
+
+A. Shared Access Table (Recommended)
+
+Create a mapping table:
+
+lecture_shared_access
+
+Fields:
+
+* lecture_id
+* owner_super_admin_id
+* shared_super_admin_id
+* created_at
+
+OR
+
+B. JSON-based shared access array
+
+Only if architecture already supports JSON permissions cleanly.
+
+Recommended:
+
+Use relational mapping table for scalability/security.
+
+Ensure:
+
+* Isolation enforced at:
+
+  * UI level
+  * API level
+  * Database/RLS level
+* Unauthorized Super Admins cannot:
+
+  * View
+  * Search
+  * Open
+  * Query
+  * Access APIs
+    for restricted lecture content.
+
+4. SQL / Database / Migration Requirements
+
+IMPORTANT:
+
+Before implementation:
+
+Create FULL database backup.
+
+A. Likely Required Database Changes
+
+Depending on current schema, likely additions:
+
+Lecture table updates:
+
+* visibility_roles
+* creator_id
+* creator_role
+* is_creator_only
+
+Possible new table:
+
+lecture_shared_access
+
+Example structure:
+
+* id
+* lecture_id
+* owner_super_admin_id
+* shared_super_admin_id
+* created_at
+
+B. SQL Migration Guidance
+
+You may need:
+
+* ALTER TABLE migrations
+* New indexes
+* Foreign key constraints
+* RLS policy updates
+* Permission-filter query updates
+
+C. What YOU Need To Check Before Running SQL
+
+Before applying migrations:
+
+Verify:
+
+* Current lecture table structure
+* Existing creator_id usage
+* Existing role enum values
+* Existing RLS policies
+* Existing foreign key constraints
+
+D. Important Safety Requirement
+
+DO NOT directly run destructive SQL.
+
+Before applying:
+
+* Test on staging/development DB first
+* Verify old lecture data compatibility
+* Confirm NULL/default handling
+* Ensure existing lectures remain accessible
+
+E. Existing Data Migration
+
+Define:
+
+What happens for old lectures?
+
+Recommended fallback:
+
+* Existing lectures inherit:
+
+  * Admin + Student visibility
+    OR
+  * Creator-only visibility
+    based on current platform behavior.
+
+Implementation must clearly document:
+
+* Migration behavior
+* Existing lecture access impact
+* Rollback strategy
+
+5. Implement API Authorization Filtering
+
+Update:
+
+* Lecture fetch APIs
+* Dashboard APIs
+* Student lecture APIs
+* Search/filter APIs
+* Analytics APIs
+
+Ensure:
+
+Access validation occurs server-side.
+
+Prevent:
+
+* Unauthorized direct API access
+* Query parameter bypass
+* Hidden lecture enumeration
+* Cached visibility leakage
+
+6. Update Student-Side Lecture Rendering
+
+Ensure students only receive lectures:
+
+* Allowed for Students role
+  AND
+* Matching existing enrollment/access logic
+
+Prevent:
+
+* Hidden lectures appearing in lists
+* Broken chapter counts
+* Empty placeholder cards
+* Unauthorized lecture opening
+
+7. Preserve Existing Functionality
+
+Ensure implementation does NOT break:
+
+* Telegram lecture integration
+* Lecture analytics
+* Notes/PDF workflows
+* Topic/chapter organization
+* Existing permissions
+* Existing content delivery
+* Dashboard workflows
+* Mobile/PWA behavior
+* Existing search/filter systems
+
+8. Error Handling & Edge Cases
+
+Handle:
+
+* Missing permissions
+* Deleted creators
+* Removed Super Admin access
+* Invalid role selections
+* Concurrent permission edits
+* Unauthorized direct URLs
+* Stale cached permissions
+* Orphaned shared-access records
+
+Ensure:
+
+* Friendly errors
+* Stable UI behavior
+* No security leaks
+* Proper access-denied states
+
+9. Responsive & Accessibility Validation
+
+Ensure access control UI works correctly on:
+
+* Mobile browsers
+* Tablets
+* Desktop browsers
+* Installed PWA mode
+
+Verify:
+
+* No layout overflow
+* Touch-friendly controls
+* Keyboard accessibility
+* Stable modal/dialog behavior
+
+10. Testing & Validation
+
+Test:
+
+* Creator-only lecture access
+* Admin-only lecture access
+* Student lecture access
+* Shared Super Admin lecture access
+* Unauthorized access attempts
+* Direct URL access
+* API authorization filtering
+* Mobile responsiveness
+* PWA mode
+* Search/filter behavior
+
+Verify:
+
+* Permission filtering works correctly
+* Unauthorized users cannot bypass access restrictions
+* Existing functionality remains stable
+* No console/runtime errors occur
+* No permission escalation vulnerabilities exist
+
+11. Audit Logging & Security Monitoring
+
+Log:
+
+* Lecture visibility changes
+* Shared-access grants/removals
+* Unauthorized access attempts
+* Permission updates
+
+Store:
+
+* User ID
+* Lecture ID
+* Action type
+* Timestamp
+* Previous/new permission states
+
+12. Beginner-Friendly Admin Guide
+
+After implementation, provide detailed guide explaining:
+
+* How lecture access control works
+* How to configure visibility
+* How Super Admin isolation behaves
+* How to share lectures between Super Admins
+* Recommended visibility practices
+* Common mistakes to avoid
+* Security best practices
+* Troubleshooting access issues
+
+13. What YOU Need To Do Before Implementation
+
+A. Review Existing Lecture Schema
+
+Check:
+
+* lecture/content table structure
+* ownership fields
+* existing role storage
+* current RLS policies
+
+B. Create Database Backup
+
+Before migrations:
+
+* Full DB backup
+* Export lecture ownership data
+* Backup RLS policies
+
+C. Decide Default Visibility
+
+Choose:
+
+* Creator-only default
+  OR
+* Admin + Student default
+  OR
+* System-configurable default
+
+D. Prepare Staging Testing
+
+Strongly recommended:
+
+* Test migration on staging first
+* Validate old lecture compatibility
+* Test Super Admin isolation thoroughly
+
+14. Explicit SQL Guidance
+
+IMPORTANT:
+
+You will LIKELY need SQL changes IF:
+
+* lecture visibility fields do not already exist
+* shared access relationships are not already supported
+* RLS policies currently allow unrestricted lecture visibility
+
+You MAY NOT need SQL changes IF:
+
+* your schema already supports:
+
+  * role arrays
+  * ownership filtering
+  * relational access mapping
+
+The implementation MUST:
+
+* Clearly explain:
+
+  * which SQL changes are required
+  * which migrations to run
+  * where to run them
+  * whether Supabase SQL Editor is needed
+  * whether RLS policies must be updated
+
+Provide separately:
+
+* Safe SQL migration scripts
+* Rollback scripts
+* RLS updates
+* Index recommendations
+
+15. Checkpoint Requirement
+
+After completing and verifying implementation:
+
+* Create proper checkpoint/commit immediately.
+* Ensure lecture access-control system is fully stable and production-ready.
+
+Provide final implementation summary including:
+
+* Files modified
+* Content Editor UI changes
+* Access control implementation
+* API authorization changes
+* SQL/schema updates
+* RLS/security updates
+* Super Admin isolation implementation
+* Audit logging changes
+* Remaining limitations/issues (if any)
+
+Acceptance Criteria:
+
+* [ ] Lecture content supports role-based multi-selection access control.
+* [ ] Creators always retain access to their own lectures.
+* [ ] Admins only access permitted lectures.
+* [ ] Students only access permitted lectures.
+* [ ] One Super Admin cannot automatically access another Super Admin’s lectures.
+* [ ] Explicit Super Admin lecture sharing works correctly.
+* [ ] Unauthorized lecture access is blocked at UI, API, and database levels.
+* [ ] Existing lecture workflows remain stable.
+* [ ] Existing Telegram/content integrations remain unaffected.
+* [ ] Mobile, desktop, and PWA responsiveness remain stable.
+* [ ] No permission escalation vulnerabilities exist.
+* [ ] No console/runtime errors occur after implementation.
+* [ ] SQL migrations and RLS updates are documented clearly.
+* [ ] Checkpoint/commit is created after successful implementation and testing.
