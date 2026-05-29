@@ -397,7 +397,7 @@ export default function AdminUsersPage() {
       canView ||
       canEdit ||
       (currentRole === "super_admin" && !isSelf) ||
-      role === "student";
+      (role as string) === "student";
 
     const hasPrimaryAction =
       status === "pending_approval" ||

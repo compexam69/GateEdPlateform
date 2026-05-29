@@ -20,7 +20,7 @@ router.post("/chapters/:chapterId/topics", requireAdmin, async (req: AuthRequest
 
   const { data, error } = await supabase
     .from("topics")
-    .insert({ chapter_id: req.params["chapterId"], title, description, order_index, telegram_link: telegram_link || null })
+    .insert({ chapter_id: req.params["chapterId"], title, description, order_index, telegram_link: telegram_link || null, creator_id: req.user!.id })
     .select()
     .single();
   if (error) { res.status(500).json({ error: error.message }); return; }

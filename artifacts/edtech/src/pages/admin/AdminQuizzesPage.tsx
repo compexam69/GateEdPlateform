@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Edit, Trash2, ChevronDown, ChevronRight, QrCode, FileJson, BookOpen, HelpCircle, ExternalLink, FileText, Upload } from "lucide-react";
+import { Plus, Edit, Trash2, ChevronDown, ChevronRight, QrCode, FileJson, BookOpen, HelpCircle, ExternalLink, FileText, Upload, Eye, Shield } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getSubjects, getGetSubjectsUrl, getChapters, getGetChaptersUrl, getTopics, getGetTopicsUrl } from "@workspace/api-client-react";
 import { supabase } from "@/lib/supabase";
@@ -39,7 +39,31 @@ type Quiz = {
   negative_marking: number;
   max_attempts: number;
   is_active: boolean;
+  allowed_roles: string[];
+  creator_id?: string | null;
 };
+
+const ALL_ROLES = ["student", "admin", "super_admin"] as const;
+type RoleId = typeof ALL_ROLES[number];
+
+const ROLE_LABELS: Record<RoleId, string> = {
+  student: "Students",
+  admin: "Admins",
+  super_admin: "Super Admins",
+};
+
+function visibilityLabel(roles: string[]): string {
+  const hasStudent = roles.includes("student");
+  const hasAdmin = roles.includes("admin");
+  const hasSA = roles.includes("super_admin");
+  if (hasStudent && hasAdmin && hasSA) return "All roles";
+  if (hasStudent && hasAdmin) return "Students + Admins";
+  if (hasStudent) return "Students only";
+  if (hasAdmin && hasSA) return "Staff only";
+  if (hasSA) return "Super Admin only";
+  if (hasAdmin) return "Admins only";
+  return "Restricted";
+}
 
 type Question = {
   id: string;
@@ -219,6 +243,19 @@ function QuizRow({ quiz, expanded, onToggle, onEdit, onDelete, onAddQuestion, on
               <span className="font-semibold truncate">{quiz.title}</span>
               <Badge variant="outline" className="text-xs">{typeLabel}</Badge>
               {!quiz.is_active && <Badge variant="secondary" className="text-xs">Inactive</Badge>}
+              {(() => {
+                const roles = quiz.allowed_roles ?? ["student", "admin", "super_admin"];
+                const isPublic = roles.includes("student");
+                return (
+                  <Badge
+                    variant="secondary"
+                    className={`text-xs flex items-center gap-1 ${isPublic ? "text-emerald-400 border border-emerald-800/40" : "text-amber-400 border border-amber-800/40"}`}
+                  >
+                    {isPublic ? <Eye className="w-3 h-3" /> : <Shield className="w-3 h-3" />}
+                    {visibilityLabel(roles)}
+                  </Badge>
+                );
+              })()}
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
               Pass: {quiz.passing_score}% · {quiz.duration_minutes}min · Negative: -{quiz.negative_marking} · Max attempts: {quiz.max_attempts}
@@ -304,10 +341,12 @@ function QuizDialog({ open, quiz, onClose, onSaved, saving, setSaving }: {
   setSaving: (v: boolean) => void;
 }) {
   const { data: subjects = [] } = useQuery({ queryKey: [getGetSubjectsUrl()], queryFn: () => getSubjects() });
+  const { user } = useAuth();
   const [form, setForm] = useState<{
     title: string; type: string; passing_score: number; duration_minutes: number;
     negative_marking: number; max_attempts: number; is_active: boolean;
     topic_id: string; chapter_id: string; subject_id: string;
+    allowed_roles: string[];
   }>({
     title: quiz?.title ?? "",
     type: quiz?.type ?? "topic_test",
@@ -319,6 +358,7 @@ function QuizDialog({ open, quiz, onClose, onSaved, saving, setSaving }: {
     topic_id: quiz?.topic_id ?? "",
     chapter_id: quiz?.chapter_id ?? "",
     subject_id: quiz?.subject_id ?? "",
+    allowed_roles: quiz?.allowed_roles ?? ["student", "admin", "super_admin"],
   });
 
   useState(() => {
@@ -334,6 +374,7 @@ function QuizDialog({ open, quiz, onClose, onSaved, saving, setSaving }: {
         topic_id: quiz?.topic_id ?? "",
         chapter_id: quiz?.chapter_id ?? "",
         subject_id: quiz?.subject_id ?? "",
+        allowed_roles: quiz?.allowed_roles ?? ["student", "admin", "super_admin"],
       });
     }
   });
@@ -353,11 +394,15 @@ function QuizDialog({ open, quiz, onClose, onSaved, saving, setSaving }: {
         topic_id: form.topic_id || null,
         chapter_id: form.chapter_id || null,
         subject_id: form.subject_id || null,
+        allowed_roles: form.allowed_roles.length > 0 ? form.allowed_roles : ["student", "admin", "super_admin"],
       };
       if (quiz?.id) {
         await supabase.from("quizzes").update(payload).eq("id", quiz.id);
       } else {
-        await supabase.from("quizzes").insert(payload);
+        await supabase.from("quizzes").insert({
+          ...payload,
+          ...(user?.id ? { creator_id: user.id } : {}),
+        });
       }
       onSaved();
     } finally {
@@ -413,9 +458,36 @@ function QuizDialog({ open, quiz, onClose, onSaved, saving, setSaving }: {
               </SelectContent>
             </Select>
           </div>
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1.5"><Eye className="w-3.5 h-3.5" /> Exam Access</Label>
+            <p className="text-xs text-muted-foreground">Which roles can see and take this exam. Super admins can always preview.</p>
+            <div className="flex flex-col gap-2 pt-1">
+              {ALL_ROLES.map(role => (
+                <label key={role} className="flex items-center gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.allowed_roles.includes(role)}
+                    onChange={e => {
+                      const updated = e.target.checked
+                        ? [...form.allowed_roles, role]
+                        : form.allowed_roles.filter(r => r !== role);
+                      f("allowed_roles", updated);
+                    }}
+                    className="w-4 h-4 rounded"
+                  />
+                  <span className="text-sm">{ROLE_LABELS[role]}</span>
+                </label>
+              ))}
+            </div>
+            {form.allowed_roles.length === 0 && (
+              <p className="text-xs text-destructive">At least one role must be selected</p>
+            )}
+          </div>
           <div className="flex gap-2 justify-end pt-2">
             <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button onClick={handleSave} disabled={saving || !form.title}>{saving ? "Saving..." : "Save"}</Button>
+            <Button onClick={handleSave} disabled={saving || !form.title || form.allowed_roles.length === 0}>
+              {saving ? "Saving..." : "Save"}
+            </Button>
           </div>
         </div>
       </DialogContent>

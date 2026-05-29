@@ -42,3 +42,17 @@ export async function requireAdmin(req: AuthRequest, res: Response, next: NextFu
   req.user = user;
   next();
 }
+
+export async function requireSuperAdmin(req: AuthRequest, res: Response, next: NextFunction) {
+  const user = await getUserFromRequest(req.headers.authorization);
+  if (!user) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  if (user.role !== "super_admin") {
+    res.status(403).json({ error: "Super admin access required" });
+    return;
+  }
+  req.user = user;
+  next();
+}

@@ -837,4 +837,135 @@ router.get("/admin/rate-limits", requireAdmin, async (_req: AuthRequest, res) =>
   res.json({ total_keys: entries.length, entries });
 });
 
+// ── Content Visibility: update allowed_roles for a quiz ───────────────────────
+// - super_admin: can update any quiz
+// - admin: can only update quizzes they personally created
+router.patch("/admin/content/quizzes/:quizId/visibility", requireAdmin, async (req: AuthRequest, res) => {
+  const actorId = req.user!.id;
+  const actorRole = req.user!.role;
+  const { quizId } = req.params as { quizId: string };
+  const { allowed_roles } = req.body as { allowed_roles: string[] };
+
+  const VALID_ROLES = ["student", "admin", "super_admin"];
+  if (
+    !Array.isArray(allowed_roles) ||
+    allowed_roles.length === 0 ||
+    !allowed_roles.every(r => VALID_ROLES.includes(r as string))
+  ) {
+    res.status(400).json({ error: "allowed_roles must be a non-empty array of: student, admin, super_admin" });
+    return;
+  }
+
+  const { data: quiz, error: fetchErr } = await supabase
+    .from("quizzes")
+    .select("id, creator_id, title")
+    .eq("id", quizId)
+    .single();
+  if (fetchErr || !quiz) { res.status(404).json({ error: "Quiz not found" }); return; }
+
+  if (actorRole !== "super_admin" && quiz.creator_id !== actorId) {
+    res.status(403).json({ error: "You can only update visibility of quizzes you created." });
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from("quizzes")
+    .update({ allowed_roles })
+    .eq("id", quizId)
+    .select()
+    .single();
+  if (error) { res.status(500).json({ error: error.message }); return; }
+
+  await writeAuditLog(actorId, "quiz_visibility_changed", "quiz", quizId, {
+    allowed_roles,
+    quiz_title: quiz.title,
+  });
+  res.json(data);
+});
+
+// ── Content Access Grants (super_admin only) ──────────────────────────────────
+// Explicit SA-to-SA sharing: SA1 can grant SA2 management rights over SA1's content.
+
+router.get("/admin/content/grants", requireAdmin, async (req: AuthRequest, res) => {
+  if (req.user!.role !== "super_admin") {
+    res.status(403).json({ error: "Only super admins can view content grants." });
+    return;
+  }
+  const { content_type, content_id } = req.query as { content_type?: string; content_id?: string };
+
+  let query = supabase
+    .from("content_access_grants")
+    .select("id, content_type, content_id, granted_to, granted_by, created_at")
+    .order("created_at", { ascending: false });
+  if (content_type) query = query.eq("content_type", content_type);
+  if (content_id) query = query.eq("content_id", content_id);
+
+  const { data, error } = await query;
+  if (error) { res.status(500).json({ error: error.message }); return; }
+  res.json(data ?? []);
+});
+
+router.post("/admin/content/grants", requireAdmin, async (req: AuthRequest, res) => {
+  const actorId = req.user!.id;
+  if (req.user!.role !== "super_admin") {
+    res.status(403).json({ error: "Only super admins can grant content access." });
+    return;
+  }
+  const { content_type, content_id, granted_to } = req.body as {
+    content_type: string;
+    content_id: string;
+    granted_to: string;
+  };
+  if (!content_type || !content_id || !granted_to) {
+    res.status(400).json({ error: "content_type, content_id, and granted_to are required." });
+    return;
+  }
+  const VALID_TYPES = ["subject", "quiz"];
+  if (!VALID_TYPES.includes(content_type)) {
+    res.status(400).json({ error: "content_type must be 'subject' or 'quiz'." });
+    return;
+  }
+
+  // Prevent granting access to yourself
+  if (granted_to === actorId) {
+    res.status(400).json({ error: "You cannot grant access to yourself." });
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from("content_access_grants")
+    .insert({ content_type, content_id, granted_to, granted_by: actorId })
+    .select()
+    .single();
+  if (error) {
+    if (error.code === "23505") { res.status(409).json({ error: "This grant already exists." }); return; }
+    res.status(500).json({ error: error.message });
+    return;
+  }
+  await writeAuditLog(actorId, "content_grant_created", content_type, content_id, { granted_to });
+  res.status(201).json(data);
+});
+
+router.delete("/admin/content/grants/:grantId", requireAdmin, async (req: AuthRequest, res) => {
+  const actorId = req.user!.id;
+  if (req.user!.role !== "super_admin") {
+    res.status(403).json({ error: "Only super admins can revoke content grants." });
+    return;
+  }
+  const { grantId } = req.params as { grantId: string };
+  const { data: grant } = await supabase
+    .from("content_access_grants")
+    .select("content_type, content_id, granted_to")
+    .eq("id", grantId)
+    .single();
+  const { error } = await supabase.from("content_access_grants").delete().eq("id", grantId);
+  if (error) { res.status(500).json({ error: error.message }); return; }
+  if (grant) {
+    await writeAuditLog(actorId, "content_grant_revoked", grant.content_type, grant.content_id, {
+      granted_to: grant.granted_to,
+    });
+  }
+  res.json({ message: "Grant revoked." });
+});
+
 export default router;

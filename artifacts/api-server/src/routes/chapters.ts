@@ -19,7 +19,7 @@ router.post("/subjects/:subjectId/chapters", requireAdmin, async (req: AuthReque
   if (!title) { res.status(400).json({ error: "title required" }); return; }
   const { data, error } = await supabase
     .from("chapters")
-    .insert({ subject_id: req.params["subjectId"], title, description, order_index, is_active })
+    .insert({ subject_id: req.params["subjectId"], title, description, order_index, is_active, creator_id: req.user!.id })
     .select()
     .single();
   if (error) { res.status(500).json({ error: error.message }); return; }

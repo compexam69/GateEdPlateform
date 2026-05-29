@@ -725,3 +725,48 @@ do $$ begin
     to public
     using (bucket_id = 'avatars');
 exception when duplicate_object then null; end $$;
+
+-- ── 22. Role-Based Content & Exam Access Control ──────────────────────────────
+-- Tracks who created each content row (for admin isolation + audit).
+-- Enforcement is done in the Express API server (service-role key bypasses RLS,
+-- so ownership checks live in route logic, not in RLS policies).
+
+alter table subjects  add column if not exists creator_id uuid references profiles(id) on delete set null;
+alter table chapters  add column if not exists creator_id uuid references profiles(id) on delete set null;
+alter table topics    add column if not exists creator_id uuid references profiles(id) on delete set null;
+alter table quizzes   add column if not exists creator_id uuid references profiles(id) on delete set null;
+
+-- allowed_roles: which user roles can see and start this quiz.
+-- Defaults to all roles so all existing quizzes remain accessible.
+alter table quizzes add column if not exists allowed_roles text[]
+  not null default array['student','admin','super_admin'];
+
+-- Explicit sharing between super_admin accounts.
+-- Lets SA1 grant SA2 full management rights over SA1's content.
+create table if not exists content_access_grants (
+  id           uuid        primary key default uuid_generate_v4(),
+  content_type text        not null check (content_type in ('subject','quiz')),
+  content_id   uuid        not null,
+  granted_to   uuid        not null references profiles(id) on delete cascade,
+  granted_by   uuid        not null references profiles(id) on delete cascade,
+  created_at   timestamptz not null default now(),
+  unique (content_type, content_id, granted_to)
+);
+
+alter table content_access_grants enable row level security;
+
+-- Super admins can read and manage grants; service role bypasses for listing.
+do $$ begin
+  create policy "grants_super_admin_all"
+    on content_access_grants for all
+    using (is_super_admin());
+exception when duplicate_object then null; end $$;
+
+-- Fast lookup indexes
+create index if not exists idx_subjects_creator_id    on subjects(creator_id);
+create index if not exists idx_chapters_creator_id    on chapters(creator_id);
+create index if not exists idx_topics_creator_id      on topics(creator_id);
+create index if not exists idx_quizzes_creator_id     on quizzes(creator_id);
+create index if not exists idx_quizzes_allowed_roles  on quizzes using gin(allowed_roles);
+create index if not exists idx_grants_type_content    on content_access_grants(content_type, content_id);
+create index if not exists idx_grants_grantee         on content_access_grants(granted_to);

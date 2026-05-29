@@ -1,0 +1,390 @@
+🟢 Checkpoint X: Role-Based Content & Exam Access Control System (Multi-Role Visibility Permissions)
+
+Goal:
+
+Implement a secure and production-ready role-based access control system for Content and Exam visibility that supports flexible multi-role access selection while preserving strict Super Admin isolation rules and existing permission architecture.
+
+Context:
+
+Currently, the platform does not provide a fully flexible visibility/access control mechanism for content and exams.
+
+There is a new requirement to allow creators to control who can access/view specific:
+
+* Content
+* Exams/Tests
+* Resources/Lectures (if applicable)
+
+using role-based multi-selection access rules.
+
+Important business rule:
+
+* A Super Admin can view all content created by:
+
+  * Admins
+  * Students/users
+* BUT:
+
+  * One Super Admin must NOT automatically access another Super Admin’s content.
+  * Access between Super Admins must require explicit permission/granted access.
+
+The system must remain secure, scalable, and production-ready while preserving existing content permissions, routing, rendering logic, analytics, and dashboard workflows.
+
+New Requirement:
+
+Add a role-based visibility/access configuration system for content and exams supporting:
+
+* Creator Only
+* Admins
+* Students
+* Super Admins (restricted by explicit permission logic)
+
+The creator should be able to select multiple allowed roles for each content/exam item.
+
+Examples:
+
+* Creator only
+* Creator + Admins
+* Creator + Students
+* Admins + Students
+* Everyone except other Super Admins
+* Explicitly shared between Super Admins
+
+Important Permission Rules:
+
+1. Creator Visibility
+
+* Content creators must always retain access to their own content.
+
+2. Admin Access
+
+* Admins can only access content/exams allowed for Admin role.
+
+3. Student Access
+
+* Students can only access content/exams allowed for Student role.
+
+4. Super Admin Isolation Rule
+
+* Super Admins can access:
+
+  * Their own content
+  * Admin-created content
+  * Student-created content
+* BUT:
+
+  * One Super Admin CANNOT automatically access another Super Admin’s content.
+* Cross-Super-Admin visibility requires:
+
+  * Explicit permission/share access.
+
+Instructions:
+
+1. Analyze Existing Permission Architecture
+
+Review:
+
+* Authentication system
+* Role management logic
+* Content ownership structure
+* Exam/test ownership structure
+* Existing visibility rules
+* API authorization logic
+* Database schema
+* RLS/security policies
+* Dashboard rendering permissions
+* Student content delivery logic
+
+Identify:
+
+* How ownership is currently stored
+* How permissions are currently validated
+* Which APIs/services require updates
+* Whether existing data structures support multi-role access
+* Potential security gaps in current visibility handling
+
+2. Design Role-Based Multi-Selection Access System
+
+Implement a flexible access configuration system allowing creators to select:
+
+* Creator Only
+* Admins
+* Students
+* Super Admins (if permitted)
+
+Requirements:
+
+* Multi-select UI
+* Clear labels/tooltips
+* Responsive layout
+* Mobile-friendly interaction
+* Easy-to-understand permission states
+
+Ensure:
+
+* Permissions are easy to modify
+* Existing content remains accessible correctly
+* Invalid role combinations are prevented if necessary
+
+3. Implement Super Admin Isolation Logic
+
+Critical requirement:
+
+* Super Admins must NOT automatically inherit access to another Super Admin’s content.
+
+Implement:
+
+* Explicit Super Admin-to-Super Admin access grants/sharing mechanism
+
+Examples:
+
+* Allow specific Super Admin
+* Shared workspace/group access
+* Permission-based visibility override
+
+Ensure:
+
+* Isolation is enforced at:
+
+  * UI layer
+  * API layer
+  * Database/RLS layer
+* Unauthorized Super Admin access is impossible.
+
+4. Update Database / Schema / Security Policies
+
+If required:
+
+Add/update:
+
+* Visibility/access fields
+* Access mapping tables
+* Permission grant tables
+* Shared-access relationships
+* RLS/security policies
+* Ownership metadata
+
+Clearly document:
+
+* Every schema change
+* SQL migrations
+* RLS updates
+* Required indexes
+* Backward compatibility considerations
+
+Mention:
+
+* Whether existing content/exams may be affected
+* Whether migration scripts are needed
+
+5. Update Content & Exam Rendering Logic
+
+Ensure visibility rules apply consistently to:
+
+* Content lists
+* Exams/tests
+* Lectures/resources
+* Search results
+* Dashboard views
+* Analytics/reporting
+* Notifications
+* API responses
+
+Prevent:
+
+* Unauthorized content exposure
+* Cached visibility leaks
+* Broken pagination/filtering
+* Incorrect counts/statistics
+
+6. Update Content Creation & Edit Workflow
+
+Add access control configuration inside:
+
+* Content Editor
+* Exam/Test Editor
+
+Ensure:
+
+* Existing workflows remain stable
+* Editing permissions remain secure
+* Default access states are clearly defined
+
+Define:
+
+* What happens for old content without visibility rules
+* Default access fallback behavior
+
+7. Preserve Existing Functionality
+
+Ensure implementation does NOT break:
+
+* Existing authentication
+* Dashboard navigation
+* Content delivery
+* Student access permissions
+* Exam participation
+* Analytics/reporting
+* Notifications
+* Mobile/PWA behavior
+* Existing admin workflows
+
+8. Error Handling & Edge Cases
+
+Handle:
+
+* Missing permissions
+* Invalid role combinations
+* Deleted users/roles
+* Removed access grants
+* Ownership transfers
+* Cached/stale permission data
+* Simultaneous permission edits
+* Unauthorized direct URL access
+
+Ensure:
+
+* Proper authorization failures
+* Friendly error messages
+* No security loopholes
+* Stable UI behavior during failures
+
+9. Responsive & Accessibility Validation
+
+Ensure access management UI works correctly on:
+
+* Mobile devices
+* Tablets
+* Desktop browsers
+* Installed PWA mode
+
+Verify:
+
+* No layout overflow
+* Touch-friendly controls
+* Keyboard accessibility
+* Proper focus handling
+
+10. Testing & Validation
+
+Test:
+
+* Creator-only access
+* Admin-only access
+* Student-only access
+* Mixed-role access
+* Super Admin isolation
+* Explicit Super Admin sharing
+* Unauthorized access attempts
+* Direct URL access
+* API authorization
+* Mobile responsiveness
+* PWA mode
+
+Verify:
+
+* Access restrictions work correctly
+* Unauthorized users cannot bypass restrictions
+* Existing functionality remains stable
+* No console/runtime errors occur
+* No permission escalation vulnerabilities exist
+
+11. Audit Logging & Security Monitoring
+
+Implement or verify logging for:
+
+* Permission changes
+* Visibility updates
+* Super Admin sharing actions
+* Unauthorized access attempts
+
+Ensure logs include:
+
+* User ID
+* Content/Exam ID
+* Permission change details
+* Timestamp
+
+12. Beginner-Friendly Admin Guide
+
+After implementation, provide a complete guide explaining:
+
+* How role-based visibility works
+* How to configure access permissions
+* How Super Admin isolation behaves
+* How to share content between Super Admins
+* Recommended visibility practices
+* Common mistakes to avoid
+* Security recommendations
+* Troubleshooting access issues
+
+13. What YOU Need To Do Before Implementation
+
+Before applying this system:
+
+A. Decide Default Visibility Behavior
+
+Choose:
+
+* Creator-only by default
+  OR
+* Admin + Students by default
+  OR
+* System-wide configurable default
+
+B. Decide Super Admin Sharing Model
+
+Choose one:
+
+* Manual explicit sharing
+* Team/workspace-based sharing
+* Permission request workflow
+
+C. Backup Existing Database
+
+Before migrations:
+
+* Create a full DB backup
+* Export current content/exam ownership data
+* Backup RLS/security policies
+
+D. Review Existing Roles
+
+Verify:
+
+* Role names are standardized
+* No duplicate/inconsistent role values exist
+
+14. Checkpoint Requirement
+
+After completing and verifying implementation:
+
+* Create a proper checkpoint/commit immediately.
+* Ensure the access-control system is fully stable and production-ready.
+
+Provide final implementation summary including:
+
+* Files modified
+* Permission architecture updates
+* Database/schema changes
+* RLS/security changes
+* API authorization updates
+* UI/workflow updates
+* Super Admin isolation implementation
+* Audit logging implementation
+* Remaining limitations/issues (if any)
+
+Acceptance Criteria:
+
+* [ ] Content and exams support role-based multi-selection visibility.
+* [ ] Creators always retain access to their own content.
+* [ ] Admins can only access permitted content.
+* [ ] Students can only access permitted content.
+* [ ] Super Admins cannot automatically access another Super Admin’s content.
+* [ ] Explicit Super Admin sharing/access grants work correctly.
+* [ ] Unauthorized access is blocked at UI, API, and database levels.
+* [ ] Existing content/exam workflows remain stable.
+* [ ] Existing authentication and analytics remain unaffected.
+* [ ] Mobile, desktop, and PWA responsiveness remain stable.
+* [ ] No permission escalation vulnerabilities exist.
+* [ ] No console/runtime errors occur after implementation.
+* [ ] Checkpoint/commit is created after successful implementation and testing.

@@ -19,7 +19,7 @@ router.post("/subjects", requireAdmin, async (req: AuthRequest, res) => {
   if (!title) { res.status(400).json({ error: "title required" }); return; }
   const { data, error } = await supabase
     .from("subjects")
-    .insert({ title, description, order_index, icon_url, is_active })
+    .insert({ title, description, order_index, icon_url, is_active, creator_id: req.user!.id })
     .select()
     .single();
   if (error) { res.status(500).json({ error: error.message }); return; }

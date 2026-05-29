@@ -27,6 +27,18 @@ router.post("/exam/start", requireAuth, async (req: AuthRequest, res) => {
     .single();
   if (qErr || !quiz) { res.status(404).json({ error: "Quiz not found" }); return; }
 
+  // Access control: student and admin roles must be explicitly listed in allowed_roles.
+  // super_admin always has access (for testing/preview).
+  const userRole = req.user!.role;
+  const allowedRoles: string[] = quiz.allowed_roles ?? ["student", "admin", "super_admin"];
+  if (userRole !== "super_admin" && !allowedRoles.includes(userRole)) {
+    res.status(403).json({
+      error: "You do not have permission to access this exam.",
+      code: "EXAM_ACCESS_DENIED",
+    });
+    return;
+  }
+
   const { data: questions, error: questErr } = await supabase
     .from("quiz_questions")
     .select("id, quiz_id, question_text, options, difficulty, order_index, video_solution_url, qr_code_url")
@@ -468,7 +480,11 @@ router.get("/quizzes/:quizId/questions", requireAuth, async (req: AuthRequest, r
 });
 
 router.post("/quizzes", requireAdmin, async (req: AuthRequest, res) => {
-  const { data, error } = await supabase.from("quizzes").insert(req.body).select().single();
+  const { data, error } = await supabase
+    .from("quizzes")
+    .insert({ ...req.body, creator_id: req.user!.id })
+    .select()
+    .single();
   if (error) { res.status(500).json({ error: error.message }); return; }
   res.status(201).json(data);
 });
