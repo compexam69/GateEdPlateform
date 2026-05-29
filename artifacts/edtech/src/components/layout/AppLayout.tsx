@@ -27,6 +27,7 @@ const EXACT_TITLES: Record<string, string> = {
   "/admin/analytics":    "Admin — Analytics",
   "/admin/gate":         "Admin — Gate Config",
   "/admin/rate-limits":  "Admin — Rate Limits",
+  "/admin/content-access": "Admin — Content Access",
 };
 
 function pageLabel(location: string): string {

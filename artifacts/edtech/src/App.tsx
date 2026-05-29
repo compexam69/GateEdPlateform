@@ -30,6 +30,7 @@ import AdminAnalyticsPage from "@/pages/admin/AdminAnalyticsPage";
 import AdminQuizzesPage from "@/pages/admin/AdminQuizzesPage";
 import AdminGatePage from "@/pages/admin/AdminGatePage";
 import AdminRateLimitsPage from "@/pages/admin/AdminRateLimitsPage";
+import AdminContentAccessPage from "@/pages/admin/AdminContentAccessPage";
 import NotFound from "@/pages/not-found";
 import { SentryErrorBoundary } from "@/components/SentryErrorBoundary";
 
@@ -79,6 +80,7 @@ function Router() {
       <Route path="/admin/analytics"><ProtectedRoute requireAdmin><AdminAnalyticsPage /></ProtectedRoute></Route>
       <Route path="/admin/gate"><ProtectedRoute requireAdmin><AdminGatePage /></ProtectedRoute></Route>
       <Route path="/admin/rate-limits"><ProtectedRoute requireAdmin><AdminRateLimitsPage /></ProtectedRoute></Route>
+      <Route path="/admin/content-access"><ProtectedRoute requireAdmin><AdminContentAccessPage /></ProtectedRoute></Route>
 
       <Route component={NotFound} />
     </Switch>
