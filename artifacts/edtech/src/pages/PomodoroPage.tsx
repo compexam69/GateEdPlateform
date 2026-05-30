@@ -100,7 +100,6 @@ export default function PomodoroPage() {
     store.setMode(newMode);
   }
 
-  const ModeIcon = MODE_ICONS[mode];
   const radius = 120;
   const circumference = 2 * Math.PI * radius;
   const totalDuration = getDurationForMode(mode, customMinutes);
@@ -115,10 +114,11 @@ export default function PomodoroPage() {
         Mobile: flex-col, fills exact viewport (no scroll)
         Desktop (md+): 2-column grid — timer left, stats right
       */}
-      <div className="h-full flex flex-col gap-2.5 py-3 md:grid md:grid-cols-2 md:gap-8 md:py-5 md:items-start md:max-w-5xl md:mx-auto md:w-full">
+      <div className="h-full flex flex-col gap-2 py-2 md:grid md:grid-cols-2 md:gap-8 md:py-5 md:items-start md:max-w-5xl md:mx-auto md:w-full">
 
         {/* ── LEFT COLUMN: header + modes + input + timer + controls ────────── */}
-        <div className="flex flex-col gap-2.5 md:gap-4 md:h-full md:justify-center">
+        {/* flex-1 min-h-0 on mobile: left column owns all vertical space except stats row */}
+        <div className="flex-1 min-h-0 flex flex-col gap-2 md:gap-4 md:flex-none md:h-full md:justify-center">
 
           {/* Page header — compact */}
           <div className="text-center">
@@ -301,7 +301,8 @@ export default function PomodoroPage() {
         </div>
 
         {/* ── RIGHT COLUMN (desktop) / bottom section (mobile): stats ──────── */}
-        <div className="flex flex-col gap-2.5 md:gap-4 md:h-full md:justify-center">
+        {/* shrink-0 on mobile: stats are never compressed, always fully visible */}
+        <div className="shrink-0 flex flex-col gap-2 md:gap-4 md:shrink md:h-full md:justify-center">
 
           {/* Stats row — 3 compact cards */}
           <div className="grid grid-cols-3 gap-2">
