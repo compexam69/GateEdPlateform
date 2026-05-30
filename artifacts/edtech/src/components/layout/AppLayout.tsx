@@ -41,7 +41,7 @@ function pageLabel(location: string): string {
 }
 // ────────────────────────────────────────────────────────────────────────────
 
-export function AppLayout({ children }: { children: ReactNode }) {
+export function AppLayout({ children, fullHeight = false }: { children: ReactNode; fullHeight?: boolean }) {
   const { user } = useAuth();
   const [location] = useLocation();
   const { unreadCount } = useNotificationStore();
@@ -109,9 +109,18 @@ export function AppLayout({ children }: { children: ReactNode }) {
       {/* Main content
           • pt-14 on mobile to clear the fixed MobileHeader (56px)
           • pb-20 on mobile to clear the fixed BottomNav (80px)
+          • fullHeight: overflow-hidden + no py so page fills exact viewport
           • Desktop padding handled by flex sidebar layout */}
-      <main className="flex-1 overflow-y-auto pt-14 pb-20 md:pt-0 md:pb-0">
-        <div className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-8">
+      <main className={
+        fullHeight
+          ? "flex-1 overflow-hidden flex flex-col pt-14 pb-16 md:pt-0 md:pb-0"
+          : "flex-1 overflow-y-auto pt-14 pb-20 md:pt-0 md:pb-0"
+      }>
+        <div className={
+          fullHeight
+            ? "h-full flex flex-col px-4 md:px-8"
+            : "mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-8"
+        }>
           {children}
         </div>
       </main>
