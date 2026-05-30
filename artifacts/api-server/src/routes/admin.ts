@@ -864,6 +864,84 @@ router.post("/admin/subjects/bulk-import", requireAdmin, async (req: AuthRequest
   });
 });
 
+// ── Bulk quiz import ──────────────────────────────────────────────────────────
+router.post("/admin/quizzes/bulk-import", requireAdmin, async (req: AuthRequest, res) => {
+  const { quizzes } = req.body as {
+    quizzes?: Array<{
+      title?: string;
+      type?: string;
+      passing_score?: number;
+      duration_minutes?: number;
+      negative_marking?: number;
+      max_attempts?: number;
+    }>;
+  };
+
+  const VALID_TYPES = new Set(["lecture_quiz","dpp","pyq","topic_test","chapter_test","subject_test","grand_test"]);
+
+  if (!Array.isArray(quizzes) || quizzes.length === 0) {
+    res.status(400).json({ error: "quizzes array is required and must not be empty." });
+    return;
+  }
+  if (quizzes.length > 200) {
+    res.status(400).json({ error: "Maximum 200 quizzes per import." });
+    return;
+  }
+
+  const rows: Record<string, unknown>[] = [];
+  const errors: Array<{ title: string; error: string }> = [];
+
+  for (let i = 0; i < quizzes.length; i++) {
+    const q = quizzes[i];
+    const rowNum = i + 2;
+
+    if (!q.title?.trim()) {
+      errors.push({ title: "", error: `Row ${rowNum}: Title is required.` });
+      continue;
+    }
+    const type = q.type ?? "topic_test";
+    if (!VALID_TYPES.has(type)) {
+      errors.push({ title: q.title, error: `Row ${rowNum}: Invalid type "${type}". Valid values: ${[...VALID_TYPES].join(", ")}.` });
+      continue;
+    }
+
+    rows.push({
+      title: q.title.trim(),
+      type,
+      passing_score: Number(q.passing_score ?? 60) || 60,
+      duration_minutes: Number(q.duration_minutes ?? 30) || 30,
+      negative_marking: Number(q.negative_marking ?? 0),
+      max_attempts: Number(q.max_attempts ?? 3) || 3,
+      is_active: true,
+      allowed_roles: ["student", "admin", "super_admin"],
+      creator_id: req.user!.id,
+    });
+  }
+
+  if (rows.length === 0) {
+    res.status(422).json({ error: "No valid quizzes to import.", errors, imported: 0, failed: errors.length });
+    return;
+  }
+
+  const { error: insertErr } = await supabase.from("quizzes").insert(rows);
+  if (insertErr) {
+    res.status(500).json({ error: `Database insert failed: ${insertErr.message}`, errors });
+    return;
+  }
+
+  await writeAuditLog(req.user!.id, "bulk_quiz_import", "quiz", "bulk", {
+    imported: rows.length,
+    failed: errors.length,
+  });
+
+  res.json({
+    message: `Import complete: ${rows.length} quiz${rows.length !== 1 ? "zes" : ""} created.`,
+    imported: rows.length,
+    failed: errors.length,
+    errors,
+  });
+});
+
 // ── Rate-limit monitor ────────────────────────────────────────────────────────
 // Maps key prefix → { maxRequests, windowMs, label }
 const RATE_LIMIT_RULES: Record<string, { maxRequests: number; windowMs: number; label: string }> = {

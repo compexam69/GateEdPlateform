@@ -92,6 +92,7 @@ export default function AdminQuizzesPage() {
   const [bulkDialog, setBulkDialog] = useState<{ open: boolean; quizId?: string }>({ open: false });
   const [qrDialog, setQrDialog] = useState<{ open: boolean; questionId?: string; currentUrl?: string }>({ open: false });
   const [saving, setSaving] = useState(false);
+  const [topBulkDialog, setTopBulkDialog] = useState(false);
 
   const { data: quizzes = [], isLoading } = useQuery<Quiz[]>({
     queryKey: QUIZZES_KEY,
@@ -124,9 +125,14 @@ export default function AdminQuizzesPage() {
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Quiz & Question Editor</h1>
             <p className="text-muted-foreground mt-1">Create and manage quizzes, questions, and video solutions.</p>
           </div>
-          <Button onClick={() => setQuizDialog({ open: true })}>
-            <Plus className="w-4 h-4 mr-2" /> New Quiz
-          </Button>
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" onClick={() => setTopBulkDialog(true)}>
+              <Upload className="w-4 h-4 mr-2" /> Bulk Import
+            </Button>
+            <Button onClick={() => setQuizDialog({ open: true })}>
+              <Plus className="w-4 h-4 mr-2" /> New Quiz
+            </Button>
+          </div>
         </div>
 
         {isLoading ? (
@@ -159,6 +165,16 @@ export default function AdminQuizzesPage() {
           </div>
         )}
       </div>
+
+      <TopLevelBulkImportDialog
+        open={topBulkDialog}
+        quizzes={quizzes}
+        onClose={() => setTopBulkDialog(false)}
+        onImported={() => {
+          queryClient.invalidateQueries({ queryKey: QUIZZES_KEY });
+          setTopBulkDialog(false);
+        }}
+      />
 
       <QuizDialog
         open={quizDialog.open}
@@ -677,6 +693,45 @@ const QUESTION_CSV_TEMPLATE = `question_text,option_a,option_b,option_c,option_d
 "What is the SI unit of force?","Joule","Newton","Watt","Pascal","B","Force is measured in Newtons (N).","",2
 "Acceleration due to gravity on Earth is:","9.8 m/s²","8.9 m/s²","","","A","Standard gravity is 9.8 m/s².","",1`;
 
+const QUIZ_CSV_TEMPLATE = `title,type,passing_score,duration_minutes,negative_marking,max_attempts
+"Physics Chapter 1 - Kinematics Quiz",topic_test,60,30,0.25,3
+"Chemistry DPP - Mole Concept",dpp,50,45,0,5
+"Mathematics Grand Test",grand_test,70,120,0.33,2`;
+
+const VALID_QUIZ_TYPE_SET = new Set(["lecture_quiz","dpp","pyq","topic_test","chapter_test","subject_test","grand_test"]);
+
+type ParsedQuiz = {
+  title: string; type: string; passing_score: number;
+  duration_minutes: number; negative_marking: number; max_attempts: number;
+};
+type QuizPreviewRow = ParsedQuiz & { valid: boolean; error?: string };
+
+function parseCsvToQuizzes(csv: string): ParsedQuiz[] {
+  const lines = csv.trim().split("\n").map(l => l.trim()).filter(Boolean);
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, "").toLowerCase());
+  return lines.slice(1).map(line => {
+    const cols = line.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g) ?? [];
+    const clean = (v?: string) => (v ?? "").replace(/^"|"$/g, "").trim();
+    const get = (key: string) => clean(cols[headers.indexOf(key)]);
+    return {
+      title: get("title"),
+      type: get("type") || "topic_test",
+      passing_score: parseInt(get("passing_score") || "60", 10) || 60,
+      duration_minutes: parseInt(get("duration_minutes") || "30", 10) || 30,
+      negative_marking: parseFloat(get("negative_marking") || "0") || 0,
+      max_attempts: parseInt(get("max_attempts") || "3", 10) || 3,
+    };
+  }).filter(q => q.title);
+}
+
+function validateQuizRow(q: ParsedQuiz, idx: number): QuizPreviewRow {
+  const rowNum = idx + 1;
+  if (!q.title) return { ...q, valid: false, error: `Row ${rowNum}: Title is required` };
+  if (!VALID_QUIZ_TYPE_SET.has(q.type)) return { ...q, valid: false, error: `Row ${rowNum}: Invalid type "${q.type}". Valid: ${[...VALID_QUIZ_TYPE_SET].join(", ")}` };
+  return { ...q, valid: true };
+}
+
 type QuestionPreviewRow = {
   valid: boolean;
   question_text: string;
@@ -698,6 +753,388 @@ function validateQuestionClient(q: unknown, idx: number): QuestionPreviewRow {
   if (!["A", "B", "C", "D"].includes(correct_answer))
     return { ...base, valid: false, error: `Row ${idx + 1}: Correct answer must be A, B, C, or D (got "${raw.correct_answer}")` };
   return { ...base, valid: true };
+}
+
+function TopLevelBulkImportDialog({ open, quizzes, onClose, onImported }: {
+  open: boolean;
+  quizzes: Quiz[];
+  onClose: () => void;
+  onImported: () => void;
+}) {
+  const { toast } = useToast();
+  const [mainTab, setMainTab] = useState("questions");
+
+  // ── Questions tab state ──
+  const qFileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedQuizId, setSelectedQuizId] = useState("");
+  const [qCsv, setQCsv] = useState("");
+  const [qJson, setQJson] = useState("");
+  const [qActiveTab, setQActiveTab] = useState("csv");
+  const [qImporting, setQImporting] = useState(false);
+  const [qError, setQError] = useState("");
+  const [qResult, setQResult] = useState<{ imported: number; skipped: number; errors: string[] } | null>(null);
+
+  const qCsvParsed = qActiveTab === "csv" && qCsv.trim() ? parseCsvToQuestions(qCsv) : [];
+  const qCsvValidated: QuestionPreviewRow[] = qCsvParsed.map((q, i) => validateQuestionClient(q, i));
+  const qValidCount = qCsvValidated.filter(r => r.valid).length;
+  const qInvalidCount = qCsvValidated.filter(r => !r.valid).length;
+
+  // ── Quizzes tab state ──
+  const zFileInputRef = useRef<HTMLInputElement>(null);
+  const [zCsv, setZCsv] = useState("");
+  const [zImporting, setZImporting] = useState(false);
+  const [zError, setZError] = useState("");
+  const [zResult, setZResult] = useState<{ imported: number; failed: number; errors: Array<{ title: string; error: string }> } | null>(null);
+
+  const zParsed = zCsv.trim() ? parseCsvToQuizzes(zCsv) : [];
+  const zValidated: QuizPreviewRow[] = zParsed.map((q, i) => validateQuizRow(q, i));
+  const zValidCount = zValidated.filter(r => r.valid).length;
+  const zInvalidCount = zValidated.filter(r => !r.valid).length;
+
+  function resetAll() {
+    setMainTab("questions");
+    setSelectedQuizId(""); setQCsv(""); setQJson(""); setQError(""); setQResult(null);
+    if (qFileInputRef.current) qFileInputRef.current.value = "";
+    setZCsv(""); setZError(""); setZResult(null);
+    if (zFileInputRef.current) zFileInputRef.current.value = "";
+  }
+
+  function dlQuestionTemplate() {
+    const blob = new Blob([QUESTION_CSV_TEMPLATE], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = "question_import_template.csv"; a.click();
+    URL.revokeObjectURL(url);
+  }
+  function dlQuizTemplate() {
+    const blob = new Blob([QUIZ_CSV_TEMPLATE], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = "quiz_import_template.csv"; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleImportQuestions() {
+    if (!selectedQuizId) { setQError("Select a quiz first."); return; }
+    setQError("");
+    let questions: unknown[];
+    if (qActiveTab === "json") {
+      try { questions = JSON.parse(qJson); } catch { setQError("Invalid JSON."); return; }
+      if (!Array.isArray(questions)) { setQError("JSON must be an array of questions."); return; }
+    } else {
+      questions = parseCsvToQuestions(qCsv);
+      if (questions.length === 0) { setQError("No valid rows found."); return; }
+    }
+    setQImporting(true);
+    try {
+      const result = await apiFetch("/questions/bulk-import", {
+        method: "POST",
+        body: JSON.stringify({ quiz_id: selectedQuizId, questions }),
+      }) as { imported?: number; skipped?: number; errors?: string[] };
+      setQResult({ imported: result.imported ?? 0, skipped: result.skipped ?? 0, errors: result.errors ?? [] });
+    } catch (e) { setQError((e as Error).message); }
+    finally { setQImporting(false); }
+  }
+
+  async function handleImportQuizzes() {
+    if (zParsed.length === 0) { setZError("No valid rows found."); return; }
+    setZError("");
+    setZImporting(true);
+    try {
+      const result = await apiFetch("/admin/quizzes/bulk-import", {
+        method: "POST",
+        body: JSON.stringify({ quizzes: zParsed }),
+      }) as { imported?: number; failed?: number; errors?: Array<{ title: string; error: string }> };
+      setZResult({ imported: result.imported ?? 0, failed: result.failed ?? 0, errors: result.errors ?? [] });
+    } catch (e) { setZError((e as Error).message); }
+    finally { setZImporting(false); }
+  }
+
+  const selectedQuizTitle = quizzes.find(q => q.id === selectedQuizId)?.title ?? "";
+
+  return (
+    <Dialog open={open} onOpenChange={v => { if (!v) { resetAll(); onClose(); } }}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Upload className="w-5 h-5 text-primary" /> Bulk Import
+          </DialogTitle>
+        </DialogHeader>
+
+        <Tabs value={mainTab} onValueChange={t => { setMainTab(t); setQError(""); setZError(""); }}>
+          <TabsList className="w-full">
+            <TabsTrigger value="questions" className="flex-1">
+              <HelpCircle className="w-3.5 h-3.5 mr-1.5" /> Import Questions
+            </TabsTrigger>
+            <TabsTrigger value="quizzes" className="flex-1">
+              <BookOpen className="w-3.5 h-3.5 mr-1.5" /> Import Quizzes
+            </TabsTrigger>
+          </TabsList>
+
+          {/* ── QUESTIONS TAB ── */}
+          <TabsContent value="questions" className="space-y-4 mt-4">
+            {qResult ? (
+              <div className="space-y-4 py-2">
+                <div className="flex items-center gap-3">
+                  <CheckCircle2 className="w-8 h-8 text-success shrink-0" />
+                  <div>
+                    <p className="font-semibold text-lg">Import Complete</p>
+                    <p className="text-sm text-muted-foreground">
+                      <span className="text-success font-medium">{qResult.imported} imported</span>
+                      {qResult.skipped > 0 && <>, <span className="text-muted-foreground">{qResult.skipped} skipped</span></>}
+                      {qResult.errors.length > 0 && <>, <span className="text-destructive font-medium">{qResult.errors.length} failed</span></>}
+                    </p>
+                    {selectedQuizTitle && <p className="text-xs text-muted-foreground mt-0.5">into: {selectedQuizTitle}</p>}
+                  </div>
+                </div>
+                {qResult.errors.length > 0 && (
+                  <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-1 max-h-52 overflow-y-auto">
+                    <p className="text-xs font-semibold text-destructive uppercase tracking-wider mb-2">Errors</p>
+                    {qResult.errors.map((e, i) => <div key={i} className="text-xs text-destructive">{e}</div>)}
+                  </div>
+                )}
+                <DialogFooter>
+                  <Button onClick={() => { resetAll(); onImported(); toast({ title: `${qResult.imported} questions imported` }); }}>Done</Button>
+                </DialogFooter>
+              </div>
+            ) : (
+              <>
+                {/* Quiz selector */}
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Select quiz to import into *</label>
+                  <Select value={selectedQuizId} onValueChange={setSelectedQuizId}>
+                    <SelectTrigger className={!selectedQuizId ? "border-destructive/50" : ""}>
+                      <SelectValue placeholder="Choose a quiz…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {quizzes.length === 0
+                        ? <SelectItem value="__none" disabled>No quizzes yet — create one first</SelectItem>
+                        : quizzes.map(q => (
+                            <SelectItem key={q.id} value={q.id}>
+                              {q.title} <span className="text-muted-foreground text-xs ml-1">({QUIZ_TYPES.find(t => t.value === q.type)?.label ?? q.type})</span>
+                            </SelectItem>
+                          ))
+                      }
+                    </SelectContent>
+                  </Select>
+                  {quizzes.length === 0 && (
+                    <p className="text-xs text-muted-foreground">Use "New Quiz" or "Import Quizzes" to create a quiz first.</p>
+                  )}
+                </div>
+
+                {/* CSV/JSON tabs */}
+                <Tabs value={qActiveTab} onValueChange={setQActiveTab}>
+                  <TabsList>
+                    <TabsTrigger value="csv"><FileText className="w-3.5 h-3.5 mr-1.5" />CSV</TabsTrigger>
+                    <TabsTrigger value="json"><FileJson className="w-3.5 h-3.5 mr-1.5" />JSON</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="csv" className="space-y-3 mt-3">
+                    <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-2 text-sm">
+                      <p className="font-medium">CSV Format</p>
+                      <p className="text-muted-foreground text-xs">
+                        Required: <span className="font-mono text-foreground">question_text</span>, <span className="font-mono text-foreground">option_a</span>, <span className="font-mono text-foreground">option_b</span>, <span className="font-mono text-foreground">correct_answer</span> (A/B/C/D).
+                        Optional: <span className="font-mono text-foreground">option_c</span>, <span className="font-mono text-foreground">option_d</span>, <span className="font-mono text-foreground">explanation</span>, <span className="font-mono text-foreground">difficulty</span> (1–5). Max 500 rows.
+                      </p>
+                      <Button variant="outline" size="sm" className="gap-1.5 mt-1" onClick={dlQuestionTemplate}>
+                        <Download className="w-3.5 h-3.5" /> Download CSV Template
+                      </Button>
+                    </div>
+                    <div
+                      className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                      onClick={() => qFileInputRef.current?.click()}
+                    >
+                      <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                      <p className="text-sm font-medium">Click to select CSV file</p>
+                      <p className="text-xs text-muted-foreground mt-1">or paste below</p>
+                      <input ref={qFileInputRef} type="file" accept=".csv,text/csv" className="hidden"
+                        onChange={e => { const f = e.target.files?.[0]; if (!f) return; const r = new FileReader(); r.onload = ev => setQCsv(ev.target?.result as string ?? ""); r.readAsText(f); }} />
+                    </div>
+                    <Textarea rows={5} value={qCsv} onChange={e => setQCsv(e.target.value)} placeholder={QUESTION_CSV_TEMPLATE} className="font-mono text-xs" />
+                    {qCsvValidated.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-medium">{qCsvValidated.length} row{qCsvValidated.length !== 1 ? "s" : ""} parsed</span>
+                          {qValidCount > 0 && <Badge className="bg-success/15 text-success border-success/25 text-xs">{qValidCount} valid</Badge>}
+                          {qInvalidCount > 0 && <Badge variant="destructive" className="text-xs">{qInvalidCount} invalid</Badge>}
+                        </div>
+                        <div className="border border-border rounded-lg overflow-hidden">
+                          <div className="overflow-x-auto max-h-44 overflow-y-auto">
+                            <table className="w-full text-xs">
+                              <thead className="bg-muted/40 sticky top-0">
+                                <tr>{["#","Question","Answer","Diff","Status"].map(h => <th key={h} className="px-3 py-2 text-left font-medium text-muted-foreground whitespace-nowrap">{h}</th>)}</tr>
+                              </thead>
+                              <tbody className="divide-y divide-border">
+                                {qCsvValidated.map((r, i) => (
+                                  <tr key={i} className={`hover:bg-muted/20 ${!r.valid ? "bg-destructive/5" : ""}`}>
+                                    <td className="px-3 py-2 text-muted-foreground">{i + 1}</td>
+                                    <td className="px-3 py-2 max-w-[200px] truncate" title={r.question_text}>{r.question_text || "—"}</td>
+                                    <td className="px-3 py-2 font-mono font-bold text-primary">{r.correct_answer || "—"}</td>
+                                    <td className="px-3 py-2 text-center">{r.difficulty}</td>
+                                    <td className="px-3 py-2">
+                                      {r.valid
+                                        ? <Badge className="bg-success/15 text-success border-success/25 text-[10px] px-1.5 py-0">Valid</Badge>
+                                        : <Badge variant="destructive" className="text-[10px] px-1.5 py-0" title={r.error}>Error</Badge>}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                        {qInvalidCount > 0 && (
+                          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-1 max-h-32 overflow-y-auto">
+                            <p className="text-xs font-semibold text-destructive uppercase tracking-wider mb-1">Errors ({qInvalidCount})</p>
+                            {qCsvValidated.filter(r => !r.valid).map((r, i) => <div key={i} className="text-xs text-destructive">{r.error}</div>)}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="json" className="space-y-3 mt-3">
+                    <Textarea rows={10} value={qJson} onChange={e => setQJson(e.target.value)}
+                      placeholder={`[\n  {\n    "question_text": "What is the SI unit of force?",\n    "options": {"A": "Joule", "B": "Newton", "C": "Watt", "D": "Pascal"},\n    "correct_answer": "B",\n    "explanation": "Force is measured in Newtons.",\n    "difficulty": 2\n  }\n]`}
+                      className="font-mono text-xs" />
+                  </TabsContent>
+                </Tabs>
+
+                {qError && (
+                  <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" /><span>{qError}</span>
+                  </div>
+                )}
+                <div className="flex gap-2 justify-end">
+                  <Button variant="outline" onClick={() => { resetAll(); onClose(); }}>Cancel</Button>
+                  <Button
+                    onClick={handleImportQuestions}
+                    disabled={qImporting || !selectedQuizId || (qActiveTab === "csv" ? !qCsv.trim() : !qJson.trim())}
+                  >
+                    {qImporting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Importing…</> : "Import Questions"}
+                  </Button>
+                </div>
+              </>
+            )}
+          </TabsContent>
+
+          {/* ── QUIZZES TAB ── */}
+          <TabsContent value="quizzes" className="space-y-4 mt-4">
+            {zResult ? (
+              <div className="space-y-4 py-2">
+                <div className="flex items-center gap-3">
+                  <CheckCircle2 className="w-8 h-8 text-success shrink-0" />
+                  <div>
+                    <p className="font-semibold text-lg">Import Complete</p>
+                    <p className="text-sm text-muted-foreground">
+                      <span className="text-success font-medium">{zResult.imported} quiz{zResult.imported !== 1 ? "zes" : ""} created</span>
+                      {zResult.failed > 0 && <>, <span className="text-destructive font-medium">{zResult.failed} failed</span></>}
+                    </p>
+                  </div>
+                </div>
+                {zResult.errors.length > 0 && (
+                  <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-1 max-h-52 overflow-y-auto">
+                    <p className="text-xs font-semibold text-destructive uppercase tracking-wider mb-2">Errors</p>
+                    {zResult.errors.map((e, i) => (
+                      <div key={i} className="text-xs flex gap-2">
+                        {e.title && <span className="text-muted-foreground font-medium shrink-0">{e.title}</span>}
+                        <span className="text-destructive">{e.error}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <DialogFooter>
+                  <Button onClick={() => { resetAll(); onImported(); toast({ title: `${zResult.imported} quizzes created` }); }}>Done</Button>
+                </DialogFooter>
+              </div>
+            ) : (
+              <>
+                <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-2 text-sm">
+                  <p className="font-medium">CSV Format</p>
+                  <p className="text-muted-foreground text-xs">
+                    Required: <span className="font-mono text-foreground">title</span>.
+                    Optional: <span className="font-mono text-foreground">type</span> (lecture_quiz, dpp, pyq, topic_test, chapter_test, subject_test, grand_test),{" "}
+                    <span className="font-mono text-foreground">passing_score</span>, <span className="font-mono text-foreground">duration_minutes</span>,{" "}
+                    <span className="font-mono text-foreground">negative_marking</span>, <span className="font-mono text-foreground">max_attempts</span>. Max 200 quizzes.
+                  </p>
+                  <Button variant="outline" size="sm" className="gap-1.5 mt-1" onClick={dlQuizTemplate}>
+                    <Download className="w-3.5 h-3.5" /> Download CSV Template
+                  </Button>
+                </div>
+
+                <div
+                  className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                  onClick={() => zFileInputRef.current?.click()}
+                >
+                  <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-sm font-medium">Click to select CSV file</p>
+                  <p className="text-xs text-muted-foreground mt-1">or paste below</p>
+                  <input ref={zFileInputRef} type="file" accept=".csv,text/csv" className="hidden"
+                    onChange={e => { const f = e.target.files?.[0]; if (!f) return; const r = new FileReader(); r.onload = ev => setZCsv(ev.target?.result as string ?? ""); r.readAsText(f); }} />
+                </div>
+
+                <Textarea rows={5} value={zCsv} onChange={e => setZCsv(e.target.value)} placeholder={QUIZ_CSV_TEMPLATE} className="font-mono text-xs" />
+
+                {zValidated.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-medium">{zValidated.length} row{zValidated.length !== 1 ? "s" : ""} parsed</span>
+                      {zValidCount > 0 && <Badge className="bg-success/15 text-success border-success/25 text-xs">{zValidCount} valid</Badge>}
+                      {zInvalidCount > 0 && <Badge variant="destructive" className="text-xs">{zInvalidCount} invalid</Badge>}
+                    </div>
+                    <div className="border border-border rounded-lg overflow-hidden">
+                      <div className="overflow-x-auto max-h-52 overflow-y-auto">
+                        <table className="w-full text-xs">
+                          <thead className="bg-muted/40 sticky top-0">
+                            <tr>{["#","Title","Type","Pass%","Duration","Neg.Marks","Attempts","Status"].map(h => <th key={h} className="px-3 py-2 text-left font-medium text-muted-foreground whitespace-nowrap">{h}</th>)}</tr>
+                          </thead>
+                          <tbody className="divide-y divide-border">
+                            {zValidated.map((r, i) => (
+                              <tr key={i} className={`hover:bg-muted/20 ${!r.valid ? "bg-destructive/5" : ""}`}>
+                                <td className="px-3 py-2 text-muted-foreground">{i + 1}</td>
+                                <td className="px-3 py-2 font-medium max-w-[160px] truncate" title={r.title}>{r.title || "—"}</td>
+                                <td className="px-3 py-2 text-muted-foreground">{QUIZ_TYPES.find(t => t.value === r.type)?.label ?? r.type}</td>
+                                <td className="px-3 py-2 text-center">{r.passing_score}%</td>
+                                <td className="px-3 py-2 text-center">{r.duration_minutes}m</td>
+                                <td className="px-3 py-2 text-center">-{r.negative_marking}</td>
+                                <td className="px-3 py-2 text-center">{r.max_attempts}</td>
+                                <td className="px-3 py-2">
+                                  {r.valid
+                                    ? <Badge className="bg-success/15 text-success border-success/25 text-[10px] px-1.5 py-0">Valid</Badge>
+                                    : <Badge variant="destructive" className="text-[10px] px-1.5 py-0" title={r.error}>Error</Badge>}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    {zInvalidCount > 0 && (
+                      <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-1 max-h-32 overflow-y-auto">
+                        <p className="text-xs font-semibold text-destructive uppercase tracking-wider mb-1">Errors ({zInvalidCount})</p>
+                        {zValidated.filter(r => !r.valid).map((r, i) => <div key={i} className="text-xs text-destructive">{r.error}</div>)}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {zError && (
+                  <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" /><span>{zError}</span>
+                  </div>
+                )}
+                <div className="flex gap-2 justify-end">
+                  <Button variant="outline" onClick={() => { resetAll(); onClose(); }}>Cancel</Button>
+                  <Button onClick={handleImportQuizzes} disabled={zImporting || zParsed.length === 0}>
+                    {zImporting
+                      ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Importing…</>
+                      : `Import ${zValidCount > 0 ? zValidCount : ""} Quiz${zValidCount !== 1 ? "zes" : ""}`}
+                  </Button>
+                </div>
+              </>
+            )}
+          </TabsContent>
+        </Tabs>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 function BulkImportDialog({ open, quizId, onClose, onImported }: {
