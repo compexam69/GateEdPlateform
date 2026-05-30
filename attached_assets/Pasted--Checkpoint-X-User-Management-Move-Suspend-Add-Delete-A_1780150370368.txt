@@ -1,0 +1,279 @@
+🟢 Checkpoint X: User Management – Move Suspend & Add Delete Action into Three-Dot Menu
+
+## Goal
+
+Refactor the **Active Users** tab in the **Admin Dashboard → User Management** so that:
+
+1. The **Suspend User** action is relocated into the existing **three-dot (⋮) action menu**.
+2. A new **Delete User** action is added in the same three-dot menu, which permanently deletes the selected user from the database.
+
+The implementation must:
+
+* Preserve existing role-based permission logic.
+* Ensure permanent deletion is secure.
+* Maintain a clean, responsive, and mobile-friendly UI.
+* Provide proper confirmation flows to prevent accidental deletions.
+* Align with existing Admin Dashboard action menus and design patterns.
+
+---
+
+# Context Analysis
+
+Currently:
+
+* Suspend User appears as a separate inline button in the Active Users list.
+* There is no Delete User option.
+* This setup causes visual clutter and inconsistent action placement.
+
+Required improvements:
+
+* Consolidate actions under a single overflow menu (⋮) to reduce UI clutter.
+* Add functionality for **permanent user deletion**.
+* Maintain proper admin-level permission enforcement (Admins cannot delete other Admins unless permitted; Super Admins have full access).
+
+---
+
+# Instructions
+
+## 1. Analyze Existing User Management Layout
+
+Review:
+
+* Active Users tab component structure.
+* Table rows/cards for each user.
+* Inline buttons and their event handlers.
+* Three-dot menu (⋮) component.
+* Role/permission checks.
+* API calls for user actions (Suspend, Edit, etc.).
+
+Identify:
+
+* How to move Suspend action into the three-dot menu.
+* Where to add the Delete action.
+* Ensure correct permissions are enforced.
+* Avoid breaking existing functionality (View, Edit, Reset Password, etc.).
+
+---
+
+## 2. Three-Dot Menu Refactor
+
+### Suspend User
+
+* Remove the inline Suspend button.
+
+* Add a menu item inside the ⋮ menu:
+
+  ```
+  Suspend User
+  ```
+
+* Trigger existing suspend logic.
+
+* Display confirmation dialog:
+
+  ```
+  Are you sure you want to suspend [User Name]?
+  ```
+
+---
+
+### Delete User
+
+* Add a new menu item inside the ⋮ menu:
+
+  ```
+  Delete User
+  ```
+
+* Trigger permanent delete workflow.
+
+* Display confirmation dialog:
+
+  ```
+  Permanently delete [User Name]? This action cannot be undone.
+  ```
+
+* Ensure deletion:
+
+  * Only executes if confirmed.
+  * Uses secure API endpoint.
+  * Checks user permissions (Admins cannot delete Super Admins).
+  * Updates UI immediately after success.
+
+---
+
+## 3. UI / UX Considerations
+
+* Three-dot menu should:
+
+  * Fit within the existing table/card layout.
+  * Be touch-friendly on mobile.
+  * Display actions in logical order:
+
+    ```
+    View Profile
+    Edit User
+    Suspend User
+    Delete User
+    ```
+
+* Confirmation dialogs:
+
+  * Must prevent accidental deletion.
+  * Provide clear options: Cancel / Confirm.
+  * Include user name and action type.
+
+---
+
+## 4. Backend & Database Considerations
+
+### Suspend User
+
+* No SQL changes required if existing Suspend API is used.
+
+### Delete User
+
+* Permanent deletion involves removing the user record from the database.
+* Ensure:
+
+  * Related data (if any) is handled safely (foreign key constraints, cascading deletions, or orphan prevention).
+  * Audit logs are updated if required.
+  * RLS (Row Level Security) policies prevent unauthorized deletions.
+
+**Supabase SQL Editor / Database Guidance**
+
+* If API already exists for deletion: no manual SQL needed.
+* If deletion requires direct SQL (rare):
+
+  ```sql
+  DELETE FROM users
+  WHERE id = <user_id>;
+  ```
+
+  * Wrap in transaction if deleting multiple related tables.
+  * Ensure cascading rules and foreign key constraints are respected.
+* Verify no unauthorized deletion is possible.
+
+---
+
+## 5. Permission Enforcement
+
+* Super Admin:
+
+  * Can Suspend or Delete any user.
+* Admin:
+
+  * Can Suspend or Delete users only if allowed by policy.
+* Regular users:
+
+  * Cannot see the three-dot menu actions.
+
+Enforce at:
+
+* UI layer (hide menu items if unauthorized).
+* API layer (block unauthorized requests).
+* Database layer (RLS policies).
+
+---
+
+## 6. Mobile & Responsive Validation
+
+* Three-dot menu must render correctly on mobile:
+
+  * Proper placement
+  * Touch targets ≥ 44px
+  * Avoid clipping or overflow
+
+* Ensure dialogs are mobile-friendly.
+
+---
+
+## 7. Error Handling & Edge Cases
+
+Handle:
+
+* Attempt to delete a non-existent user.
+* Network failures during API calls.
+* Insufficient permissions.
+* Cancelled confirmation dialogs.
+* Undo / toast notifications if implemented.
+
+---
+
+## 8. Testing & Validation
+
+### Functional Testing
+
+* Suspend User moved to ⋮ menu.
+* Delete User appears in ⋮ menu.
+* Confirmation dialogs trigger correctly.
+* Actions execute successfully.
+* Role-based permissions enforced.
+* Deleted users removed from Active Users table.
+
+### Mobile Testing
+
+* Menu renders correctly on small screens.
+* Touch interactions are stable.
+
+### Desktop Testing
+
+* Layout unaffected.
+* Action menu remains accessible.
+
+### PWA Testing
+
+* Ensure consistent behavior in installed PWA.
+
+---
+
+## 9. Final Implementation Report
+
+Provide:
+
+* Files modified
+* UI changes
+* API calls updated
+* Permissions changes
+* Confirmation dialogs added
+* Testing summary
+* SQL / database changes (if any)
+* Remaining limitations / issues
+
+---
+
+## 10. Checkpoint Requirement
+
+After implementation and verification:
+
+Create a checkpoint immediately.
+
+Checkpoint Name:
+
+**"User Management – Move Suspend & Add Delete Action to Three-Dot Menu"**
+
+Checkpoint verification must confirm:
+
+* Suspend User button moved
+* Delete User added
+* Confirmation dialogs present
+* Mobile/desktop responsiveness verified
+* Role-based permissions enforced
+* Successful suspend and delete actions
+* No console/runtime errors
+* SQL changes verified as required
+
+---
+
+# Acceptance Criteria
+
+* [ ] Suspend User action moved into three-dot menu.
+* [ ] Delete User action added in the same menu.
+* [ ] Confirmation dialogs appear for Suspend and Delete.
+* [ ] Only authorized roles can access actions.
+* [ ] Deleted users are removed from the database.
+* [ ] UI remains responsive on desktop and mobile.
+* [ ] No layout overflow occurs.
+* [ ] Existing actions (View, Edit, Reset) remain functional.
+* [ ] Supabase SQL changes are documented if needed.
+* [ ] Checkpoint/commit is created after successful implementation and testing.
