@@ -60,7 +60,6 @@ export default function PomodoroPage() {
     refetchInterval: 30000,
   });
 
-  // Refetch stats when sessions complete (widget saves them, but page needs fresh data)
   useEffect(() => {
     refetchStats();
   }, [store.sessionCount]);
@@ -109,16 +108,29 @@ export default function PomodoroPage() {
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
 
+  const streakDays = stats?.streak_days ?? 0;
+
   return (
-    <AppLayout>
-      <div className="flex flex-col items-center min-h-[calc(100vh-8rem)]">
-        <div className="w-full max-w-md space-y-8 py-8">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold">Pomodoro Timer</h1>
-            <p className="text-muted-foreground text-sm mt-1">Stay focused, study smarter.</p>
+    <AppLayout noPad>
+      {/* Single-screen container — no scrolling */}
+      <div className="flex flex-col h-full max-w-md mx-auto px-4 py-3 md:py-5 gap-3">
+
+        {/* ── Header: title + mode selector ──────────────────────────────── */}
+        <div className="shrink-0 space-y-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-bold leading-tight">Focus Timer</h1>
+              <p className="text-xs text-muted-foreground">Stay focused, study smarter.</p>
+            </div>
+            {isRunning && (
+              <span className="text-xs font-medium text-primary bg-primary/10 px-2.5 py-0.5 rounded-full">
+                Running
+              </span>
+            )}
           </div>
 
-          <div className="flex justify-center gap-2 flex-wrap">
+          {/* Mode selector */}
+          <div className="flex gap-1.5 flex-wrap">
             {(["focus", "short", "long", "custom"] as PomodoroMode[]).map((m) => {
               const Icon = MODE_ICONS[m];
               return (
@@ -127,49 +139,49 @@ export default function PomodoroPage() {
                   variant={mode === m ? "default" : "outline"}
                   size="sm"
                   onClick={() => switchMode(m)}
-                  className="gap-1.5"
+                  className="gap-1.5 h-8 text-xs px-2.5"
                 >
-                  <Icon className="w-3.5 h-3.5" />
+                  <Icon className="w-3 h-3" />
                   {POMODORO_LABELS[m]}
                 </Button>
               );
             })}
           </div>
 
+          {/* Custom duration input */}
           {mode === "custom" && (
-            <div className="flex justify-center">
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-muted/30">
-                <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Duration:</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={120}
-                  value={customInput}
-                  onChange={(e) => {
-                    setCustomInput(e.target.value);
-                    const v = parseInt(e.target.value, 10);
-                    if (!isNaN(v) && v >= 1 && v <= 120) store.setCustomMinutes(v);
-                  }}
-                  onBlur={() => {
-                    const v = parseInt(customInput, 10);
-                    if (isNaN(v) || v < 1) { store.setCustomMinutes(1); setCustomInput("1"); }
-                    else if (v > 120) { store.setCustomMinutes(120); setCustomInput("120"); }
-                  }}
-                  disabled={isRunning}
-                  className="w-14 bg-transparent text-center font-mono font-bold text-sm border-b border-border focus:outline-none focus:border-primary disabled:opacity-50"
-                />
-                <span className="text-sm text-muted-foreground">min</span>
-              </div>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-muted/30">
+              <Clock className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+              <span className="text-xs text-muted-foreground">Duration:</span>
+              <input
+                type="number"
+                min={1}
+                max={120}
+                value={customInput}
+                onChange={(e) => {
+                  setCustomInput(e.target.value);
+                  const v = parseInt(e.target.value, 10);
+                  if (!isNaN(v) && v >= 1 && v <= 120) store.setCustomMinutes(v);
+                }}
+                onBlur={() => {
+                  const v = parseInt(customInput, 10);
+                  if (isNaN(v) || v < 1) { store.setCustomMinutes(1); setCustomInput("1"); }
+                  else if (v > 120) { store.setCustomMinutes(120); setCustomInput("120"); }
+                }}
+                disabled={isRunning}
+                className="w-14 bg-transparent text-center font-mono font-bold text-sm border-b border-border focus:outline-none focus:border-primary disabled:opacity-50"
+              />
+              <span className="text-xs text-muted-foreground">min</span>
             </div>
           )}
 
+          {/* Topic tag (focus mode only) */}
           {mode === "focus" && (
-            <div className="flex justify-center">
+            <div className="flex">
               <Popover open={topicPickerOpen} onOpenChange={setTopicPickerOpen}>
                 <PopoverTrigger asChild>
-                  <button className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-border text-sm text-muted-foreground hover:border-primary hover:text-foreground transition-colors">
-                    <Tag className="w-3.5 h-3.5" />
+                  <button className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-border text-xs text-muted-foreground hover:border-primary hover:text-foreground transition-colors">
+                    <Tag className="w-3 h-3" />
                     {selectedTopicTitle ? (
                       <span className="text-foreground font-medium">{selectedTopicTitle}</span>
                     ) : (
@@ -178,14 +190,14 @@ export default function PomodoroPage() {
                     {selectedTopicTitle && (
                       <span
                         onClick={(e) => { e.stopPropagation(); store.setSelectedTopic(null, null); }}
-                        className="ml-1 hover:text-destructive"
+                        className="ml-0.5 hover:text-destructive"
                       >
                         <X className="w-3 h-3" />
                       </span>
                     )}
                   </button>
                 </PopoverTrigger>
-                <PopoverContent className="w-72 p-2" align="center">
+                <PopoverContent className="w-72 p-2" align="start">
                   <Input
                     placeholder="Search topics..."
                     value={topicSearch}
@@ -213,110 +225,127 @@ export default function PomodoroPage() {
               </Popover>
             </div>
           )}
+        </div>
 
-          <div className="flex flex-col items-center">
-            <div className="relative w-56 h-56 sm:w-64 sm:h-64 flex items-center justify-center">
-              <svg className="w-full h-full transform -rotate-90 absolute inset-0" viewBox="0 0 260 260">
-                <circle cx="130" cy="130" r={radius} fill="none" stroke="hsl(var(--muted))" strokeWidth="10" />
-                <circle
-                  cx="130" cy="130" r={radius}
-                  fill="none"
-                  stroke={MODE_BG[mode]}
-                  strokeWidth="10"
-                  strokeDasharray={circumference}
-                  strokeDashoffset={circumference * (1 - progress)}
-                  className="transition-all duration-1000 ease-linear"
-                  strokeLinecap="round"
-                />
-              </svg>
-              <div className="text-center z-10">
-                <div className="text-5xl sm:text-6xl font-bold font-mono tracking-tighter">
-                  {String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")}
-                </div>
-                <div className={`text-sm font-medium mt-1 ${MODE_COLOR[mode]}`}>{POMODORO_LABELS[mode]}</div>
-                {selectedTopicTitle && mode === "focus" && (
-                  <div className="text-xs text-muted-foreground mt-1 max-w-[160px] truncate">{selectedTopicTitle}</div>
-                )}
+        {/* ── Timer zone — flex-1 so it fills remaining vertical space ──── */}
+        <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-4">
+
+          {/* SVG ring + time display */}
+          <div className="relative w-full max-w-[220px] sm:max-w-[256px] aspect-square mx-auto">
+            <svg
+              className="w-full h-full transform -rotate-90 absolute inset-0"
+              viewBox="0 0 260 260"
+            >
+              <circle
+                cx="130" cy="130" r={radius}
+                fill="none"
+                stroke="hsl(var(--muted))"
+                strokeWidth="10"
+              />
+              <circle
+                cx="130" cy="130" r={radius}
+                fill="none"
+                stroke={MODE_BG[mode]}
+                strokeWidth="10"
+                strokeDasharray={circumference}
+                strokeDashoffset={circumference * (1 - progress)}
+                className="transition-all duration-1000 ease-linear"
+                strokeLinecap="round"
+              />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center z-10">
+              <div className="text-5xl sm:text-6xl font-bold font-mono tracking-tighter leading-none">
+                {String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")}
               </div>
-            </div>
-
-            <div className="flex items-center gap-4 mt-6">
-              <Button size="icon" variant="outline" className="w-12 h-12 rounded-full" onClick={handleReset}>
-                <RotateCcw className="w-5 h-5" />
-              </Button>
-              <button
-                className="w-16 h-16 rounded-full shadow-lg hover:scale-105 transition-transform flex items-center justify-center"
-                style={{ backgroundColor: MODE_BG[mode] }}
-                onClick={handleToggle}
-              >
-                {isRunning ? (
-                  <svg className="w-7 h-7 text-white fill-white" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg>
-                ) : (
-                  <svg className="w-7 h-7 text-white fill-white ml-0.5" viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" /></svg>
-                )}
-              </button>
-              <div className="w-12 h-12" />
+              <div className={`text-sm font-medium mt-1 ${MODE_COLOR[mode]}`}>
+                {POMODORO_LABELS[mode]}
+              </div>
+              {selectedTopicTitle && mode === "focus" && (
+                <div className="text-xs text-muted-foreground mt-0.5 max-w-[150px] truncate">
+                  {selectedTopicTitle}
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          {/* Play / Pause + Reset controls */}
+          <div className="flex items-center gap-4">
+            <Button
+              size="icon"
+              variant="outline"
+              className="w-11 h-11 rounded-full"
+              onClick={handleReset}
+              aria-label="Reset timer"
+            >
+              <RotateCcw className="w-5 h-5" />
+            </Button>
+            <button
+              className="w-14 h-14 rounded-full shadow-lg hover:scale-105 transition-transform flex items-center justify-center"
+              style={{ backgroundColor: MODE_BG[mode] }}
+              onClick={handleToggle}
+              aria-label={isRunning ? "Pause timer" : "Start timer"}
+            >
+              {isRunning ? (
+                <svg className="w-6 h-6 text-white fill-white" viewBox="0 0 24 24">
+                  <rect x="6" y="4" width="4" height="16" />
+                  <rect x="14" y="4" width="4" height="16" />
+                </svg>
+              ) : (
+                <svg className="w-6 h-6 text-white fill-white ml-0.5" viewBox="0 0 24 24">
+                  <polygon points="5,3 19,12 5,21" />
+                </svg>
+              )}
+            </button>
+            {/* Spacer to keep play button centered */}
+            <div className="w-11 h-11" aria-hidden />
+          </div>
+        </div>
+
+        {/* ── Stats + badges ─────────────────────────────────────────────── */}
+        <div className="shrink-0 space-y-2">
+          <div className="grid grid-cols-3 gap-2">
             <Card className="bg-card text-center">
-              <CardContent className="p-3">
-                <div className="text-2xl font-bold text-primary">{sessionCount}</div>
-                <div className="text-xs text-muted-foreground mt-0.5">Today's Sessions</div>
+              <CardContent className="p-2">
+                <div className="text-xl font-bold text-primary">{sessionCount}</div>
+                <div className="text-[10px] text-muted-foreground mt-0.5 leading-tight">Sessions</div>
               </CardContent>
             </Card>
             <Card className="bg-card text-center">
-              <CardContent className="p-3">
-                <div className="text-2xl font-bold text-secondary">
+              <CardContent className="p-2">
+                <div className="text-xl font-bold text-secondary">
                   {stats ? (stats.today_minutes ?? 0) : 0}m
                 </div>
-                <div className="text-xs text-muted-foreground mt-0.5">Focus Today</div>
+                <div className="text-[10px] text-muted-foreground mt-0.5 leading-tight">Focus Today</div>
               </CardContent>
             </Card>
             <Card className="bg-card text-center">
-              <CardContent className="p-3">
-                <div className="text-2xl font-bold text-warning">{stats?.streak_days ?? 0}</div>
-                <div className="text-xs text-muted-foreground mt-0.5">Day Streak</div>
+              <CardContent className="p-2">
+                <div className="text-xl font-bold text-warning">{streakDays}</div>
+                <div className="text-[10px] text-muted-foreground mt-0.5 leading-tight">Day Streak</div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Focus Master Badge */}
-          {(stats?.streak_days ?? 0) >= 7 && (
-            <Card className="bg-warning/5 border-warning/30">
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-warning/20 flex items-center justify-center shrink-0">
-                  <Trophy className="w-5 h-5 text-warning" />
-                </div>
-                <div>
-                  <p className="font-semibold text-sm text-warning">Focus Master</p>
-                  <p className="text-xs text-muted-foreground">
-                    {stats!.streak_days}-day streak achieved. Outstanding dedication!
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+          {/* Focus Master badge — compact row, only when earned */}
+          {streakDays >= 7 && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-warning/5 border border-warning/20">
+              <Trophy className="w-4 h-4 text-warning shrink-0" />
+              <p className="text-xs">
+                <span className="font-semibold text-warning">Focus Master</span>
+                <span className="text-muted-foreground ml-1">{streakDays}-day streak. Outstanding!</span>
+              </p>
+            </div>
           )}
 
+          {/* One-line hint */}
           {mode === "focus" && (
-            <Card className="bg-card/50 border-dashed">
-              <CardContent className="p-4 text-center">
-                <Clock className="w-5 h-5 mx-auto mb-2 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">
-                  Complete 4 focus sessions per day to maintain your streak.
-                  {stats?.streak_days ? ` You're on a ${stats.streak_days}-day streak!` : " Start your first session!"}
-                  {(stats?.streak_days ?? 0) > 0 && (stats?.streak_days ?? 0) < 7 && (
-                    <span className="text-primary"> {7 - stats!.streak_days} more days to earn Focus Master.</span>
-                  )}
-                </p>
-                {isRunning && (
-                  <p className="text-xs text-primary mt-2 font-medium">
-                    Timer continues even when you navigate away.
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+            <p className="text-center text-[11px] text-muted-foreground leading-snug pb-0.5">
+              {streakDays > 0 && streakDays < 7
+                ? `${7 - streakDays} more day${7 - streakDays !== 1 ? "s" : ""} to Focus Master · `
+                : ""}
+              4 sessions/day maintains your streak
+              {isRunning ? " · Timer runs while you navigate" : ""}
+            </p>
           )}
         </div>
       </div>

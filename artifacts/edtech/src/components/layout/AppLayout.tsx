@@ -41,7 +41,7 @@ function pageLabel(location: string): string {
 }
 // ────────────────────────────────────────────────────────────────────────────
 
-export function AppLayout({ children }: { children: ReactNode }) {
+export function AppLayout({ children, noPad = false }: { children: ReactNode; noPad?: boolean }) {
   const { user } = useAuth();
   const [location] = useLocation();
   const { unreadCount } = useNotificationStore();
@@ -109,11 +109,14 @@ export function AppLayout({ children }: { children: ReactNode }) {
       {/* Main content
           • pt-14 on mobile to clear the fixed MobileHeader (56px)
           • pb-20 on mobile to clear the fixed BottomNav (80px)
-          • Desktop padding handled by flex sidebar layout */}
-      <main className="flex-1 overflow-y-auto pt-14 pb-20 md:pt-0 md:pb-0">
-        <div className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-8">
-          {children}
-        </div>
+          • Desktop padding handled by flex sidebar layout
+          • noPad=true: no inner padding, overflow-hidden (single-screen pages) */}
+      <main className={`flex-1 pt-14 pb-20 md:pt-0 md:pb-0 ${noPad ? "overflow-hidden" : "overflow-y-auto"}`}>
+        {noPad ? (
+          <div className="h-full">{children}</div>
+        ) : (
+          <div className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-8">{children}</div>
+        )}
       </main>
 
       {/* Mobile bottom nav — hidden on desktop */}
