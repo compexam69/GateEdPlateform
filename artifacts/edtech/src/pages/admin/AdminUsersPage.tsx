@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import {
   CheckCircle, XCircle, Search, Shield, User, Clock, RotateCcw,
   Eye, FileText, BookOpen, Timer, TrendingUp, UserPlus, Upload, Download,
-  AlertCircle, CheckCircle2, Loader2, Pencil, MoreVertical,
+  AlertCircle, CheckCircle2, Loader2, Pencil, MoreVertical, Trash2,
 } from "lucide-react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useAdminApproveUser, useAdminRejectUser } from "@workspace/api-client-react";
@@ -207,6 +207,9 @@ export default function AdminUsersPage() {
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [suspendDialog, setSuspendDialog] = useState<{ userId: string; userName: string } | null>(null);
+  const [deleteDialog, setDeleteDialog] = useState<{ userId: string; userName: string } | null>(null);
+
   const { data: users = [], isLoading } = useQuery({
     queryKey: USERS_KEY,
     queryFn: async () => {
@@ -306,6 +309,18 @@ export default function AdminUsersPage() {
     onError: (err: unknown) => toast({ title: "Import failed", description: (err as Error).message, variant: "destructive" }),
   });
 
+  const deleteUser = useMutation({
+    mutationFn: (userId: string) => apiFetch(`/admin/users/${userId}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: USERS_KEY });
+      toast({ title: "User permanently deleted" });
+      setDeleteDialog(null);
+    },
+    onError: (err: unknown) => {
+      toast({ title: "Delete failed", description: (err as Error).message, variant: "destructive" });
+    },
+  });
+
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -401,7 +416,6 @@ export default function AdminUsersPage() {
 
     const hasPrimaryAction =
       status === "pending_approval" ||
-      (status === "active" && role === "student") ||
       status === "suspended";
 
     return (
@@ -547,6 +561,30 @@ export default function AdminUsersPage() {
                     </DropdownMenuItem>
                   </>
                 )}
+
+                {/* Suspend — active users only, not self */}
+                {!isSelf && status === "active" &&
+                  (currentRole === "super_admin" || (currentRole === "admin" && role === "student")) && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
+                      onClick={() => setSuspendDialog({ userId, userName })}
+                    >
+                      <XCircle className="w-4 h-4 mr-2 shrink-0" /> Suspend User
+                    </DropdownMenuItem>
+                  </>
+                )}
+
+                {/* Delete — super_admin only, never self */}
+                {!isSelf && currentRole === "super_admin" && (
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => setDeleteDialog({ userId, userName })}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2 shrink-0" /> Delete User
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           )}
@@ -577,18 +615,6 @@ export default function AdminUsersPage() {
                     <CheckCircle className="w-4 h-4 shrink-0" /> Approve
                   </Button>
                 </div>
-              )}
-
-              {status === "active" && role === "student" && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="w-full h-9 gap-1.5 text-destructive hover:bg-destructive/10 border-destructive/30 font-medium"
-                  onClick={() => reject.mutate({ userId })}
-                  disabled={reject.isPending}
-                >
-                  <XCircle className="w-4 h-4 shrink-0" /> Suspend User
-                </Button>
               )}
 
               {status === "suspended" && (
@@ -1156,6 +1182,80 @@ export default function AdminUsersPage() {
           ) : (
             <div className="text-center py-8 text-muted-foreground text-sm">No details available.</div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Suspend Confirmation Dialog ─────────────────────────────────────── */}
+      <Dialog open={!!suspendDialog} onOpenChange={v => { if (!v) setSuspendDialog(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <XCircle className="w-5 h-5 text-destructive" /> Suspend User
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground py-1">
+            Are you sure you want to suspend{" "}
+            <span className="font-semibold text-foreground">{suspendDialog?.userName}</span>?
+            They will lose access until reinstated.
+          </p>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setSuspendDialog(null)}
+              disabled={reject.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={reject.isPending}
+              onClick={() => {
+                if (suspendDialog) {
+                  reject.mutate({ userId: suspendDialog.userId });
+                  setSuspendDialog(null);
+                }
+              }}
+            >
+              {reject.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Suspend
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Delete Confirmation Dialog ──────────────────────────────────────── */}
+      <Dialog open={!!deleteDialog} onOpenChange={v => { if (!v) setDeleteDialog(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="w-5 h-5 text-destructive" /> Delete User
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground py-1">
+            Permanently delete{" "}
+            <span className="font-semibold text-foreground">{deleteDialog?.userName}</span>?
+            This action <span className="font-semibold text-destructive">cannot be undone</span> —
+            all their data will be removed.
+          </p>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialog(null)}
+              disabled={deleteUser.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteUser.isPending}
+              onClick={() => {
+                if (deleteDialog) deleteUser.mutate(deleteDialog.userId);
+              }}
+            >
+              {deleteUser.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Delete Permanently
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </AppLayout>

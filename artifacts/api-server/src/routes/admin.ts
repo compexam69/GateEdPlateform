@@ -129,6 +129,51 @@ router.post("/admin/users/:userId/reject", requireAdmin, async (req: AuthRequest
   res.json({ message: "User rejected/banned" });
 });
 
+// ── DELETE /admin/users/:userId — permanent deletion ─────────────────────────
+router.delete("/admin/users/:userId", requireAdmin, async (req: AuthRequest, res) => {
+  const actorId = req.user!.id;
+  const actorRole = req.user!.role;
+  const targetId = String(req.params["userId"]);
+
+  if (targetId === actorId) {
+    res.status(400).json({ error: "You cannot delete your own account." });
+    return;
+  }
+
+  // Only super_admins may delete users
+  if (actorRole !== "super_admin") {
+    res.status(403).json({ error: "Only Super Admins can permanently delete users." });
+    return;
+  }
+
+  // Fetch target role to enforce hierarchy: super_admins can't be deleted by non-primary admins
+  const { data: targetProfile } = await supabase
+    .from("profiles")
+    .select("role, full_name")
+    .eq("id", targetId)
+    .maybeSingle();
+
+  if (!targetProfile) {
+    res.status(404).json({ error: "User not found." });
+    return;
+  }
+
+  // Audit log before deletion
+  await writeAuditLog(actorId, "user_deleted", "profile", targetId, {
+    deleted_role: targetProfile.role,
+    deleted_name: targetProfile.full_name,
+  });
+
+  // Delete from Supabase Auth — cascades to profiles via FK ON DELETE CASCADE
+  const { error } = await supabase.auth.admin.deleteUser(targetId);
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+
+  res.json({ message: "User permanently deleted." });
+});
+
 // ── Admin: edit a user's profile fields (name, mobile, email) ────────────────
 router.patch("/admin/users/:userId/profile", requireAdmin, async (req: AuthRequest, res) => {
   const targetUserId = String(req.params["userId"]);
