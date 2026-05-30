@@ -55,6 +55,25 @@ export default function PomodoroPage() {
   const [topicSearch, setTopicSearch] = useState("");
   const [topicPickerOpen, setTopicPickerOpen] = useState(false);
 
+  const GOAL_PRESETS = [2, 4, 6, 8];
+  const [dailyGoal, setDailyGoal] = useState<number>(() => {
+    try {
+      const stored = localStorage.getItem("pomodoro_daily_goal");
+      const parsed = stored ? parseInt(stored, 10) : 4;
+      return GOAL_PRESETS.includes(parsed) ? parsed : 4;
+    } catch {
+      return 4;
+    }
+  });
+
+  function cycleGoal() {
+    setDailyGoal((prev) => {
+      const next = GOAL_PRESETS[(GOAL_PRESETS.indexOf(prev) + 1) % GOAL_PRESETS.length];
+      try { localStorage.setItem("pomodoro_daily_goal", String(next)); } catch {}
+      return next;
+    });
+  }
+
   const { data: stats, refetch: refetchStats } = useQuery({
     queryKey: [getGetPomodoroStatsUrl()],
     queryFn: () => getPomodoroStats(),
@@ -319,10 +338,27 @@ export default function PomodoroPage() {
 
           {/* Stats row — 3 compact cards */}
           <div className="grid grid-cols-3 gap-2">
-            <Card className="bg-card text-center">
+            <Card
+              className="bg-card text-center cursor-pointer hover:bg-muted/20 active:scale-95 transition-all select-none"
+              onClick={cycleGoal}
+              title="Tap to change daily goal"
+            >
               <CardContent className="p-2 md:p-3">
-                <div className="text-xl font-bold text-primary md:text-2xl">{sessionCount}</div>
-                <div className="text-[10px] text-muted-foreground mt-0.5 md:text-xs leading-tight">Today's Sessions</div>
+                <div className="text-xl font-bold text-primary md:text-2xl tabular-nums leading-none">
+                  {sessionCount}
+                  <span className="text-[11px] font-normal text-muted-foreground">/{dailyGoal}</span>
+                </div>
+                <div className="h-1 bg-muted rounded-full overflow-hidden mt-1.5 mb-0.5 mx-0.5">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ease-out ${
+                      sessionCount >= dailyGoal ? "bg-emerald-500" : "bg-primary/80"
+                    }`}
+                    style={{ width: `${Math.min((sessionCount / dailyGoal) * 100, 100)}%` }}
+                  />
+                </div>
+                <div className="text-[10px] text-muted-foreground leading-tight">
+                  {sessionCount >= dailyGoal ? "Goal met!" : "Daily Goal"}
+                </div>
               </CardContent>
             </Card>
             <Card className="bg-card text-center">
