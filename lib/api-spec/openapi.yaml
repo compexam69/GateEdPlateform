@@ -1115,6 +1115,16 @@ components:
           type: ["string", "null"]
         is_active:
           type: boolean
+        creator_id:
+          type: ["string", "null"]
+        visibility_roles:
+          type: array
+          items:
+            type: string
+          description: "Roles that can view this subject: student, admin, super_admin"
+        is_creator_only:
+          type: boolean
+          description: "If true, only the creator (and explicitly granted super admins) can access this subject"
       required: [id, title, order_index, is_active]
 
     SubjectInput:
@@ -1130,6 +1140,12 @@ components:
           type: ["string", "null"]
         is_active:
           type: boolean
+        visibility_roles:
+          type: array
+          items:
+            type: string
+        is_creator_only:
+          type: boolean
       required: [title, order_index]
 
     SubjectUpdate:
@@ -1142,6 +1158,12 @@ components:
         order_index:
           type: integer
         is_active:
+          type: boolean
+        visibility_roles:
+          type: array
+          items:
+            type: string
+        is_creator_only:
           type: boolean
 
     Chapter:

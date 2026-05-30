@@ -78,6 +78,12 @@ export interface Subject {
   /** @nullable */
   icon_url?: string | null;
   is_active: boolean;
+  /** @nullable */
+  creator_id?: string | null;
+  /** Roles that can view this subject: student, admin, super_admin */
+  visibility_roles?: string[];
+  /** If true, only the creator (and explicitly granted super admins) can access this subject */
+  is_creator_only?: boolean;
 }
 
 export interface SubjectInput {
@@ -88,6 +94,8 @@ export interface SubjectInput {
   /** @nullable */
   icon_url?: string | null;
   is_active?: boolean;
+  visibility_roles?: string[];
+  is_creator_only?: boolean;
 }
 
 export interface SubjectUpdate {
@@ -96,6 +104,8 @@ export interface SubjectUpdate {
   description?: string | null;
   order_index?: number;
   is_active?: boolean;
+  visibility_roles?: string[];
+  is_creator_only?: boolean;
 }
 
 export interface Chapter {

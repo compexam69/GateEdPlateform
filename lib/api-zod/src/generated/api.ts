@@ -58,7 +58,10 @@ export const GetSubjectsResponseItem = zod.object({
   "description": zod.string().nullish(),
   "order_index": zod.number(),
   "icon_url": zod.string().nullish(),
-  "is_active": zod.boolean()
+  "is_active": zod.boolean(),
+  "creator_id": zod.string().nullish(),
+  "visibility_roles": zod.array(zod.string()).optional().describe('Roles that can view this subject: student, admin, super_admin'),
+  "is_creator_only": zod.boolean().optional().describe('If true, only the creator (and explicitly granted super admins) can access this subject')
 })
 export const GetSubjectsResponse = zod.array(GetSubjectsResponseItem)
 
@@ -71,7 +74,9 @@ export const CreateSubjectBody = zod.object({
   "description": zod.string().nullish(),
   "order_index": zod.number(),
   "icon_url": zod.string().nullish(),
-  "is_active": zod.boolean().optional()
+  "is_active": zod.boolean().optional(),
+  "visibility_roles": zod.array(zod.string()).optional(),
+  "is_creator_only": zod.boolean().optional()
 })
 
 
@@ -88,7 +93,10 @@ export const GetSubjectResponse = zod.object({
   "description": zod.string().nullish(),
   "order_index": zod.number(),
   "icon_url": zod.string().nullish(),
-  "is_active": zod.boolean()
+  "is_active": zod.boolean(),
+  "creator_id": zod.string().nullish(),
+  "visibility_roles": zod.array(zod.string()).optional().describe('Roles that can view this subject: student, admin, super_admin'),
+  "is_creator_only": zod.boolean().optional().describe('If true, only the creator (and explicitly granted super admins) can access this subject')
 })
 
 
@@ -103,7 +111,9 @@ export const UpdateSubjectBody = zod.object({
   "title": zod.string().optional(),
   "description": zod.string().nullish(),
   "order_index": zod.number().optional(),
-  "is_active": zod.boolean().optional()
+  "is_active": zod.boolean().optional(),
+  "visibility_roles": zod.array(zod.string()).optional(),
+  "is_creator_only": zod.boolean().optional()
 })
 
 export const UpdateSubjectResponse = zod.object({
@@ -112,7 +122,10 @@ export const UpdateSubjectResponse = zod.object({
   "description": zod.string().nullish(),
   "order_index": zod.number(),
   "icon_url": zod.string().nullish(),
-  "is_active": zod.boolean()
+  "is_active": zod.boolean(),
+  "creator_id": zod.string().nullish(),
+  "visibility_roles": zod.array(zod.string()).optional().describe('Roles that can view this subject: student, admin, super_admin'),
+  "is_creator_only": zod.boolean().optional().describe('If true, only the creator (and explicitly granted super admins) can access this subject')
 })
 
 

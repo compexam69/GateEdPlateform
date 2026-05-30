@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Eye, Shield, Trash2, Plus, Lock, Share2, BookOpen, HelpCircle } from "lucide-react";
+import { Eye, Shield, Trash2, Plus, Lock, Share2, BookOpen, HelpCircle, Layers } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { apiFetch } from "@/lib/api";
@@ -14,6 +14,14 @@ import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
+type SubjectItem = {
+  id: string;
+  title: string;
+  visibility_roles: string[];
+  is_creator_only: boolean;
+  creator_id: string | null;
+};
+
 type QuizItem = {
   id: string;
   title: string;
@@ -45,6 +53,8 @@ type Profile = {
   email: string;
   role: string;
 };
+
+type GrantContentType = "subject" | "quiz" | "topic";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function visibilityLabel(roles: string[], creatorOnly = false): string {
@@ -78,15 +88,23 @@ export default function AdminContentAccessPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<"quizzes" | "topics">("quizzes");
+  const [activeTab, setActiveTab] = useState<"subjects" | "quizzes" | "topics">("subjects");
   const [grantForm, setGrantForm] = useState<{
-    content_type: "quiz" | "topic";
+    content_type: GrantContentType;
     content_id: string;
     granted_to: string;
-  }>({ content_type: "quiz", content_id: "", granted_to: "" });
+  }>({ content_type: "subject", content_id: "", granted_to: "" });
   const [saving, setSaving] = useState(false);
 
   // ── Queries ──────────────────────────────────────────────────────────────
+  const { data: subjects = [], isLoading: loadingSubjects } = useQuery<SubjectItem[]>({
+    queryKey: ["content-access-subjects"],
+    queryFn: async () => {
+      const data = await apiFetch("/subjects") as SubjectItem[];
+      return data ?? [];
+    },
+  });
+
   const { data: quizzes = [], isLoading: loadingQuizzes } = useQuery<QuizItem[]>({
     queryKey: ["content-access-quizzes"],
     queryFn: async () => {
@@ -131,8 +149,12 @@ export default function AdminContentAccessPage() {
   // ── Derived data ─────────────────────────────────────────────────────────
   const otherSuperAdmins = adminProfiles.filter(p => p.role === "super_admin" && p.id !== user?.id);
 
+  const mySubjects = subjects.filter(s => s.creator_id === user?.id);
   const myQuizzes = quizzes.filter(q => q.creator_id === user?.id);
   const myTopics = topics.filter(t => t.creator_id === user?.id);
+
+  const studentAccessibleSubjects = subjects.filter(s => !s.is_creator_only && (s.visibility_roles ?? []).includes("student"));
+  const restrictedSubjects = subjects.filter(s => s.is_creator_only || !(s.visibility_roles ?? []).includes("student"));
 
   const studentAccessibleQuizzes = quizzes.filter(q => (q.allowed_roles ?? []).includes("student"));
   const restrictedQuizzes = quizzes.filter(q => !(q.allowed_roles ?? []).includes("student"));
@@ -140,13 +162,20 @@ export default function AdminContentAccessPage() {
   const studentAccessibleTopics = topics.filter(t => !t.is_creator_only && (t.allowed_roles ?? []).includes("student"));
   const restrictedTopics = topics.filter(t => t.is_creator_only || !(t.allowed_roles ?? []).includes("student"));
 
-  const myContent = grantForm.content_type === "quiz" ? myQuizzes : myTopics;
+  const myGrantContent: { id: string; title: string }[] =
+    grantForm.content_type === "subject" ? mySubjects :
+    grantForm.content_type === "quiz" ? myQuizzes :
+    myTopics;
 
   function resolveProfile(id: string): Profile | undefined {
     return adminProfiles.find(p => p.id === id);
   }
 
   function resolveContentLabel(type: string, id: string): string {
+    if (type === "subject") {
+      const s = subjects.find(s => s.id === id);
+      return s ? s.title : id.slice(0, 8) + "…";
+    }
     if (type === "quiz") {
       const q = quizzes.find(q => q.id === id);
       return q ? `${q.title} (${QUIZ_TYPE_LABELS[q.type] ?? q.type})` : id.slice(0, 8) + "…";
@@ -197,7 +226,7 @@ export default function AdminContentAccessPage() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Content Access Control</h1>
           <p className="text-muted-foreground mt-1">
-            Control who can see lectures and take exams. Super admins can share content management rights with each other.
+            Control who can see subjects, lectures, and exams. Super admins can share content management rights with each other.
           </p>
         </div>
 
@@ -210,6 +239,18 @@ export default function AdminContentAccessPage() {
             </h2>
             {/* Tab toggle */}
             <div className="ml-auto flex gap-1 rounded-lg border border-border p-0.5 bg-muted/30">
+              <button
+                onClick={() => setActiveTab("subjects")}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                  activeTab === "subjects"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Layers className="w-3 h-3" />
+                Subjects
+                <Badge variant="secondary" className="text-xs ml-0.5 font-normal">{subjects.length}</Badge>
+              </button>
               <button
                 onClick={() => setActiveTab("quizzes")}
                 className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors ${
@@ -236,6 +277,49 @@ export default function AdminContentAccessPage() {
               </button>
             </div>
           </div>
+
+          {/* ── Subjects tab ── */}
+          {activeTab === "subjects" && (
+            <>
+              {loadingSubjects ? (
+                <LoadingSpinner />
+              ) : subjects.length === 0 ? (
+                <EmptyCard icon={Layers} message="No subjects yet. Create them in the Content Editor." />
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <VisibilityCard
+                    title="Student Accessible"
+                    count={studentAccessibleSubjects.length}
+                    color="emerald"
+                    icon={Eye}
+                    items={studentAccessibleSubjects.map(s => ({
+                      id: s.id,
+                      label: s.title,
+                      badge: visibilityLabel(s.visibility_roles ?? []),
+                    }))}
+                    emptyMessage="No subjects visible to students."
+                  />
+                  <VisibilityCard
+                    title="Restricted"
+                    count={restrictedSubjects.length}
+                    color="amber"
+                    icon={Shield}
+                    items={restrictedSubjects.map(s => ({
+                      id: s.id,
+                      label: s.title,
+                      badge: visibilityLabel(s.visibility_roles ?? [], s.is_creator_only),
+                    }))}
+                    emptyMessage="No restricted subjects."
+                  />
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Change a subject's visibility in the{" "}
+                <a href="/admin/subjects" className="text-primary underline hover:text-primary/80">Content Editor</a>
+                {" "}— edit any subject and update the <strong>Subject Visibility</strong> settings.
+              </p>
+            </>
+          )}
 
           {/* ── Quizzes tab ── */}
           {activeTab === "quizzes" && (
@@ -333,7 +417,11 @@ export default function AdminContentAccessPage() {
                 Super Admin Content Grants
               </h2>
               <p className="text-sm text-muted-foreground mt-0.5">
-                Share management rights over your quizzes or lecture topics with other super admins.
+                Share management rights over your subjects, quizzes, or lecture topics with other super admins.
+                <br />
+                <span className="text-xs text-amber-400/80">
+                  One super admin cannot access another's content without an explicit grant below.
+                </span>
               </p>
             </div>
 
@@ -353,13 +441,14 @@ export default function AdminContentAccessPage() {
                     <Select
                       value={grantForm.content_type}
                       onValueChange={(v) =>
-                        setGrantForm(prev => ({ ...prev, content_type: v as "quiz" | "topic", content_id: "" }))
+                        setGrantForm(prev => ({ ...prev, content_type: v as GrantContentType, content_id: "" }))
                       }
                     >
                       <SelectTrigger className="w-32">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="subject">Subject</SelectItem>
                         <SelectItem value="quiz">Exam / Quiz</SelectItem>
                         <SelectItem value="topic">Lecture Topic</SelectItem>
                       </SelectContent>
@@ -368,16 +457,22 @@ export default function AdminContentAccessPage() {
 
                   {/* Content picker */}
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Your {grantForm.content_type === "quiz" ? "Quiz" : "Topic"}</Label>
+                    <Label className="text-xs">
+                      Your {grantForm.content_type === "subject" ? "Subject" : grantForm.content_type === "quiz" ? "Quiz" : "Topic"}
+                    </Label>
                     <Select
                       value={grantForm.content_id}
                       onValueChange={v => setGrantForm(prev => ({ ...prev, content_id: v }))}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder={myContent.length === 0 ? `No ${grantForm.content_type === "quiz" ? "quizzes" : "topics"} created by you` : "Select…"} />
+                        <SelectValue placeholder={
+                          myGrantContent.length === 0
+                            ? `No ${grantForm.content_type === "subject" ? "subjects" : grantForm.content_type === "quiz" ? "quizzes" : "topics"} created by you`
+                            : "Select…"
+                        } />
                       </SelectTrigger>
                       <SelectContent>
-                        {myContent.map(item => (
+                        {myGrantContent.map(item => (
                           <SelectItem key={item.id} value={item.id}>{item.title}</SelectItem>
                         ))}
                       </SelectContent>
@@ -417,10 +512,12 @@ export default function AdminContentAccessPage() {
                   </div>
                 </div>
 
-                {myContent.length === 0 && (
+                {myGrantContent.length === 0 && (
                   <p className="text-xs text-amber-400/80">
-                    You haven't created any {grantForm.content_type === "quiz" ? "quizzes" : "topics"} yet.
-                    {grantForm.content_type === "quiz"
+                    You haven't created any {grantForm.content_type === "subject" ? "subjects" : grantForm.content_type === "quiz" ? "quizzes" : "topics"} yet.
+                    {grantForm.content_type === "subject"
+                      ? " Create subjects in the Content Editor first."
+                      : grantForm.content_type === "quiz"
                       ? " Create quizzes in the Quiz Editor first."
                       : " Create topics in the Content Editor first."}
                   </p>
@@ -465,7 +562,7 @@ export default function AdminContentAccessPage() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <Badge variant="outline" className="text-xs capitalize">
-                                {grant.content_type === "topic" ? "Lecture" : "Exam"}
+                                {grant.content_type === "topic" ? "Lecture" : grant.content_type === "subject" ? "Subject" : "Exam"}
                               </Badge>
                               <span className="text-sm font-medium truncate">{contentLabel}</span>
                             </div>
@@ -527,12 +624,10 @@ function LoadingSpinner() {
 
 function EmptyCard({ icon: Icon, message }: { icon: React.ElementType; message: string }) {
   return (
-    <Card>
-      <CardContent className="py-12 text-center text-muted-foreground">
-        <Icon className="w-10 h-10 mx-auto mb-3 opacity-30" />
-        <p>{message}</p>
-      </CardContent>
-    </Card>
+    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-12 text-center text-muted-foreground">
+      <Icon className="w-8 h-8 mb-2 opacity-30" />
+      <p className="text-sm">{message}</p>
+    </div>
   );
 }
 
@@ -543,28 +638,31 @@ function VisibilityCard({
   count: number;
   color: "emerald" | "amber";
   icon: React.ElementType;
-  items: { id: string; label: string; badge: string }[];
+  items: { id: string; label: string; badge?: string }[];
   emptyMessage: string;
 }) {
   const colorClass = color === "emerald" ? "text-emerald-400" : "text-amber-400";
+  const bgClass = color === "emerald" ? "border-emerald-500/20 bg-emerald-500/5" : "border-amber-500/20 bg-amber-500/5";
   return (
-    <Card className="bg-card">
+    <Card className={`bg-card border ${bgClass}`}>
       <CardHeader className="pb-2">
         <CardTitle className={`text-sm flex items-center gap-2 ${colorClass}`}>
           <Icon className="w-4 h-4" />
           {title}
-          <Badge variant="secondary" className="text-xs ml-auto font-normal">{count}</Badge>
+          <Badge variant="secondary" className="ml-auto text-xs font-normal">{count}</Badge>
         </CardTitle>
       </CardHeader>
       <CardContent>
         {items.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-2">{emptyMessage}</p>
+          <p className="text-xs text-muted-foreground py-2">{emptyMessage}</p>
         ) : (
-          <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
+          <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
             {items.map(item => (
-              <div key={item.id} className="flex items-center gap-2 py-1 border-b border-border/40 last:border-0">
-                <span className="text-sm flex-1 truncate">{item.label}</span>
-                <Badge variant="outline" className="text-xs shrink-0">{item.badge}</Badge>
+              <div key={item.id} className="flex items-center justify-between gap-2">
+                <span className="text-xs truncate min-w-0">{item.label}</span>
+                {item.badge && (
+                  <Badge variant="outline" className="text-xs shrink-0 font-normal">{item.badge}</Badge>
+                )}
               </div>
             ))}
           </div>

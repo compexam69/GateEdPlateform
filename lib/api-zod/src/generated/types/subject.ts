@@ -15,4 +15,10 @@ export interface Subject {
   /** @nullable */
   icon_url?: string | null;
   is_active: boolean;
+  /** @nullable */
+  creator_id?: string | null;
+  /** Roles that can view this subject: student, admin, super_admin */
+  visibility_roles?: string[];
+  /** If true, only the creator (and explicitly granted super admins) can access this subject */
+  is_creator_only?: boolean;
 }

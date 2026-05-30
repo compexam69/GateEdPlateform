@@ -776,6 +776,7 @@ create index if not exists idx_grants_grantee         on content_access_grants(g
 -- Run in Supabase SQL Editor after Section 22.
 -- Safe to re-run (all statements are idempotent).
 -- ============================================================
+-- NOTE: Section 24 below extends this with subject-level access control.
 
 -- 1. Add role-based visibility to topics.
 --    Defaults match existing behaviour: all roles can access all topics.
@@ -806,3 +807,147 @@ create index if not exists idx_topics_is_creator_only
 -- 4. Existing data: nothing to migrate.
 --    All topics get the defaults above (all-roles accessible, not creator-only),
 --    which exactly matches the pre-migration behaviour.
+
+-- ============================================================
+-- SECTION 24: Subject-Level Access Control (Checkpoint X)
+-- Run in Supabase SQL Editor after Section 23.
+-- Safe to re-run (all statements are idempotent).
+-- ============================================================
+
+-- 1. Add visibility fields to subjects.
+--    Defaults match existing behaviour: all roles can access all subjects.
+alter table subjects
+  add column if not exists visibility_roles text[]
+    not null default array['student','admin','super_admin'];
+
+alter table subjects
+  add column if not exists is_creator_only boolean
+    not null default false;
+
+-- 2. Update subjects RLS: replace the broad "any authenticated user" policy
+--    with a role-filtered policy that enforces subject-level isolation.
+drop policy if exists "subjects_read" on subjects;
+
+create policy "subjects_read" on subjects for select using (
+  -- Super admins: see own subjects, explicitly shared subjects, or
+  --   openly-visible subjects (is_creator_only=false AND super_admin in visibility_roles)
+  (
+    exists (
+      select 1 from public.profiles p
+      where p.id = auth.uid() and p.role = 'super_admin'
+    )
+    and (
+      creator_id = auth.uid()
+      or (
+        is_creator_only = false
+        and visibility_roles @> array['super_admin']
+      )
+      or exists (
+        select 1 from public.content_access_grants g
+        where g.content_type = 'subject'
+          and g.content_id = id
+          and g.granted_to = auth.uid()
+      )
+    )
+  )
+  -- Admins: non-creator-only subjects visible to admins
+  or (
+    exists (
+      select 1 from public.profiles p
+      where p.id = auth.uid() and p.role = 'admin'
+    )
+    and is_creator_only = false
+    and visibility_roles @> array['admin']
+  )
+  -- Students: non-creator-only subjects visible to students
+  or (
+    exists (
+      select 1 from public.profiles p
+      where p.id = auth.uid() and p.role = 'student'
+    )
+    and is_creator_only = false
+    and visibility_roles @> array['student']
+  )
+);
+
+-- 3. Update chapters RLS: a chapter is only readable if its parent subject is
+--    accessible to the calling user (strict inheritance — no override at chapter level).
+drop policy if exists "chapters_read" on chapters;
+
+create policy "chapters_read" on chapters for select using (
+  exists (
+    select 1 from public.subjects s
+    where s.id = subject_id
+      and (
+        -- Super admins
+        (
+          exists (
+            select 1 from public.profiles p
+            where p.id = auth.uid() and p.role = 'super_admin'
+          )
+          and (
+            s.creator_id = auth.uid()
+            or (s.is_creator_only = false and s.visibility_roles @> array['super_admin'])
+            or exists (
+              select 1 from public.content_access_grants g
+              where g.content_type = 'subject'
+                and g.content_id = s.id
+                and g.granted_to = auth.uid()
+            )
+          )
+        )
+        -- Admins
+        or (
+          exists (
+            select 1 from public.profiles p
+            where p.id = auth.uid() and p.role = 'admin'
+          )
+          and s.is_creator_only = false
+          and s.visibility_roles @> array['admin']
+        )
+        -- Students
+        or (
+          exists (
+            select 1 from public.profiles p
+            where p.id = auth.uid() and p.role = 'student'
+          )
+          and s.is_creator_only = false
+          and s.visibility_roles @> array['student']
+        )
+      )
+  )
+);
+
+-- 4. Extend content_access_grants to ensure 'subject' is in the allowed values.
+--    (It was already included in the original Section 22 definition, but this
+--     guard makes the migration idempotent even if running on older schemas.)
+do $$ begin
+  alter table content_access_grants
+    drop constraint if exists content_access_grants_content_type_check;
+  alter table content_access_grants
+    add constraint content_access_grants_content_type_check
+      check (content_type in ('subject','quiz','topic'));
+exception when others then null; end $$;
+
+-- 5. Performance indexes.
+create index if not exists idx_subjects_visibility_roles
+  on subjects using gin(visibility_roles);
+
+create index if not exists idx_subjects_is_creator_only
+  on subjects(is_creator_only);
+
+-- 6. Existing data: no migration needed.
+--    All existing subjects get:
+--      visibility_roles = ['student','admin','super_admin']  (all roles, open)
+--      is_creator_only  = false
+--    This exactly preserves the pre-migration "everyone can see everything" behaviour.
+
+-- ============================================================
+-- SECTION 24 ROLLBACK (keep commented unless needed):
+-- ============================================================
+-- alter table subjects drop column if exists visibility_roles;
+-- alter table subjects drop column if exists is_creator_only;
+-- drop policy if exists "subjects_read"  on subjects;
+-- drop policy if exists "chapters_read" on chapters;
+-- create policy "subjects_read" on subjects for select using (auth.role() = 'authenticated');
+-- create policy "chapters_read" on chapters for select using (auth.role() = 'authenticated');

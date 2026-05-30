@@ -14,4 +14,6 @@ export interface SubjectInput {
   /** @nullable */
   icon_url?: string | null;
   is_active?: boolean;
+  visibility_roles?: string[];
+  is_creator_only?: boolean;
 }

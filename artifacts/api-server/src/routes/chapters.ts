@@ -4,16 +4,57 @@ import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth
 
 const router = Router();
 
+// ── Subject access guard ──────────────────────────────────────────────────────
+// Returns true if the calling user may access the given subject (and therefore
+// its chapters). Mirrors the logic in subjects.ts.
+async function canAccessSubject(subjectId: string, userId: string, role: string): Promise<boolean> {
+  const { data: subject } = await supabase
+    .from("subjects")
+    .select("creator_id, is_creator_only, visibility_roles")
+    .eq("id", subjectId)
+    .single();
+
+  if (!subject) return false;
+
+  if (role === "super_admin") {
+    if (subject.creator_id === userId) return true;
+    if (!subject.is_creator_only && (subject.visibility_roles ?? []).includes("super_admin")) return true;
+    // Check explicit grant
+    const { data: grant } = await supabase
+      .from("content_access_grants")
+      .select("id")
+      .eq("content_type", "subject")
+      .eq("content_id", subjectId)
+      .eq("granted_to", userId)
+      .maybeSingle();
+    return !!grant;
+  }
+  if (role === "admin") {
+    return !subject.is_creator_only && (subject.visibility_roles ?? []).includes("admin");
+  }
+  // student
+  return !subject.is_creator_only && (subject.visibility_roles ?? []).includes("student");
+}
+
+// ── GET /subjects/:subjectId/chapters ─────────────────────────────────────────
 router.get("/subjects/:subjectId/chapters", requireAuth, async (req: AuthRequest, res) => {
+  const subjectId = req.params["subjectId"] as string;
+  const role = req.user!.role;
+  const userId = req.user!.id;
+
+  const allowed = await canAccessSubject(subjectId, userId, role);
+  if (!allowed) { res.status(403).json({ error: "Forbidden" }); return; }
+
   const { data, error } = await supabase
     .from("chapters")
     .select("*")
-    .eq("subject_id", req.params["subjectId"])
+    .eq("subject_id", subjectId)
     .order("order_index");
   if (error) { res.status(500).json({ error: error.message }); return; }
   res.json(data);
 });
 
+// ── POST /subjects/:subjectId/chapters ────────────────────────────────────────
 router.post("/subjects/:subjectId/chapters", requireAdmin, async (req: AuthRequest, res) => {
   const { title, description, order_index, is_active = true } = req.body;
   if (!title) { res.status(400).json({ error: "title required" }); return; }
@@ -26,6 +67,7 @@ router.post("/subjects/:subjectId/chapters", requireAdmin, async (req: AuthReque
   res.status(201).json(data);
 });
 
+// ── PATCH /chapters/:chapterId ────────────────────────────────────────────────
 router.patch("/chapters/:chapterId", requireAdmin, async (req: AuthRequest, res) => {
   const { title, description, order_index, is_active } = req.body;
   const updates: Record<string, unknown> = {};
@@ -44,6 +86,7 @@ router.patch("/chapters/:chapterId", requireAdmin, async (req: AuthRequest, res)
   res.json(data);
 });
 
+// ── DELETE /chapters/:chapterId ───────────────────────────────────────────────
 router.delete("/chapters/:chapterId", requireAdmin, async (req: AuthRequest, res) => {
   const { error } = await supabase
     .from("chapters")

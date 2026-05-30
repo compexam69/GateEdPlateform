@@ -9,8 +9,8 @@ import { Plus, Edit, Trash2, ChevronDown, ChevronRight, BookOpen, ExternalLink, 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getSubjects, getGetSubjectsUrl,
-  useCreateSubject, useUpdateSubject, useDeleteSubject,
   getChapters, getGetChaptersUrl,
+  useDeleteSubject,
   useCreateChapter, useDeleteChapter,
   getTopics, getGetTopicsUrl,
 } from "@workspace/api-client-react";
@@ -22,6 +22,13 @@ import { supabase } from "@/lib/supabase";
 import { apiFetch } from "@/lib/api";
 import { Separator } from "@/components/ui/separator";
 
+// ── Augmented subject type with access-control fields ─────────────────────────
+type SubjectWithAccess = Subject & {
+  visibility_roles?: string[];
+  is_creator_only?: boolean;
+  creator_id?: string | null;
+};
+
 // ── Augmented topic type with access-control fields ───────────────────────────
 type TopicWithAccess = Topic & {
   telegram_link?: string;
@@ -31,7 +38,16 @@ type TopicWithAccess = Topic & {
 };
 
 type EditTarget =
-  | { type: "subject"; id?: string; data: { title: string; description: string } }
+  | {
+      type: "subject";
+      id?: string;
+      data: {
+        title: string;
+        description: string;
+        visibility_roles: string[];
+        is_creator_only: boolean;
+      };
+    }
   | { type: "chapter"; subjectId: string; id?: string; data: { title: string; description: string } }
   | {
       type: "topic";
@@ -84,7 +100,7 @@ function VisibilityBadge({ roles, creatorOnly }: { roles: string[]; creatorOnly:
     );
   }
   const allRoles = ALL_ROLES.every(r => roles.includes(r));
-  if (allRoles) return null; // default — no badge needed
+  if (allRoles) return null;
   const studentAccess = roles.includes("student");
   return (
     <span
@@ -94,6 +110,84 @@ function VisibilityBadge({ roles, creatorOnly }: { roles: string[]; creatorOnly:
       {studentAccess ? <Eye className="w-3 h-3" /> : <Shield className="w-3 h-3" />}
       {visibilityLabel(roles, creatorOnly)}
     </span>
+  );
+}
+
+// ── Visibility Settings section (reused for both subjects and topics) ─────────
+function VisibilitySettings({
+  isCreatorOnly,
+  allowedRoles,
+  onToggleCreatorOnly,
+  onToggleRole,
+  label = "Access Control",
+  description = "Control who can view and access this content. Changes take effect immediately.",
+  creatorOnlyDesc = "Only you (the creator) can access this. Super admins with an explicit grant can also access it.",
+}: {
+  isCreatorOnly: boolean;
+  allowedRoles: string[];
+  onToggleCreatorOnly: (v: boolean) => void;
+  onToggleRole: (role: string) => void;
+  label?: string;
+  description?: string;
+  creatorOnlyDesc?: string;
+}) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <Lock className="w-3.5 h-3.5 text-primary" />
+        <span className="text-sm font-medium">{label}</span>
+      </div>
+      <p className="text-xs text-muted-foreground">{description}</p>
+
+      {/* Creator Only toggle */}
+      <label className="flex items-start gap-3 cursor-pointer rounded-md border border-border bg-muted/20 px-3 py-2.5 hover:bg-muted/40 transition-colors">
+        <Checkbox
+          checked={isCreatorOnly}
+          onCheckedChange={(checked) => onToggleCreatorOnly(checked === true)}
+          className="mt-0.5"
+        />
+        <div className="min-w-0">
+          <p className="text-sm font-medium flex items-center gap-1.5">
+            <Lock className="w-3.5 h-3.5 text-amber-400" />
+            Creator Only
+          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">{creatorOnlyDesc}</p>
+        </div>
+      </label>
+
+      {/* Role checkboxes (hidden when creator-only) */}
+      {!isCreatorOnly && (
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground font-medium">Visible to:</p>
+          {[
+            { role: "student", label: "Students", desc: "Regular enrolled students can view this content." },
+            { role: "admin", label: "Admins", desc: "Admin accounts can access and manage this content." },
+            { role: "super_admin", label: "Super Admins", desc: "Super admin accounts can access this content." },
+          ].map(({ role, label: roleLabel, desc }) => (
+            <label key={role} className="flex items-start gap-3 cursor-pointer rounded-md px-3 py-2 hover:bg-muted/30 transition-colors">
+              <Checkbox
+                checked={allowedRoles.includes(role)}
+                onCheckedChange={() => onToggleRole(role)}
+                className="mt-0.5"
+              />
+              <div className="min-w-0">
+                <p className="text-sm font-medium">{roleLabel}</p>
+                <p className="text-xs text-muted-foreground">{desc}</p>
+              </div>
+            </label>
+          ))}
+          {allowedRoles.length === 0 && (
+            <p className="text-xs text-destructive px-3">Select at least one role.</p>
+          )}
+        </div>
+      )}
+
+      {/* Preview */}
+      <div className="rounded-md bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+        <span className="font-medium text-foreground/80">Current visibility: </span>
+        {visibilityLabel(allowedRoles, isCreatorOnly)}
+      </div>
+    </div>
   );
 }
 
@@ -112,12 +206,6 @@ export default function AdminSubjectsPage() {
     queryFn: () => getSubjects(),
   });
 
-  const createSubject = useCreateSubject({
-    mutation: { onSuccess: () => { queryClient.invalidateQueries({ queryKey: [getGetSubjectsUrl()] }); toast({ title: "Subject created" }); setEditTarget(null); } },
-  });
-  const updateSubject = useUpdateSubject({
-    mutation: { onSuccess: () => { queryClient.invalidateQueries({ queryKey: [getGetSubjectsUrl()] }); toast({ title: "Subject updated" }); setEditTarget(null); } },
-  });
   const deleteSubject = useDeleteSubject({
     mutation: { onSuccess: () => { queryClient.invalidateQueries({ queryKey: [getGetSubjectsUrl()] }); toast({ title: "Subject deleted" }); } },
   });
@@ -152,11 +240,28 @@ export default function AdminSubjectsPage() {
       if (editTarget.type === "subject") {
         const d = editTarget.data;
         if (!d.title) { toast({ title: "Title required", variant: "destructive" }); setSaving(false); return; }
-        if (editTarget.id) {
-          await updateSubject.mutateAsync({ subjectId: editTarget.id, data: d });
-        } else {
-          await createSubject.mutateAsync({ data: { ...d, order_index: subjects.length } });
+        if (!d.is_creator_only && d.visibility_roles.length === 0) {
+          toast({ title: "Access control error", description: "Select at least one role, or enable Creator Only.", variant: "destructive" });
+          setSaving(false);
+          return;
         }
+        const payload = {
+          title: d.title,
+          description: d.description,
+          visibility_roles: d.is_creator_only ? ["super_admin"] : d.visibility_roles,
+          is_creator_only: d.is_creator_only,
+          order_index: subjects.length,
+        };
+        if (editTarget.id) {
+          await apiFetch(`/subjects/${editTarget.id}`, { method: "PATCH", body: JSON.stringify(payload) });
+          queryClient.invalidateQueries({ queryKey: [getGetSubjectsUrl()] });
+          toast({ title: "Subject updated" });
+        } else {
+          await apiFetch("/subjects", { method: "POST", body: JSON.stringify(payload) });
+          queryClient.invalidateQueries({ queryKey: [getGetSubjectsUrl()] });
+          toast({ title: "Subject created" });
+        }
+        setEditTarget(null);
       } else if (editTarget.type === "chapter") {
         const d = editTarget.data;
         if (!d.title) { toast({ title: "Title required", variant: "destructive" }); setSaving(false); return; }
@@ -186,17 +291,11 @@ export default function AdminSubjectsPage() {
         };
 
         if (editTarget.id) {
-          await apiFetch(`/topics/${editTarget.id}`, {
-            method: "PATCH",
-            body: JSON.stringify(topicPayload),
-          });
+          await apiFetch(`/topics/${editTarget.id}`, { method: "PATCH", body: JSON.stringify(topicPayload) });
           queryClient.invalidateQueries();
           toast({ title: "Topic updated" });
         } else {
-          await apiFetch(`/chapters/${editTarget.chapterId}/topics`, {
-            method: "POST",
-            body: JSON.stringify(topicPayload),
-          });
+          await apiFetch(`/chapters/${editTarget.chapterId}/topics`, { method: "POST", body: JSON.stringify(topicPayload) });
           queryClient.invalidateQueries({ queryKey: [getGetTopicsUrl(editTarget.chapterId)] });
           toast({ title: "Topic created" });
         }
@@ -209,11 +308,29 @@ export default function AdminSubjectsPage() {
     }
   }
 
-  // Derived validation / preview for the open dialog
+  // ── Derived validation ─────────────────────────────────────────────────────
   const topicData = editTarget?.type === "topic" ? editTarget.data : null;
+  const subjectData = editTarget?.type === "subject" ? editTarget.data : null;
   const linkError = topicData ? validateTelegramLink(topicData.telegram_link) : undefined;
   const previewLink = topicData?.telegram_link.trim() && !linkError ? topicData.telegram_link.trim() : null;
-  const hasErrors = !!linkError || (!topicData?.is_creator_only && (topicData?.allowed_roles.length ?? 1) === 0);
+
+  const hasErrors =
+    (editTarget?.type === "topic" && (!!linkError || (!topicData?.is_creator_only && (topicData?.allowed_roles.length ?? 1) === 0)))
+    || (editTarget?.type === "subject" && !subjectData?.is_creator_only && (subjectData?.visibility_roles.length ?? 1) === 0);
+
+  function setSubjectField<K extends keyof NonNullable<typeof subjectData>>(key: K, value: NonNullable<typeof subjectData>[K]) {
+    setEditTarget(prev => {
+      if (!prev || prev.type !== "subject") return prev;
+      return { ...prev, data: { ...prev.data, [key]: value } } as EditTarget;
+    });
+  }
+
+  function toggleSubjectRole(role: string) {
+    if (!subjectData) return;
+    const current = subjectData.visibility_roles;
+    const next = current.includes(role) ? current.filter(r => r !== role) : [...current, role];
+    setSubjectField("visibility_roles", next);
+  }
 
   function setTopicField<K extends keyof NonNullable<typeof topicData>>(key: K, value: NonNullable<typeof topicData>[K]) {
     setEditTarget(prev => {
@@ -222,7 +339,7 @@ export default function AdminSubjectsPage() {
     });
   }
 
-  function toggleRole(role: string) {
+  function toggleTopicRole(role: string) {
     if (!topicData) return;
     const current = topicData.allowed_roles;
     const next = current.includes(role) ? current.filter(r => r !== role) : [...current, role];
@@ -238,7 +355,7 @@ export default function AdminSubjectsPage() {
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Content Editor</h1>
             <p className="text-muted-foreground mt-1">Manage subjects, chapters, and topics.</p>
           </div>
-          <Button onClick={() => setEditTarget({ type: "subject", data: { title: "", description: "" } })}>
+          <Button onClick={() => setEditTarget({ type: "subject", data: { title: "", description: "", visibility_roles: [...ALL_ROLES], is_creator_only: false } })}>
             <Plus className="w-4 h-4 mr-2" /> Add Subject
           </Button>
         </div>
@@ -251,7 +368,7 @@ export default function AdminSubjectsPage() {
           <div className="text-center py-12 text-muted-foreground">No subjects yet. Add one above.</div>
         ) : (
           <div className="space-y-3">
-            {(subjects as Subject[]).map((subject) => (
+            {(subjects as SubjectWithAccess[]).map((subject) => (
               <SubjectRow
                 key={subject.id}
                 subject={subject}
@@ -259,7 +376,16 @@ export default function AdminSubjectsPage() {
                 expandedChapters={expandedChapters}
                 onToggle={() => toggleSubject(subject.id)}
                 onToggleChapter={toggleChapter}
-                onEdit={() => setEditTarget({ type: "subject", id: subject.id, data: { title: subject.title, description: subject.description || "" } })}
+                onEdit={() => setEditTarget({
+                  type: "subject",
+                  id: subject.id,
+                  data: {
+                    title: subject.title,
+                    description: subject.description || "",
+                    visibility_roles: subject.visibility_roles ?? [...ALL_ROLES],
+                    is_creator_only: subject.is_creator_only ?? false,
+                  },
+                })}
                 onDelete={() => deleteSubject.mutate({ subjectId: subject.id })}
                 onAddChapter={() => setEditTarget({ type: "chapter", subjectId: subject.id, data: { title: "", description: "" } })}
                 onDeleteChapter={(id) => deleteChapter.mutate({ chapterId: id })}
@@ -306,7 +432,7 @@ export default function AdminSubjectsPage() {
                 <Input
                   value={editTarget.data.title}
                   onChange={e => { const v = e.target.value; setEditTarget(prev => prev ? { ...prev, data: { ...prev.data, title: v } } as EditTarget : null); }}
-                  placeholder="e.g. Newton's Laws of Motion"
+                  placeholder={editTarget.type === "subject" ? "e.g. Physics" : "e.g. Newton's Laws of Motion"}
                   autoFocus
                 />
               </div>
@@ -318,6 +444,22 @@ export default function AdminSubjectsPage() {
                   placeholder="Optional description"
                 />
               </div>
+
+              {/* ── Subject-only: Visibility Settings ── */}
+              {editTarget.type === "subject" && (
+                <>
+                  <Separator />
+                  <VisibilitySettings
+                    isCreatorOnly={editTarget.data.is_creator_only}
+                    allowedRoles={editTarget.data.visibility_roles}
+                    onToggleCreatorOnly={(v) => setSubjectField("is_creator_only", v)}
+                    onToggleRole={toggleSubjectRole}
+                    label="Subject Visibility"
+                    description="Control which roles can see this subject and all its chapters and topics. Changes apply to the entire subject hierarchy."
+                    creatorOnlyDesc="Only you (the creator) can see this subject and its contents. Super admins with an explicit grant can also access it."
+                  />
+                </>
+              )}
 
               {/* ── Topic-only fields ── */}
               {editTarget.type === "topic" && (
@@ -368,70 +510,17 @@ export default function AdminSubjectsPage() {
                     </div>
                   )}
 
-                  {/* ── Access Control ── */}
+                  {/* ── Topic Access Control ── */}
                   <Separator />
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Lock className="w-3.5 h-3.5 text-primary" />
-                      <span className="text-sm font-medium">Access Control</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Control who can view and access this lecture topic. Changes take effect immediately for all users.
-                    </p>
-
-                    {/* Creator Only toggle */}
-                    <label className="flex items-start gap-3 cursor-pointer rounded-md border border-border bg-muted/20 px-3 py-2.5 hover:bg-muted/40 transition-colors">
-                      <Checkbox
-                        id="creator-only"
-                        checked={editTarget.data.is_creator_only}
-                        onCheckedChange={(checked) => setTopicField("is_creator_only", checked === true)}
-                        className="mt-0.5"
-                      />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium flex items-center gap-1.5">
-                          <Lock className="w-3.5 h-3.5 text-amber-400" />
-                          Creator Only
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          Only you (the creator) can access this topic. Super admins with an explicit grant can also access it.
-                        </p>
-                      </div>
-                    </label>
-
-                    {/* Role checkboxes (disabled when creator-only) */}
-                    {!editTarget.data.is_creator_only && (
-                      <div className="space-y-2">
-                        <p className="text-xs text-muted-foreground font-medium">Visible to:</p>
-                        {[
-                          { role: "student", label: "Students", desc: "Regular enrolled students can view and take this topic." },
-                          { role: "admin", label: "Admins", desc: "Admin accounts can access and manage this topic." },
-                          { role: "super_admin", label: "Super Admins", desc: "Super admin accounts can access this topic." },
-                        ].map(({ role, label, desc }) => (
-                          <label key={role} className="flex items-start gap-3 cursor-pointer rounded-md px-3 py-2 hover:bg-muted/30 transition-colors">
-                            <Checkbox
-                              id={`role-${role}`}
-                              checked={editTarget.data.allowed_roles.includes(role)}
-                              onCheckedChange={() => toggleRole(role)}
-                              className="mt-0.5"
-                            />
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium">{label}</p>
-                              <p className="text-xs text-muted-foreground">{desc}</p>
-                            </div>
-                          </label>
-                        ))}
-                        {editTarget.data.allowed_roles.length === 0 && (
-                          <p className="text-xs text-destructive px-3">Select at least one role.</p>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Preview */}
-                    <div className="rounded-md bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-                      <span className="font-medium text-foreground/80">Current visibility: </span>
-                      {visibilityLabel(editTarget.data.allowed_roles, editTarget.data.is_creator_only)}
-                    </div>
-                  </div>
+                  <VisibilitySettings
+                    isCreatorOnly={editTarget.data.is_creator_only}
+                    allowedRoles={editTarget.data.allowed_roles}
+                    onToggleCreatorOnly={(v) => setTopicField("is_creator_only", v)}
+                    onToggleRole={toggleTopicRole}
+                    label="Access Control"
+                    description="Control who can view and access this lecture topic. Changes take effect immediately for all users."
+                    creatorOnlyDesc="Only you (the creator) can access this topic. Super admins with an explicit grant can also access it."
+                  />
                 </>
               )}
 
@@ -458,7 +547,7 @@ function SubjectRow({
   subject, expanded, expandedChapters, onToggle, onToggleChapter, onEdit, onDelete,
   onAddChapter, onDeleteChapter, onAddTopic, onEditTopic, onDeleteTopic,
 }: {
-  subject: Subject;
+  subject: SubjectWithAccess;
   expanded: boolean;
   expandedChapters: Set<string>;
   onToggle: () => void;
@@ -484,7 +573,13 @@ function SubjectRow({
           {expanded ? <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" /> : <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />}
           <BookOpen className="w-5 h-5 text-primary shrink-0" />
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold truncate">{subject.title}</h3>
+            <div className="flex items-center gap-2 flex-wrap min-w-0">
+              <h3 className="font-semibold truncate">{subject.title}</h3>
+              <VisibilityBadge
+                roles={subject.visibility_roles ?? ALL_ROLES}
+                creatorOnly={subject.is_creator_only ?? false}
+              />
+            </div>
             {subject.description && <p className="text-sm text-muted-foreground truncate">{subject.description}</p>}
           </div>
           <div className="flex gap-1 shrink-0" onClick={e => e.stopPropagation()}>

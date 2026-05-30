@@ -1,0 +1,539 @@
+🟢 Checkpoint X: Subject-Level Access Control System for Content Editor (Admin & Super Admin Dashboard)
+
+Goal:
+
+Implement a secure and production-ready subject-level access control system inside the Content Editor module for both Admin and Super Admin Dashboards, allowing controlled visibility and ownership of subjects while enforcing strict Super Admin isolation and preserving all existing content hierarchy workflows.
+
+Context:
+
+Currently, the Content Editor allows Admins and Super Admins to create/manage:
+
+* Subjects
+* Chapters
+* Topics
+* Lectures
+* Exams/Tests
+* Notes/PDFs
+
+However, there is no dedicated subject-level role-based visibility/access control system.
+
+As a result:
+
+* Subjects may become globally visible unintentionally.
+* Subject ownership isolation is not enforced properly.
+* One Super Admin may gain access to another Super Admin’s subjects/content hierarchy automatically.
+* Downstream content inheritance behavior is undefined.
+* Existing content hierarchy permissions are inconsistent.
+
+The platform now requires a centralized subject-level access control architecture that integrates with all previously implemented lecture/content/exam access-control systems.
+
+New Requirement:
+
+Add role-based multi-selection access control directly during Subject creation/editing inside the Content Editor for both:
+
+* Super Admin Dashboard
+* Admin Dashboard
+
+The subject creator must be able to define who can access/manage/view that subject hierarchy.
+
+Supported visibility targets:
+
+* Creator Only
+* Admins
+* Students
+* Explicit Super Admin sharing
+
+Critical Business Rule:
+
+* A Super Admin can access:
+
+  * Their own subjects
+  * Admin-created subjects
+  * Student-visible subjects (if allowed)
+* BUT:
+
+  * One Super Admin MUST NOT automatically access another Super Admin’s subjects/content hierarchy.
+* Cross-Super-Admin access requires:
+
+  * Explicit sharing permission.
+
+VERY IMPORTANT:
+
+Subject-level permissions must properly integrate with:
+
+* Chapters
+* Topics
+* Lectures
+* Exams/Tests
+* Notes/PDFs
+* Analytics
+* Search/filter systems
+
+Permission inheritance and override behavior must be clearly defined and implemented safely.
+
+Instructions:
+
+1. Analyze Existing Content Hierarchy Architecture
+
+Review:
+
+* Subject creation workflow
+* Chapter/topic hierarchy
+* Lecture linking
+* Exam/test linking
+* Notes/PDF linking
+* Existing ownership structure
+* Authentication/authorization logic
+* Existing dashboard filtering
+* Existing API authorization
+* Existing RLS/security policies
+* Existing analytics/reporting systems
+
+Identify:
+
+* How subject ownership is currently stored
+* Whether subject-level permissions already exist
+* Whether lower hierarchy content inherits permissions
+* Which APIs expose all subjects globally
+* Which queries require filtering updates
+* Potential security loopholes
+
+2. Design Subject-Level Access Control System
+
+Inside Subject creation/edit workflow:
+
+Add dedicated:
+
+* “Access Control”
+  OR
+* “Visibility Settings”
+  section.
+
+Allow multi-selection visibility:
+
+* Creator Only
+* Admins
+* Students
+* Explicit Super Admin sharing
+
+Requirements:
+
+* Clean responsive UI
+* Multi-select component
+* Mobile-friendly interaction
+* Clear labels/tooltips
+* Easy-to-understand permission states
+
+Ensure:
+
+* Existing Content Editor workflow remains stable
+* No layout overflow occurs
+* Existing forms/dialogs remain functional
+
+3. Define Permission Inheritance Architecture
+
+CRITICAL REQUIREMENT:
+
+Clearly define how permissions propagate across hierarchy:
+
+Subject
+→ Chapters
+→ Topics
+→ Lectures
+→ Exams
+→ Notes/PDFs
+
+Recommended behavior:
+
+A. Default Inheritance
+
+Lower hierarchy content automatically inherits subject permissions unless explicitly overridden.
+
+OR
+
+B. Independent Override System
+
+Allow lower-level content to override subject visibility.
+
+Implementation MUST clearly define:
+
+* Which model is used
+* How overrides behave
+* How conflicts are resolved
+* How inherited permissions are displayed in UI
+
+Prevent:
+
+* Permission inconsistencies
+* Orphaned inaccessible content
+* Hidden-but-accessible child content
+* Unauthorized hierarchy traversal
+
+4. Implement Super Admin Isolation Logic
+
+Critical Security Requirement:
+
+One Super Admin MUST NOT automatically access another Super Admin’s subjects or downstream hierarchy.
+
+Implement:
+
+* Explicit Super Admin sharing mechanism.
+
+Recommended architecture:
+
+subject_shared_access
+
+Fields:
+
+* id
+* subject_id
+* owner_super_admin_id
+* shared_super_admin_id
+* created_at
+
+Ensure:
+
+Isolation enforced at:
+
+* UI layer
+* API layer
+* Database/RLS layer
+* Search/filter layer
+* Analytics layer
+
+Unauthorized Super Admins must NOT:
+
+* View subjects
+* Search subjects
+* Open chapters/topics
+* Access lectures/tests
+* Access APIs
+
+5. SQL / Database / RLS Guidance
+
+IMPORTANT:
+
+Before implementation:
+
+Create FULL database backup.
+
+A. Likely Required Schema Changes
+
+Possible additions:
+
+subjects table:
+
+* visibility_roles
+* creator_id
+* creator_role
+* is_creator_only
+* inherit_permissions
+
+Possible new table:
+
+subject_shared_access
+
+Possible child-content updates:
+
+* inherited_visibility_source
+* override_visibility_enabled
+
+B. RLS Policy Updates
+
+You will LIKELY need RLS/security updates for:
+
+* subjects
+* chapters
+* topics
+* lectures
+* exams/tests
+* notes/resources
+
+Ensure policies properly enforce:
+
+* ownership
+* role visibility
+* explicit Super Admin sharing
+* inherited permissions
+
+C. Important SQL Safety Requirement
+
+DO NOT directly run production SQL first.
+
+Before applying:
+
+* Test on staging/development DB
+* Verify existing hierarchy compatibility
+* Validate fallback/default permissions
+* Confirm rollback strategy exists
+
+D. Existing Data Migration
+
+Implementation MUST define:
+
+What happens for old subjects/content?
+
+Recommended fallback:
+
+* Existing subjects inherit:
+
+  * current visibility behavior
+    OR
+  * Admin + Student visibility
+    OR
+  * Creator-only visibility
+
+Migration behavior MUST be documented clearly.
+
+6. Update Content Editor Rendering & Filtering
+
+Update all dashboard/content queries:
+
+* Subject lists
+* Chapter lists
+* Topic lists
+* Lecture lists
+* Exam lists
+* Search/filter APIs
+* Analytics/reporting systems
+
+Ensure:
+
+Unauthorized subjects/content never appear in:
+
+* Lists
+* Counts
+* Search results
+* Recommendations
+* Analytics dashboards
+
+Prevent:
+
+* Cached visibility leaks
+* Broken pagination
+* Incorrect counters
+* Hidden-content exposure
+
+7. Update Subject Creation & Edit Workflow
+
+Ensure:
+
+* Subject access configuration is editable
+* Existing editing workflows remain stable
+* Shared-access management is intuitive
+* Permission states remain understandable
+
+Add:
+
+* Permission summaries
+* Shared-access indicators
+* Inheritance indicators (if applicable)
+
+8. Preserve Existing Functionality
+
+Ensure implementation does NOT break:
+
+* Lecture access systems
+* Telegram integrations
+* Notes/PDF workflows
+* Quiz/Test systems
+* Existing analytics
+* Existing dashboards
+* Existing permissions
+* Student content delivery
+* Search/filter systems
+* PWA/mobile behavior
+
+9. Error Handling & Edge Cases
+
+Handle:
+
+* Deleted creators
+* Removed Super Admin sharing
+* Conflicting inherited permissions
+* Circular visibility dependencies
+* Stale cached permissions
+* Unauthorized direct URLs
+* Simultaneous permission edits
+* Orphaned hierarchy nodes
+
+Ensure:
+
+* Friendly errors
+* Stable UI behavior
+* No hidden security loopholes
+* Proper access-denied handling
+
+10. Responsive & Accessibility Validation
+
+Ensure Subject Access UI works correctly on:
+
+* Mobile browsers
+* Tablets
+* Desktop browsers
+* Installed PWA mode
+
+Verify:
+
+* No overflow
+* Touch-friendly controls
+* Keyboard accessibility
+* Stable modal/dialog behavior
+
+11. Testing & Validation
+
+Test:
+
+* Creator-only subjects
+* Admin-only subjects
+* Student-visible subjects
+* Shared Super Admin subjects
+* Permission inheritance
+* Override behavior
+* Unauthorized access attempts
+* Direct URL access
+* Search/filter behavior
+* API authorization
+* Mobile responsiveness
+* PWA mode
+
+Verify:
+
+* Access filtering works correctly
+* Unauthorized users cannot bypass restrictions
+* Subject hierarchy remains stable
+* Existing workflows remain functional
+* No permission escalation vulnerabilities exist
+* No console/runtime errors occur
+
+12. Audit Logging & Security Monitoring
+
+Log:
+
+* Subject visibility changes
+* Shared-access grants/removals
+* Permission inheritance changes
+* Unauthorized access attempts
+* Permission override changes
+
+Store:
+
+* User ID
+* Subject ID
+* Action type
+* Timestamp
+* Previous/new permission states
+
+13. Beginner-Friendly Admin Guide
+
+After implementation, provide complete guide explaining:
+
+* How subject-level access control works
+* How permission inheritance behaves
+* How Super Admin sharing works
+* Recommended permission strategies
+* How lower hierarchy permissions behave
+* Common mistakes to avoid
+* Troubleshooting access issues
+
+14. What YOU Need To Do Before Implementation
+
+A. Review Existing Subject Hierarchy Schema
+
+Check:
+
+* subject ownership fields
+* creator tracking
+* existing hierarchy relationships
+* current RLS policies
+* current role storage structure
+
+B. Create Full Database Backup
+
+Before migrations:
+
+* Backup subjects/chapters/topics
+* Export permission data
+* Backup RLS policies
+
+C. Decide Permission Inheritance Model
+
+Choose:
+
+* Strict inheritance
+  OR
+* Override-capable inheritance
+
+D. Prepare Staging Testing Environment
+
+Strongly recommended:
+
+* Test migrations on staging first
+* Validate old hierarchy compatibility
+* Verify Super Admin isolation thoroughly
+
+15. Explicit SQL Guidance
+
+IMPORTANT:
+
+You WILL LIKELY need SQL changes IF:
+
+* subjects table lacks visibility fields
+* hierarchy inheritance metadata does not exist
+* shared-access mapping is missing
+* RLS currently exposes all subjects globally
+
+You MAY need:
+
+* ALTER TABLE migrations
+* New relational mapping tables
+* Foreign keys
+* Indexes
+* RLS policy updates
+* Query optimization
+
+Implementation MUST provide separately:
+
+* Safe SQL migration scripts
+* Rollback scripts
+* RLS updates
+* Index recommendations
+* Migration instructions
+* Existing data compatibility notes
+
+16. Checkpoint Requirement
+
+After completing and verifying implementation:
+
+* Create proper checkpoint/commit immediately.
+* Ensure subject-level access-control system is fully stable and production-ready.
+
+Provide final implementation summary including:
+
+* Files modified
+* Subject access-control implementation
+* Permission inheritance implementation
+* SQL/schema updates
+* RLS/security updates
+* API authorization updates
+* Shared-access implementation
+* UI/workflow updates
+* Remaining limitations/issues (if any)
+
+Acceptance Criteria:
+
+* [ ] Subjects support role-based multi-selection access control.
+* [ ] Creators always retain access to their own subjects.
+* [ ] Admins only access permitted subjects.
+* [ ] Students only access permitted subjects.
+* [ ] One Super Admin cannot automatically access another Super Admin’s subjects.
+* [ ] Explicit Super Admin subject sharing works correctly.
+* [ ] Permission inheritance behaves correctly across hierarchy.
+* [ ] Unauthorized access is blocked at UI, API, and database levels.
+* [ ] Existing content hierarchy workflows remain stable.
+* [ ] Existing Telegram, Notes, Exams, and Lecture systems remain unaffected.
+* [ ] Mobile, desktop, and PWA responsiveness remain stable.
+* [ ] No permission escalation vulnerabilities exist.
+* [ ] SQL migrations and RLS updates are documented clearly.
+* [ ] No console/runtime errors occur after implementation.
+* [ ] Checkpoint/commit is created after successful implementation and testing.

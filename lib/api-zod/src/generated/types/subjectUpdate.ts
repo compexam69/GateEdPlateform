@@ -12,4 +12,6 @@ export interface SubjectUpdate {
   description?: string | null;
   order_index?: number;
   is_active?: boolean;
+  visibility_roles?: string[];
+  is_creator_only?: boolean;
 }
