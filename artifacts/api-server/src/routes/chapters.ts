@@ -86,6 +86,19 @@ router.patch("/chapters/:chapterId", requireAdmin, async (req: AuthRequest, res)
   res.json(data);
 });
 
+// ── POST /chapters/reorder ────────────────────────────────────────────────────
+router.post("/chapters/reorder", requireAdmin, async (req: AuthRequest, res) => {
+  const { chapters } = req.body as { chapters?: Array<{ id: string; order_index: number }> };
+  if (!Array.isArray(chapters) || chapters.length === 0) {
+    res.status(400).json({ error: "chapters array required" });
+    return;
+  }
+  await Promise.all(
+    chapters.map(c => supabase.from("chapters").update({ order_index: c.order_index }).eq("id", c.id))
+  );
+  res.json({ message: "Reordered" });
+});
+
 // ── DELETE /chapters/:chapterId ───────────────────────────────────────────────
 router.delete("/chapters/:chapterId", requireAdmin, async (req: AuthRequest, res) => {
   const { error } = await supabase

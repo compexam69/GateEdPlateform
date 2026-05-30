@@ -207,6 +207,19 @@ router.patch("/subjects/:subjectId", requireAdmin, async (req: AuthRequest, res)
   res.json(data);
 });
 
+// ── POST /subjects/reorder ────────────────────────────────────────────────────
+router.post("/subjects/reorder", requireAdmin, async (req: AuthRequest, res) => {
+  const { subjects } = req.body as { subjects?: Array<{ id: string; order_index: number }> };
+  if (!Array.isArray(subjects) || subjects.length === 0) {
+    res.status(400).json({ error: "subjects array required" });
+    return;
+  }
+  await Promise.all(
+    subjects.map(s => supabase.from("subjects").update({ order_index: s.order_index }).eq("id", s.id))
+  );
+  res.json({ message: "Reordered" });
+});
+
 // ── DELETE /subjects/:subjectId ───────────────────────────────────────────────
 router.delete("/subjects/:subjectId", requireAdmin, async (req: AuthRequest, res) => {
   const { error } = await supabase

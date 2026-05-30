@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash2, ChevronDown, ChevronRight, BookOpen, ExternalLink, Info, Link, Eye, Shield, Lock, Upload, Download, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import { Plus, Edit, Trash2, ChevronDown, ChevronRight, BookOpen, ExternalLink, Info, Link, Eye, Shield, Lock, Upload, Download, AlertCircle, CheckCircle2, Loader2, GripVertical } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getSubjects, getGetSubjectsUrl,
@@ -16,10 +16,13 @@ import {
   getTopics, getGetTopicsUrl,
 } from "@workspace/api-client-react";
 import type { Subject, Chapter, Topic } from "@workspace/api-client-react";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { supabase } from "@/lib/supabase";
 import { apiFetch } from "@/lib/api";
 import { Separator } from "@/components/ui/separator";
@@ -1030,6 +1033,46 @@ export default function AdminSubjectsPage() {
     queryFn: () => getSubjects(),
   });
 
+  const [subjectOrder, setSubjectOrder] = useState<string[] | null>(null);
+  const prevSubjectCount = useRef(0);
+  useEffect(() => {
+    const count = (subjects as SubjectWithAccess[]).length;
+    if (count !== prevSubjectCount.current) {
+      prevSubjectCount.current = count;
+      setSubjectOrder(null);
+    }
+  }, [subjects]);
+
+  const displaySubjects = useMemo(() => {
+    const list = subjects as SubjectWithAccess[];
+    if (!subjectOrder) return list;
+    const map = new Map(list.map(s => [s.id, s]));
+    const ordered = subjectOrder.map(id => map.get(id)).filter((s): s is SubjectWithAccess => !!s);
+    const extra = list.filter(s => !subjectOrder.includes(s.id));
+    return [...ordered, ...extra];
+  }, [subjects, subjectOrder]);
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+
+  async function handleSubjectDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIdx = displaySubjects.findIndex(s => s.id === active.id);
+    const newIdx = displaySubjects.findIndex(s => s.id === over.id);
+    if (oldIdx === -1 || newIdx === -1) return;
+    const reordered = arrayMove(displaySubjects, oldIdx, newIdx);
+    setSubjectOrder(reordered.map(s => s.id));
+    try {
+      await apiFetch("/subjects/reorder", {
+        method: "POST",
+        body: JSON.stringify({ subjects: reordered.map((s, i) => ({ id: s.id, order_index: i + 1 })) }),
+      });
+    } catch {
+      setSubjectOrder(null);
+      toast({ title: "Failed to save order", variant: "destructive" });
+    }
+  }
+
   const deleteSubject = useDeleteSubject({
     mutation: { onSuccess: () => { queryClient.invalidateQueries({ queryKey: [getGetSubjectsUrl()] }); toast({ title: "Subject deleted" }); } },
   });
@@ -1193,52 +1236,56 @@ export default function AdminSubjectsPage() {
           <div className="flex h-32 items-center justify-center">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
           </div>
-        ) : subjects.length === 0 ? (
+        ) : displaySubjects.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">No subjects yet. Add one above.</div>
         ) : (
-          <div className="space-y-3">
-            {(subjects as SubjectWithAccess[]).map((subject) => (
-              <SubjectRow
-                key={subject.id}
-                subject={subject}
-                expanded={expandedSubjects.has(subject.id)}
-                expandedChapters={expandedChapters}
-                onToggle={() => toggleSubject(subject.id)}
-                onToggleChapter={toggleChapter}
-                onEdit={() => setEditTarget({
-                  type: "subject",
-                  id: subject.id,
-                  data: {
-                    title: subject.title,
-                    description: subject.description || "",
-                    visibility_roles: subject.visibility_roles ?? [...ALL_ROLES],
-                    is_creator_only: subject.is_creator_only ?? false,
-                  },
-                })}
-                onDelete={() => deleteSubject.mutate({ subjectId: subject.id })}
-                onAddChapter={() => setEditTarget({ type: "chapter", subjectId: subject.id, data: { title: "", description: "" } })}
-                onDeleteChapter={(id) => deleteChapter.mutate({ chapterId: id })}
-                onAddTopic={(chapterId) => setEditTarget({
-                  type: "topic",
-                  chapterId,
-                  data: { title: "", description: "", telegram_link: "", allowed_roles: [...ALL_ROLES], is_creator_only: false },
-                })}
-                onEditTopic={(topic) => setEditTarget({
-                  type: "topic",
-                  chapterId: topic.chapter_id,
-                  id: topic.id,
-                  data: {
-                    title: topic.title,
-                    description: topic.description || "",
-                    telegram_link: (topic as TopicWithAccess).telegram_link || "",
-                    allowed_roles: (topic as TopicWithAccess).allowed_roles ?? [...ALL_ROLES],
-                    is_creator_only: (topic as TopicWithAccess).is_creator_only ?? false,
-                  },
-                })}
-                onDeleteTopic={handleDeleteTopic}
-              />
-            ))}
-          </div>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSubjectDragEnd}>
+            <SortableContext items={displaySubjects.map(s => s.id)} strategy={verticalListSortingStrategy}>
+              <div className="space-y-3">
+                {displaySubjects.map((subject) => (
+                  <SortableSubjectRow
+                    key={subject.id}
+                    subject={subject}
+                    expanded={expandedSubjects.has(subject.id)}
+                    expandedChapters={expandedChapters}
+                    onToggle={() => toggleSubject(subject.id)}
+                    onToggleChapter={toggleChapter}
+                    onEdit={() => setEditTarget({
+                      type: "subject",
+                      id: subject.id,
+                      data: {
+                        title: subject.title,
+                        description: subject.description || "",
+                        visibility_roles: subject.visibility_roles ?? [...ALL_ROLES],
+                        is_creator_only: subject.is_creator_only ?? false,
+                      },
+                    })}
+                    onDelete={() => deleteSubject.mutate({ subjectId: subject.id })}
+                    onAddChapter={() => setEditTarget({ type: "chapter", subjectId: subject.id, data: { title: "", description: "" } })}
+                    onDeleteChapter={(id) => deleteChapter.mutate({ chapterId: id })}
+                    onAddTopic={(chapterId) => setEditTarget({
+                      type: "topic",
+                      chapterId,
+                      data: { title: "", description: "", telegram_link: "", allowed_roles: [...ALL_ROLES], is_creator_only: false },
+                    })}
+                    onEditTopic={(topic) => setEditTarget({
+                      type: "topic",
+                      chapterId: topic.chapter_id,
+                      id: topic.id,
+                      data: {
+                        title: topic.title,
+                        description: topic.description || "",
+                        telegram_link: (topic as TopicWithAccess).telegram_link || "",
+                        allowed_roles: (topic as TopicWithAccess).allowed_roles ?? [...ALL_ROLES],
+                        is_creator_only: (topic as TopicWithAccess).is_creator_only ?? false,
+                      },
+                    })}
+                    onDeleteTopic={handleDeleteTopic}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         )}
       </div>
 
@@ -1381,10 +1428,7 @@ export default function AdminSubjectsPage() {
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
-function SubjectRow({
-  subject, expanded, expandedChapters, onToggle, onToggleChapter, onEdit, onDelete,
-  onAddChapter, onDeleteChapter, onAddTopic, onEditTopic, onDeleteTopic,
-}: {
+type SubjectRowProps = {
   subject: SubjectWithAccess;
   expanded: boolean;
   expandedChapters: Set<string>;
@@ -1397,17 +1441,87 @@ function SubjectRow({
   onAddTopic: (chapterId: string) => void;
   onEditTopic: (topic: Topic) => void;
   onDeleteTopic: (id: string) => void;
-}) {
-  const { data: chapters = [] } = useQuery({
+  dragListeners?: Record<string, unknown>;
+  dragAttributes?: Record<string, unknown>;
+  isDragging?: boolean;
+};
+
+function SortableSubjectRow(props: SubjectRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.subject.id });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 20 : undefined }}
+    >
+      <SubjectRow {...props} dragListeners={listeners as Record<string, unknown>} dragAttributes={attributes as Record<string, unknown>} isDragging={isDragging} />
+    </div>
+  );
+}
+
+function SubjectRow({
+  subject, expanded, expandedChapters, onToggle, onToggleChapter, onEdit, onDelete,
+  onAddChapter, onDeleteChapter, onAddTopic, onEditTopic, onDeleteTopic,
+  dragListeners, dragAttributes, isDragging,
+}: SubjectRowProps) {
+  const { data: chaptersRaw } = useQuery({
     queryKey: [getGetChaptersUrl(subject.id)],
     queryFn: () => getChapters(subject.id),
     enabled: expanded,
   });
 
+  const [chapterOrder, setChapterOrder] = useState<string[] | null>(null);
+  const prevChapterCount = useRef(0);
+  useEffect(() => {
+    const count = (chaptersRaw as Chapter[] | undefined)?.length ?? 0;
+    if (count !== prevChapterCount.current) {
+      prevChapterCount.current = count;
+      setChapterOrder(null);
+    }
+  }, [chaptersRaw]);
+
+  const displayChapters = useMemo(() => {
+    const list = (chaptersRaw as Chapter[] | undefined) ?? [];
+    if (!chapterOrder) return list;
+    const map = new Map(list.map(c => [c.id, c]));
+    const ordered = chapterOrder.map(id => map.get(id)).filter((c): c is Chapter => !!c);
+    const extra = list.filter(c => !chapterOrder.includes(c.id));
+    return [...ordered, ...extra];
+  }, [chaptersRaw, chapterOrder]);
+
+  const chapterSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+
+  async function handleChapterDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIdx = displayChapters.findIndex(c => c.id === active.id);
+    const newIdx = displayChapters.findIndex(c => c.id === over.id);
+    if (oldIdx === -1 || newIdx === -1) return;
+    const reordered = arrayMove(displayChapters, oldIdx, newIdx);
+    setChapterOrder(reordered.map(c => c.id));
+    try {
+      await apiFetch("/chapters/reorder", {
+        method: "POST",
+        body: JSON.stringify({ chapters: reordered.map((c, i) => ({ id: c.id, order_index: i + 1 })) }),
+      });
+    } catch {
+      setChapterOrder(null);
+    }
+  }
+
   return (
-    <Card className="bg-card">
+    <Card className={`bg-card transition-shadow ${isDragging ? "shadow-2xl ring-1 ring-primary/30" : ""}`}>
       <CardContent className="p-0">
-        <div className="flex items-center gap-3 p-4 cursor-pointer" onClick={onToggle}>
+        <div className="flex items-center gap-2 p-4 cursor-pointer" onClick={onToggle}>
+          <button
+            {...(dragAttributes as React.HTMLAttributes<HTMLButtonElement>)}
+            {...(dragListeners as React.HTMLAttributes<HTMLButtonElement>)}
+            className="cursor-grab active:cursor-grabbing touch-none shrink-0 p-1 rounded hover:bg-muted/60 transition-colors"
+            onClick={e => e.stopPropagation()}
+            title="Drag to reorder"
+            tabIndex={-1}
+          >
+            <GripVertical className="w-4 h-4 text-muted-foreground/40" />
+          </button>
           {expanded ? <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" /> : <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />}
           <BookOpen className="w-5 h-5 text-primary shrink-0" />
           <div className="flex-1 min-w-0">
@@ -1428,18 +1542,22 @@ function SubjectRow({
 
         {expanded && (
           <div className="border-t border-border bg-muted/20 p-4 space-y-2">
-            {(chapters as Chapter[]).map((ch) => (
-              <ChapterRow
-                key={ch.id}
-                chapter={ch}
-                expanded={expandedChapters.has(ch.id)}
-                onToggle={() => onToggleChapter(ch.id)}
-                onDelete={() => onDeleteChapter(ch.id)}
-                onAddTopic={() => onAddTopic(ch.id)}
-                onEditTopic={onEditTopic}
-                onDeleteTopic={onDeleteTopic}
-              />
-            ))}
+            <DndContext sensors={chapterSensors} collisionDetection={closestCenter} onDragEnd={handleChapterDragEnd}>
+              <SortableContext items={displayChapters.map(c => c.id)} strategy={verticalListSortingStrategy}>
+                {displayChapters.map((ch) => (
+                  <SortableChapterRow
+                    key={ch.id}
+                    chapter={ch}
+                    expanded={expandedChapters.has(ch.id)}
+                    onToggle={() => onToggleChapter(ch.id)}
+                    onDelete={() => onDeleteChapter(ch.id)}
+                    onAddTopic={() => onAddTopic(ch.id)}
+                    onEditTopic={onEditTopic}
+                    onDeleteTopic={onDeleteTopic}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
             <Button size="sm" variant="outline" onClick={onAddChapter} className="mt-2">
               <Plus className="w-3 h-3 mr-1" /> Add Chapter
             </Button>
@@ -1450,7 +1568,7 @@ function SubjectRow({
   );
 }
 
-function ChapterRow({ chapter, expanded, onToggle, onDelete, onAddTopic, onEditTopic, onDeleteTopic }: {
+type ChapterRowProps = {
   chapter: Chapter;
   expanded: boolean;
   onToggle: () => void;
@@ -1458,7 +1576,23 @@ function ChapterRow({ chapter, expanded, onToggle, onDelete, onAddTopic, onEditT
   onAddTopic: () => void;
   onEditTopic: (topic: Topic) => void;
   onDeleteTopic: (id: string) => void;
-}) {
+  dragListeners?: Record<string, unknown>;
+  dragAttributes?: Record<string, unknown>;
+};
+
+function SortableChapterRow(props: ChapterRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.chapter.id });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 20 : undefined, opacity: isDragging ? 0.75 : 1 }}
+    >
+      <ChapterRow {...props} dragListeners={listeners as Record<string, unknown>} dragAttributes={attributes as Record<string, unknown>} />
+    </div>
+  );
+}
+
+function ChapterRow({ chapter, expanded, onToggle, onDelete, onAddTopic, onEditTopic, onDeleteTopic, dragListeners, dragAttributes }: ChapterRowProps) {
   const { data: topics = [] } = useQuery({
     queryKey: [getGetTopicsUrl(chapter.id)],
     queryFn: () => getTopics(chapter.id),
@@ -1467,7 +1601,17 @@ function ChapterRow({ chapter, expanded, onToggle, onDelete, onAddTopic, onEditT
 
   return (
     <div className="border border-border rounded-md bg-card">
-      <div className="flex items-center gap-3 p-3 cursor-pointer" onClick={onToggle}>
+      <div className="flex items-center gap-2 p-3 cursor-pointer" onClick={onToggle}>
+        <button
+          {...(dragAttributes as React.HTMLAttributes<HTMLButtonElement>)}
+          {...(dragListeners as React.HTMLAttributes<HTMLButtonElement>)}
+          className="cursor-grab active:cursor-grabbing touch-none shrink-0 p-0.5 rounded hover:bg-muted/60 transition-colors"
+          onClick={e => e.stopPropagation()}
+          title="Drag to reorder"
+          tabIndex={-1}
+        >
+          <GripVertical className="w-3.5 h-3.5 text-muted-foreground/40" />
+        </button>
         {expanded ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
         <span className="font-medium text-sm flex-1 min-w-0 truncate">{chapter.title}</span>
         <div className="flex gap-1 shrink-0" onClick={e => e.stopPropagation()}>
