@@ -208,6 +208,7 @@ export default function AdminUsersPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [suspendDialog, setSuspendDialog] = useState<{ userId: string; userName: string } | null>(null);
+  const [reinstateDialog, setReinstateDialog] = useState<{ userId: string; userName: string } | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<{ userId: string; userName: string } | null>(null);
 
   const { data: users = [], isLoading } = useQuery({
@@ -412,11 +413,10 @@ export default function AdminUsersPage() {
       canView ||
       canEdit ||
       (currentRole === "super_admin" && !isSelf) ||
-      (role as string) === "student";
+      (role as string) === "student" ||
+      (!isSelf && status === "suspended");
 
-    const hasPrimaryAction =
-      status === "pending_approval" ||
-      status === "suspended";
+    const hasPrimaryAction = status === "pending_approval";
 
     return (
       <div className="border border-border rounded-xl bg-card overflow-hidden">
@@ -576,6 +576,19 @@ export default function AdminUsersPage() {
                   </>
                 )}
 
+                {/* Reinstate — suspended users only, not self */}
+                {!isSelf && status === "suspended" && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="text-success focus:text-success"
+                      onClick={() => setReinstateDialog({ userId, userName })}
+                    >
+                      <CheckCircle className="w-4 h-4 mr-2 shrink-0" /> Reinstate User
+                    </DropdownMenuItem>
+                  </>
+                )}
+
                 {/* Delete — super_admin only, never self */}
                 {!isSelf && currentRole === "super_admin" && (
                   <DropdownMenuItem
@@ -617,16 +630,6 @@ export default function AdminUsersPage() {
                 </div>
               )}
 
-              {status === "suspended" && (
-                <Button
-                  size="sm"
-                  className="w-full h-9 gap-1.5 bg-success hover:bg-success/90 text-white font-medium"
-                  onClick={() => approve.mutate({ userId })}
-                  disabled={approve.isPending}
-                >
-                  <CheckCircle className="w-4 h-4 shrink-0" /> Reinstate User
-                </Button>
-              )}
             </div>
           </>
         )}
@@ -1182,6 +1185,44 @@ export default function AdminUsersPage() {
           ) : (
             <div className="text-center py-8 text-muted-foreground text-sm">No details available.</div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Reinstate Confirmation Dialog ───────────────────────────────────── */}
+      <Dialog open={!!reinstateDialog} onOpenChange={v => { if (!v) setReinstateDialog(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle className="w-5 h-5 text-success" /> Reinstate User
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground py-1">
+            Reinstate{" "}
+            <span className="font-semibold text-foreground">{reinstateDialog?.userName}</span>?
+            They will regain full access to the platform.
+          </p>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setReinstateDialog(null)}
+              disabled={approve.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="bg-success hover:bg-success/90 text-white"
+              disabled={approve.isPending}
+              onClick={() => {
+                if (reinstateDialog) {
+                  approve.mutate({ userId: reinstateDialog.userId });
+                  setReinstateDialog(null);
+                }
+              }}
+            >
+              {approve.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Reinstate
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
