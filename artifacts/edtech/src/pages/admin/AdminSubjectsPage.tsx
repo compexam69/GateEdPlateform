@@ -19,6 +19,7 @@ import type { Subject, Chapter, Topic } from "@workspace/api-client-react";
 import { useState, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/lib/supabase";
 import { apiFetch } from "@/lib/api";
 import { Separator } from "@/components/ui/separator";
@@ -432,6 +433,587 @@ function SubjectImportDialog({ open, onClose, onImported }: {
   );
 }
 
+// ── Chapter, Topic & Hierarchy import ─────────────────────────────────────────
+
+const CHAPTER_CSV_TEMPLATE = `subject_name,chapter_name,description,display_order
+Physics,Mechanics,Study of motion and forces,1
+Physics,Thermodynamics,Study of heat and temperature,2
+Mathematics,Calculus,Study of derivatives and integrals,1`;
+
+const TOPIC_CSV_TEMPLATE = `subject_name,chapter_name,topic_name,description,display_order
+Physics,Mechanics,Newton's Laws,Understanding Newton's three laws of motion,1
+Physics,Mechanics,Work Energy Power,Conservation of energy and work-energy theorem,2
+Physics,Thermodynamics,Heat Transfer,Conduction convection and radiation,1`;
+
+const HIERARCHY_CSV_TEMPLATE = `subject,chapter,topic,description
+Physics,Mechanics,Newton's Laws,Understanding Newton's three laws
+Physics,Mechanics,Friction,Study of frictional forces
+Physics,Thermodynamics,Heat Transfer,Conduction convection radiation
+Chemistry,Atomic Structure,Bohr's Model,Quantum mechanical model of atom
+Mathematics,Calculus,Derivatives,Rate of change and differentiation`;
+
+type ImportChapter = { subject_name: string; chapter_name: string; description: string; display_order: number };
+type ChapterImportResult = { message: string; imported: number; duplicates: number; failed: number; errors: Array<{ row: number; chapter_name: string; error: string }> };
+
+type ImportTopic = { subject_name: string; chapter_name: string; topic_name: string; description: string; display_order: number };
+type TopicImportResult = { message: string; imported: number; duplicates: number; failed: number; errors: Array<{ row: number; topic_name: string; error: string }> };
+
+type ImportHierarchyRow = { subject: string; chapter: string; topic: string; description: string };
+type HierarchyImportResult = { message: string; subjects_created: number; chapters_created: number; topics_created: number; topics_skipped: number; errors: Array<{ row: number; error: string }> };
+
+function parseChapterCSV(text: string): ImportChapter[] {
+  const lines = text.trim().split(/\r?\n/).filter(Boolean);
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(",").map(h => h.trim().toLowerCase().replace(/^"|"$/g, ""));
+  const si = headers.indexOf("subject_name");
+  const ci = headers.indexOf("chapter_name");
+  const di = headers.indexOf("description");
+  const oi = headers.indexOf("display_order");
+  if (si === -1) throw new Error("CSV must have a 'subject_name' column");
+  if (ci === -1) throw new Error("CSV must have a 'chapter_name' column");
+  return lines.slice(1).map((line, idx) => {
+    const cols = line.split(",").map(c => c.trim().replace(/^"|"$/g, ""));
+    return {
+      subject_name: cols[si] ?? "",
+      chapter_name: cols[ci] ?? "",
+      description: di !== -1 ? (cols[di] ?? "") : "",
+      display_order: oi !== -1 ? (parseInt(cols[oi] ?? "", 10) || idx + 1) : idx + 1,
+    };
+  }).filter(c => c.subject_name.trim() && c.chapter_name.trim());
+}
+
+function parseTopicCSV(text: string): ImportTopic[] {
+  const lines = text.trim().split(/\r?\n/).filter(Boolean);
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(",").map(h => h.trim().toLowerCase().replace(/^"|"$/g, ""));
+  const si = headers.indexOf("subject_name");
+  const chi = headers.indexOf("chapter_name");
+  const ti = headers.indexOf("topic_name");
+  const di = headers.indexOf("description");
+  const oi = headers.indexOf("display_order");
+  if (si === -1) throw new Error("CSV must have a 'subject_name' column");
+  if (chi === -1) throw new Error("CSV must have a 'chapter_name' column");
+  if (ti === -1) throw new Error("CSV must have a 'topic_name' column");
+  return lines.slice(1).map((line, idx) => {
+    const cols = line.split(",").map(c => c.trim().replace(/^"|"$/g, ""));
+    return {
+      subject_name: cols[si] ?? "",
+      chapter_name: cols[chi] ?? "",
+      topic_name: cols[ti] ?? "",
+      description: di !== -1 ? (cols[di] ?? "") : "",
+      display_order: oi !== -1 ? (parseInt(cols[oi] ?? "", 10) || idx + 1) : idx + 1,
+    };
+  }).filter(t => t.subject_name.trim() && t.chapter_name.trim() && t.topic_name.trim());
+}
+
+function parseHierarchyCSV(text: string): ImportHierarchyRow[] {
+  const lines = text.trim().split(/\r?\n/).filter(Boolean);
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(",").map(h => h.trim().toLowerCase().replace(/^"|"$/g, ""));
+  const si = headers.indexOf("subject");
+  const ci = headers.indexOf("chapter");
+  const ti = headers.indexOf("topic");
+  const di = headers.indexOf("description");
+  if (si === -1) throw new Error("CSV must have a 'subject' column");
+  if (ci === -1) throw new Error("CSV must have a 'chapter' column");
+  if (ti === -1) throw new Error("CSV must have a 'topic' column");
+  return lines.slice(1).map(line => {
+    const cols = line.split(",").map(c => c.trim().replace(/^"|"$/g, ""));
+    return {
+      subject: cols[si] ?? "",
+      chapter: cols[ci] ?? "",
+      topic: cols[ti] ?? "",
+      description: di !== -1 ? (cols[di] ?? "") : "",
+    };
+  }).filter(r => r.subject.trim() && r.chapter.trim() && r.topic.trim());
+}
+
+function dlCsv(content: string, filename: string) {
+  const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function ImportErrorList({ errors }: { errors: Array<{ error: string } & Record<string, unknown>> }) {
+  if (!errors.length) return null;
+  return (
+    <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-1 max-h-44 overflow-y-auto">
+      <p className="text-xs font-semibold text-destructive uppercase tracking-wider mb-2">
+        Skipped / Failed rows ({errors.length})
+      </p>
+      {errors.map((e, i) => (
+        <p key={i} className="text-xs text-destructive">{e.error}</p>
+      ))}
+    </div>
+  );
+}
+
+function UploadArea({ fileRef, onFile }: { fileRef: React.RefObject<HTMLInputElement>; onFile: (e: React.ChangeEvent<HTMLInputElement>) => void }) {
+  return (
+    <div
+      className="border-2 border-dashed border-border rounded-lg p-5 text-center cursor-pointer hover:border-primary/50 transition-colors"
+      onClick={() => fileRef.current?.click()}
+    >
+      <Upload className="w-7 h-7 text-muted-foreground mx-auto mb-1.5" />
+      <p className="text-sm font-medium">Click to select CSV file</p>
+      <p className="text-xs text-muted-foreground mt-0.5">or paste below</p>
+      <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={onFile} />
+    </div>
+  );
+}
+
+function ContentBulkImportDialog({ open, onClose, onImported }: {
+  open: boolean;
+  onClose: () => void;
+  onImported: () => void;
+}) {
+  const [tab, setTab] = useState("subjects");
+
+  // ── Subjects ──────────────────────────────────────────────────────────────────
+  const sRef = useRef<HTMLInputElement>(null);
+  const [sCsv, setSCsv] = useState(""); const [sPreview, setSPreview] = useState<ImportSubject[] | null>(null);
+  const [sErr, setSErr] = useState<string | null>(null); const [sImporting, setSImporting] = useState(false);
+  const [sResult, setSResult] = useState<SubjectImportResult | null>(null);
+
+  // ── Chapters ──────────────────────────────────────────────────────────────────
+  const cRef = useRef<HTMLInputElement>(null);
+  const [cCsv, setCCsv] = useState(""); const [cPreview, setCPreview] = useState<ImportChapter[] | null>(null);
+  const [cErr, setCErr] = useState<string | null>(null); const [cImporting, setCImporting] = useState(false);
+  const [cResult, setCResult] = useState<ChapterImportResult | null>(null);
+
+  // ── Topics ────────────────────────────────────────────────────────────────────
+  const tRef = useRef<HTMLInputElement>(null);
+  const [tCsv, setTCsv] = useState(""); const [tPreview, setTPreview] = useState<ImportTopic[] | null>(null);
+  const [tErr, setTErr] = useState<string | null>(null); const [tImporting, setTImporting] = useState(false);
+  const [tResult, setTResult] = useState<TopicImportResult | null>(null);
+
+  // ── Hierarchy ─────────────────────────────────────────────────────────────────
+  const hRef = useRef<HTMLInputElement>(null);
+  const [hCsv, setHCsv] = useState(""); const [hPreview, setHPreview] = useState<ImportHierarchyRow[] | null>(null);
+  const [hErr, setHErr] = useState<string | null>(null); const [hImporting, setHImporting] = useState(false);
+  const [hResult, setHResult] = useState<HierarchyImportResult | null>(null);
+
+  function resetAll() {
+    setSCsv(""); setSPreview(null); setSErr(null); setSResult(null); if (sRef.current) sRef.current.value = "";
+    setCCsv(""); setCPreview(null); setCErr(null); setCResult(null); if (cRef.current) cRef.current.value = "";
+    setTCsv(""); setTPreview(null); setTErr(null); setTResult(null); if (tRef.current) tRef.current.value = "";
+    setHCsv(""); setHPreview(null); setHErr(null); setHResult(null); if (hRef.current) hRef.current.value = "";
+    setTab("subjects");
+  }
+
+  // ── Subject handlers ──────────────────────────────────────────────────────────
+  function handleSCsv(text: string) {
+    setSCsv(text); setSErr(null); setSPreview(null);
+    if (!text.trim()) return;
+    try { const p = parseSubjectCSV(text); if (p.length > 0) setSPreview(p); } catch (e) { setSErr((e as Error).message); }
+  }
+  function handleSFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]; if (!f) return;
+    setSErr(null); setSPreview(null);
+    const r = new FileReader(); r.onload = ev => { try { handleSCsv(ev.target?.result as string); } catch {} }; r.readAsText(f);
+  }
+  async function handleSImport() {
+    if (!sPreview?.length) return;
+    setSImporting(true);
+    try {
+      const res = await apiFetch("/admin/subjects/bulk-import", { method: "POST", body: JSON.stringify({ subjects: sPreview.map(s => ({ title: s.subject_name, description: s.description || null, order_index: s.display_order })) }) }) as SubjectImportResult;
+      setSResult(res);
+    } catch (e) { setSErr((e as Error).message); } finally { setSImporting(false); }
+  }
+
+  // ── Chapter handlers ──────────────────────────────────────────────────────────
+  function handleCCsv(text: string) {
+    setCCsv(text); setCErr(null); setCPreview(null);
+    if (!text.trim()) return;
+    try { const p = parseChapterCSV(text); if (p.length > 0) setCPreview(p); } catch (e) { setCErr((e as Error).message); }
+  }
+  function handleCFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]; if (!f) return;
+    setCErr(null); setCPreview(null);
+    const r = new FileReader(); r.onload = ev => { try { handleCCsv(ev.target?.result as string); } catch {} }; r.readAsText(f);
+  }
+  async function handleCImport() {
+    if (!cPreview?.length) return;
+    setCImporting(true);
+    try {
+      const res = await apiFetch("/admin/chapters/bulk-import", { method: "POST", body: JSON.stringify({ chapters: cPreview.map(c => ({ subject_name: c.subject_name, chapter_name: c.chapter_name, description: c.description || null, display_order: c.display_order })) }) }) as ChapterImportResult;
+      setCResult(res);
+    } catch (e) { setCErr((e as Error).message); } finally { setCImporting(false); }
+  }
+
+  // ── Topic handlers ────────────────────────────────────────────────────────────
+  function handleTCsv(text: string) {
+    setTCsv(text); setTErr(null); setTPreview(null);
+    if (!text.trim()) return;
+    try { const p = parseTopicCSV(text); if (p.length > 0) setTPreview(p); } catch (e) { setTErr((e as Error).message); }
+  }
+  function handleTFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]; if (!f) return;
+    setTErr(null); setTPreview(null);
+    const r = new FileReader(); r.onload = ev => { try { handleTCsv(ev.target?.result as string); } catch {} }; r.readAsText(f);
+  }
+  async function handleTImport() {
+    if (!tPreview?.length) return;
+    setTImporting(true);
+    try {
+      const res = await apiFetch("/admin/topics/bulk-import", { method: "POST", body: JSON.stringify({ topics: tPreview.map(t => ({ subject_name: t.subject_name, chapter_name: t.chapter_name, topic_name: t.topic_name, description: t.description || null, display_order: t.display_order })) }) }) as TopicImportResult;
+      setTResult(res);
+    } catch (e) { setTErr((e as Error).message); } finally { setTImporting(false); }
+  }
+
+  // ── Hierarchy handlers ────────────────────────────────────────────────────────
+  function handleHCsv(text: string) {
+    setHCsv(text); setHErr(null); setHPreview(null);
+    if (!text.trim()) return;
+    try { const p = parseHierarchyCSV(text); if (p.length > 0) setHPreview(p); } catch (e) { setHErr((e as Error).message); }
+  }
+  function handleHFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]; if (!f) return;
+    setHErr(null); setHPreview(null);
+    const r = new FileReader(); r.onload = ev => { try { handleHCsv(ev.target?.result as string); } catch {} }; r.readAsText(f);
+  }
+  async function handleHImport() {
+    if (!hPreview?.length) return;
+    setHImporting(true);
+    try {
+      const res = await apiFetch("/admin/hierarchy/bulk-import", { method: "POST", body: JSON.stringify({ rows: hPreview }) }) as HierarchyImportResult;
+      setHResult(res);
+    } catch (e) { setHErr((e as Error).message); } finally { setHImporting(false); }
+  }
+
+  const sCount = sPreview?.length ?? 0;
+  const cCount = cPreview?.length ?? 0;
+  const tCount = tPreview?.length ?? 0;
+  const hCount = hPreview?.length ?? 0;
+
+  return (
+    <Dialog open={open} onOpenChange={v => { if (!v) { resetAll(); onClose(); } }}>
+      <DialogContent className="max-w-3xl max-h-[88vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Upload className="w-5 h-5 text-primary" /> Bulk Import Content
+          </DialogTitle>
+        </DialogHeader>
+
+        <Tabs value={tab} onValueChange={setTab}>
+          <TabsList className="w-full grid grid-cols-4">
+            <TabsTrigger value="subjects">Subjects</TabsTrigger>
+            <TabsTrigger value="chapters">Chapters</TabsTrigger>
+            <TabsTrigger value="topics">Topics</TabsTrigger>
+            <TabsTrigger value="hierarchy">Full Hierarchy</TabsTrigger>
+          </TabsList>
+
+          {/* ── SUBJECTS ──────────────────────────────────────────────────────── */}
+          <TabsContent value="subjects" className="mt-4 space-y-4">
+            {sResult ? (
+              <div className="space-y-4 py-2">
+                <div className="flex items-center gap-3">
+                  <CheckCircle2 className="w-8 h-8 text-success shrink-0" />
+                  <div>
+                    <p className="font-semibold text-lg">Import Complete</p>
+                    <p className="text-sm text-muted-foreground">
+                      <span className="text-success font-medium">{sResult.imported} created</span>
+                      {sResult.duplicates > 0 && <>, <span className="text-warning font-medium">{sResult.duplicates} duplicate{sResult.duplicates !== 1 ? "s" : ""} skipped</span></>}
+                      {sResult.failed > 0 && <>, <span className="text-destructive font-medium">{sResult.failed} failed</span></>}
+                    </p>
+                  </div>
+                </div>
+                <ImportErrorList errors={sResult.errors} />
+                <DialogFooter><Button onClick={() => { resetAll(); onImported(); onClose(); }}>Done</Button></DialogFooter>
+              </div>
+            ) : (
+              <>
+                <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-2 text-sm">
+                  <p className="font-medium">File format</p>
+                  <p className="text-muted-foreground text-xs">
+                    Required: <span className="font-mono text-foreground">subject_name</span>.
+                    Optional: <span className="font-mono text-foreground">description</span>, <span className="font-mono text-foreground">display_order</span>.
+                    Duplicates skipped. Max 500 rows.
+                  </p>
+                  <Button variant="outline" size="sm" className="gap-1.5" onClick={() => dlCsv(SUBJECT_CSV_TEMPLATE, "subject_import_template.csv")}>
+                    <Download className="w-3.5 h-3.5" /> Download CSV Template
+                  </Button>
+                </div>
+                <UploadArea fileRef={sRef} onFile={handleSFile} />
+                <textarea rows={4} value={sCsv} onChange={e => handleSCsv(e.target.value)} placeholder={SUBJECT_CSV_TEMPLATE}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-mono shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none" />
+                {sErr && <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm"><AlertCircle className="w-4 h-4 shrink-0 mt-0.5" /><span>{sErr}</span></div>}
+                {sPreview && sPreview.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium">{sCount} subject{sCount !== 1 ? "s" : ""} ready to import</p>
+                      <Badge variant="outline" className="text-xs">{sCount} rows</Badge>
+                    </div>
+                    <div className="border border-border rounded-lg overflow-hidden">
+                      <div className="overflow-x-auto max-h-52 overflow-y-auto">
+                        <table className="w-full text-xs">
+                          <thead className="bg-muted/40 sticky top-0">
+                            <tr>{["#","Subject Name","Description","Order"].map(h => <th key={h} className="px-3 py-2 text-left font-medium text-muted-foreground whitespace-nowrap">{h}</th>)}</tr>
+                          </thead>
+                          <tbody className="divide-y divide-border">
+                            {sPreview.map((s, i) => (
+                              <tr key={i} className="hover:bg-muted/20">
+                                <td className="px-3 py-2 text-muted-foreground">{i + 1}</td>
+                                <td className="px-3 py-2 font-medium">{s.subject_name}</td>
+                                <td className="px-3 py-2 text-muted-foreground truncate max-w-[200px]">{s.description || "—"}</td>
+                                <td className="px-3 py-2 text-center text-muted-foreground">{s.display_order}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    <DialogFooter className="pt-1">
+                      <Button variant="outline" onClick={() => { resetAll(); onClose(); }}>Cancel</Button>
+                      <Button disabled={sImporting} onClick={handleSImport}>
+                        {sImporting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Importing…</> : `Import ${sCount} Subject${sCount !== 1 ? "s" : ""}`}
+                      </Button>
+                    </DialogFooter>
+                  </div>
+                )}
+              </>
+            )}
+          </TabsContent>
+
+          {/* ── CHAPTERS ──────────────────────────────────────────────────────── */}
+          <TabsContent value="chapters" className="mt-4 space-y-4">
+            {cResult ? (
+              <div className="space-y-4 py-2">
+                <div className="flex items-center gap-3">
+                  <CheckCircle2 className="w-8 h-8 text-success shrink-0" />
+                  <div>
+                    <p className="font-semibold text-lg">Import Complete</p>
+                    <p className="text-sm text-muted-foreground">
+                      <span className="text-success font-medium">{cResult.imported} created</span>
+                      {cResult.duplicates > 0 && <>, <span className="text-warning font-medium">{cResult.duplicates} duplicate{cResult.duplicates !== 1 ? "s" : ""} skipped</span></>}
+                      {cResult.failed > 0 && <>, <span className="text-destructive font-medium">{cResult.failed} failed</span></>}
+                    </p>
+                  </div>
+                </div>
+                <ImportErrorList errors={cResult.errors} />
+                <DialogFooter><Button onClick={() => { resetAll(); onImported(); onClose(); }}>Done</Button></DialogFooter>
+              </div>
+            ) : (
+              <>
+                <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-2 text-sm">
+                  <p className="font-medium">File format</p>
+                  <p className="text-muted-foreground text-xs">
+                    Required: <span className="font-mono text-foreground">subject_name</span>, <span className="font-mono text-foreground">chapter_name</span>.
+                    Optional: <span className="font-mono text-foreground">description</span>, <span className="font-mono text-foreground">display_order</span>.
+                    Subject must already exist. Duplicates skipped. Max 500 rows.
+                  </p>
+                  <Button variant="outline" size="sm" className="gap-1.5" onClick={() => dlCsv(CHAPTER_CSV_TEMPLATE, "chapter_import_template.csv")}>
+                    <Download className="w-3.5 h-3.5" /> Download CSV Template
+                  </Button>
+                </div>
+                <UploadArea fileRef={cRef} onFile={handleCFile} />
+                <textarea rows={4} value={cCsv} onChange={e => handleCCsv(e.target.value)} placeholder={CHAPTER_CSV_TEMPLATE}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-mono shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none" />
+                {cErr && <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm"><AlertCircle className="w-4 h-4 shrink-0 mt-0.5" /><span>{cErr}</span></div>}
+                {cPreview && cPreview.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium">{cCount} chapter{cCount !== 1 ? "s" : ""} ready to import</p>
+                      <Badge variant="outline" className="text-xs">{cCount} rows</Badge>
+                    </div>
+                    <div className="border border-border rounded-lg overflow-hidden">
+                      <div className="overflow-x-auto max-h-52 overflow-y-auto">
+                        <table className="w-full text-xs">
+                          <thead className="bg-muted/40 sticky top-0">
+                            <tr>{["#","Subject","Chapter","Description","Order"].map(h => <th key={h} className="px-3 py-2 text-left font-medium text-muted-foreground whitespace-nowrap">{h}</th>)}</tr>
+                          </thead>
+                          <tbody className="divide-y divide-border">
+                            {cPreview.map((c, i) => (
+                              <tr key={i} className="hover:bg-muted/20">
+                                <td className="px-3 py-2 text-muted-foreground">{i + 1}</td>
+                                <td className="px-3 py-2 text-muted-foreground">{c.subject_name}</td>
+                                <td className="px-3 py-2 font-medium">{c.chapter_name}</td>
+                                <td className="px-3 py-2 text-muted-foreground truncate max-w-[160px]">{c.description || "—"}</td>
+                                <td className="px-3 py-2 text-center text-muted-foreground">{c.display_order}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    <DialogFooter className="pt-1">
+                      <Button variant="outline" onClick={() => { resetAll(); onClose(); }}>Cancel</Button>
+                      <Button disabled={cImporting} onClick={handleCImport}>
+                        {cImporting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Importing…</> : `Import ${cCount} Chapter${cCount !== 1 ? "s" : ""}`}
+                      </Button>
+                    </DialogFooter>
+                  </div>
+                )}
+              </>
+            )}
+          </TabsContent>
+
+          {/* ── TOPICS ────────────────────────────────────────────────────────── */}
+          <TabsContent value="topics" className="mt-4 space-y-4">
+            {tResult ? (
+              <div className="space-y-4 py-2">
+                <div className="flex items-center gap-3">
+                  <CheckCircle2 className="w-8 h-8 text-success shrink-0" />
+                  <div>
+                    <p className="font-semibold text-lg">Import Complete</p>
+                    <p className="text-sm text-muted-foreground">
+                      <span className="text-success font-medium">{tResult.imported} created</span>
+                      {tResult.duplicates > 0 && <>, <span className="text-warning font-medium">{tResult.duplicates} duplicate{tResult.duplicates !== 1 ? "s" : ""} skipped</span></>}
+                      {tResult.failed > 0 && <>, <span className="text-destructive font-medium">{tResult.failed} failed</span></>}
+                    </p>
+                  </div>
+                </div>
+                <ImportErrorList errors={tResult.errors} />
+                <DialogFooter><Button onClick={() => { resetAll(); onImported(); onClose(); }}>Done</Button></DialogFooter>
+              </div>
+            ) : (
+              <>
+                <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-2 text-sm">
+                  <p className="font-medium">File format</p>
+                  <p className="text-muted-foreground text-xs">
+                    Required: <span className="font-mono text-foreground">subject_name</span>, <span className="font-mono text-foreground">chapter_name</span>, <span className="font-mono text-foreground">topic_name</span>.
+                    Optional: <span className="font-mono text-foreground">description</span>, <span className="font-mono text-foreground">display_order</span>.
+                    Subject and Chapter must already exist. Max 1000 rows.
+                  </p>
+                  <Button variant="outline" size="sm" className="gap-1.5" onClick={() => dlCsv(TOPIC_CSV_TEMPLATE, "topic_import_template.csv")}>
+                    <Download className="w-3.5 h-3.5" /> Download CSV Template
+                  </Button>
+                </div>
+                <UploadArea fileRef={tRef} onFile={handleTFile} />
+                <textarea rows={4} value={tCsv} onChange={e => handleTCsv(e.target.value)} placeholder={TOPIC_CSV_TEMPLATE}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-mono shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none" />
+                {tErr && <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm"><AlertCircle className="w-4 h-4 shrink-0 mt-0.5" /><span>{tErr}</span></div>}
+                {tPreview && tPreview.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium">{tCount} topic{tCount !== 1 ? "s" : ""} ready to import</p>
+                      <Badge variant="outline" className="text-xs">{tCount} rows</Badge>
+                    </div>
+                    <div className="border border-border rounded-lg overflow-hidden">
+                      <div className="overflow-x-auto max-h-52 overflow-y-auto">
+                        <table className="w-full text-xs">
+                          <thead className="bg-muted/40 sticky top-0">
+                            <tr>{["#","Subject","Chapter","Topic","Description"].map(h => <th key={h} className="px-3 py-2 text-left font-medium text-muted-foreground whitespace-nowrap">{h}</th>)}</tr>
+                          </thead>
+                          <tbody className="divide-y divide-border">
+                            {tPreview.map((t, i) => (
+                              <tr key={i} className="hover:bg-muted/20">
+                                <td className="px-3 py-2 text-muted-foreground">{i + 1}</td>
+                                <td className="px-3 py-2 text-muted-foreground">{t.subject_name}</td>
+                                <td className="px-3 py-2 text-muted-foreground">{t.chapter_name}</td>
+                                <td className="px-3 py-2 font-medium">{t.topic_name}</td>
+                                <td className="px-3 py-2 text-muted-foreground truncate max-w-[160px]">{t.description || "—"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    <DialogFooter className="pt-1">
+                      <Button variant="outline" onClick={() => { resetAll(); onClose(); }}>Cancel</Button>
+                      <Button disabled={tImporting} onClick={handleTImport}>
+                        {tImporting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Importing…</> : `Import ${tCount} Topic${tCount !== 1 ? "s" : ""}`}
+                      </Button>
+                    </DialogFooter>
+                  </div>
+                )}
+              </>
+            )}
+          </TabsContent>
+
+          {/* ── FULL HIERARCHY ────────────────────────────────────────────────── */}
+          <TabsContent value="hierarchy" className="mt-4 space-y-4">
+            {hResult ? (
+              <div className="space-y-4 py-2">
+                <div className="flex items-center gap-3">
+                  <CheckCircle2 className="w-8 h-8 text-success shrink-0" />
+                  <div>
+                    <p className="font-semibold text-lg">Hierarchy Import Complete</p>
+                    <div className="text-sm text-muted-foreground space-y-0.5 mt-1">
+                      {hResult.subjects_created > 0 && <p><span className="text-success font-medium">{hResult.subjects_created} subject{hResult.subjects_created !== 1 ? "s" : ""}</span> created</p>}
+                      {hResult.chapters_created > 0 && <p><span className="text-success font-medium">{hResult.chapters_created} chapter{hResult.chapters_created !== 1 ? "s" : ""}</span> created</p>}
+                      <p>
+                        <span className="text-success font-medium">{hResult.topics_created} topic{hResult.topics_created !== 1 ? "s" : ""}</span> created
+                        {hResult.topics_skipped > 0 && <>, <span className="text-muted-foreground">{hResult.topics_skipped} skipped (already exist)</span></>}
+                      </p>
+                      {hResult.subjects_created === 0 && hResult.chapters_created === 0 && <p className="text-muted-foreground text-xs">All subjects and chapters already existed.</p>}
+                    </div>
+                  </div>
+                </div>
+                <ImportErrorList errors={hResult.errors} />
+                <DialogFooter><Button onClick={() => { resetAll(); onImported(); onClose(); }}>Done</Button></DialogFooter>
+              </div>
+            ) : (
+              <>
+                <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-2 text-sm">
+                  <p className="font-medium text-primary">Recommended: Full Hierarchy Import</p>
+                  <p className="text-muted-foreground text-xs">
+                    Import subjects, chapters, and topics all at once. The system automatically creates subjects and chapters that don't exist yet,
+                    then creates topics under the correct chapters. Existing entries are safely skipped — no duplicates created.
+                    Max 1000 rows.
+                  </p>
+                  <p className="text-muted-foreground text-xs">
+                    Required columns: <span className="font-mono text-foreground">subject</span>, <span className="font-mono text-foreground">chapter</span>, <span className="font-mono text-foreground">topic</span>.
+                    Optional: <span className="font-mono text-foreground">description</span>.
+                  </p>
+                  <Button variant="outline" size="sm" className="gap-1.5" onClick={() => dlCsv(HIERARCHY_CSV_TEMPLATE, "hierarchy_import_template.csv")}>
+                    <Download className="w-3.5 h-3.5" /> Download CSV Template
+                  </Button>
+                </div>
+                <UploadArea fileRef={hRef} onFile={handleHFile} />
+                <textarea rows={5} value={hCsv} onChange={e => handleHCsv(e.target.value)} placeholder={HIERARCHY_CSV_TEMPLATE}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-mono shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none" />
+                {hErr && <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm"><AlertCircle className="w-4 h-4 shrink-0 mt-0.5" /><span>{hErr}</span></div>}
+                {hPreview && hPreview.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium">{hCount} row{hCount !== 1 ? "s" : ""} ready to import</p>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-xs">{new Set(hPreview.map(r => r.subject)).size} subjects</Badge>
+                        <Badge variant="outline" className="text-xs">{new Set(hPreview.map(r => `${r.subject}:${r.chapter}`)).size} chapters</Badge>
+                        <Badge variant="outline" className="text-xs">{hCount} topics</Badge>
+                      </div>
+                    </div>
+                    <div className="border border-border rounded-lg overflow-hidden">
+                      <div className="overflow-x-auto max-h-52 overflow-y-auto">
+                        <table className="w-full text-xs">
+                          <thead className="bg-muted/40 sticky top-0">
+                            <tr>{["#","Subject","Chapter","Topic","Description"].map(h => <th key={h} className="px-3 py-2 text-left font-medium text-muted-foreground whitespace-nowrap">{h}</th>)}</tr>
+                          </thead>
+                          <tbody className="divide-y divide-border">
+                            {hPreview.map((r, i) => (
+                              <tr key={i} className="hover:bg-muted/20">
+                                <td className="px-3 py-2 text-muted-foreground">{i + 1}</td>
+                                <td className="px-3 py-2 text-muted-foreground">{r.subject}</td>
+                                <td className="px-3 py-2 text-muted-foreground">{r.chapter}</td>
+                                <td className="px-3 py-2 font-medium">{r.topic}</td>
+                                <td className="px-3 py-2 text-muted-foreground truncate max-w-[160px]">{r.description || "—"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    <DialogFooter className="pt-1">
+                      <Button variant="outline" onClick={() => { resetAll(); onClose(); }}>Cancel</Button>
+                      <Button disabled={hImporting} onClick={handleHImport}>
+                        {hImporting
+                          ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Importing…</>
+                          : `Import ${hCount} Row${hCount !== 1 ? "s" : ""}`}
+                      </Button>
+                    </DialogFooter>
+                  </div>
+                )}
+              </>
+            )}
+          </TabsContent>
+        </Tabs>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Page component ─────────────────────────────────────────────────────────────
 
 export default function AdminSubjectsPage() {
@@ -786,13 +1368,11 @@ export default function AdminSubjectsPage() {
       </Dialog>
 
       {/* ── Bulk Import Dialog ── */}
-      <SubjectImportDialog
+      <ContentBulkImportDialog
         open={importDialog}
         onClose={() => setImportDialog(false)}
-        onImported={(count) => {
-          setImportDialog(false);
-          queryClient.invalidateQueries({ queryKey: [getGetSubjectsUrl()] });
-          toast({ title: `${count} subject${count !== 1 ? "s" : ""} imported successfully` });
+        onImported={() => {
+          queryClient.invalidateQueries();
         }}
       />
     </AppLayout>

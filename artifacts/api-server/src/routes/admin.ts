@@ -864,6 +864,348 @@ router.post("/admin/subjects/bulk-import", requireAdmin, async (req: AuthRequest
   });
 });
 
+// ── Bulk chapter import ───────────────────────────────────────────────────────
+router.post("/admin/chapters/bulk-import", requireAdmin, async (req: AuthRequest, res) => {
+  const { chapters } = req.body as {
+    chapters?: Array<{ subject_name?: string; chapter_name?: string; description?: string; display_order?: number }>;
+  };
+
+  if (!Array.isArray(chapters) || chapters.length === 0) {
+    res.status(400).json({ error: "chapters array is required and must not be empty." });
+    return;
+  }
+  if (chapters.length > 500) {
+    res.status(400).json({ error: "Maximum 500 chapters per import." });
+    return;
+  }
+
+  const { data: existingSubjects } = await supabase.from("subjects").select("id, title").eq("is_active", true);
+  const subjectMap = new Map<string, string>();
+  (existingSubjects ?? []).forEach((s: { id: string; title: string }) => subjectMap.set(s.title.toLowerCase().trim(), s.id));
+
+  const { data: existingChapters } = await supabase.from("chapters").select("title, subject_id");
+  const existingChapterKeys = new Set<string>();
+  (existingChapters ?? []).forEach((c: { title: string; subject_id: string }) => {
+    existingChapterKeys.add(`${c.subject_id}:${c.title.toLowerCase().trim()}`);
+  });
+
+  const rows: Array<Record<string, unknown>> = [];
+  const errors: Array<{ row: number; chapter_name: string; error: string }> = [];
+  const seenInBatch = new Set<string>();
+  let duplicateCount = 0;
+
+  for (let i = 0; i < chapters.length; i++) {
+    const c = chapters[i];
+    const rowNum = i + 2;
+
+    if (!c.subject_name?.trim()) {
+      errors.push({ row: rowNum, chapter_name: c.chapter_name ?? "", error: `Row ${rowNum}: Subject Name is required.` });
+      continue;
+    }
+    if (!c.chapter_name?.trim()) {
+      errors.push({ row: rowNum, chapter_name: "", error: `Row ${rowNum}: Chapter Name is required.` });
+      continue;
+    }
+
+    const subjectId = subjectMap.get(c.subject_name.trim().toLowerCase());
+    if (!subjectId) {
+      errors.push({ row: rowNum, chapter_name: c.chapter_name.trim(), error: `Row ${rowNum}: Subject "${c.subject_name.trim()}" not found. Create the subject first or use Full Hierarchy import.` });
+      continue;
+    }
+
+    const key = `${subjectId}:${c.chapter_name.trim().toLowerCase()}`;
+
+    if (existingChapterKeys.has(key)) {
+      duplicateCount++;
+      errors.push({ row: rowNum, chapter_name: c.chapter_name.trim(), error: `Row ${rowNum}: Chapter "${c.chapter_name.trim()}" already exists in "${c.subject_name.trim()}" — skipped.` });
+      continue;
+    }
+
+    if (seenInBatch.has(key)) {
+      errors.push({ row: rowNum, chapter_name: c.chapter_name.trim(), error: `Row ${rowNum}: Chapter "${c.chapter_name.trim()}" appears more than once — skipped.` });
+      continue;
+    }
+
+    seenInBatch.add(key);
+    rows.push({
+      subject_id: subjectId,
+      title: c.chapter_name.trim(),
+      description: c.description?.trim() || null,
+      order_index: typeof c.display_order === "number" && !isNaN(c.display_order) ? c.display_order : rows.length + 1,
+      is_active: true,
+    });
+  }
+
+  if (rows.length === 0) {
+    res.status(422).json({
+      error: duplicateCount === chapters.length ? "All chapters already exist." : "No valid chapters to import.",
+      errors, imported: 0, duplicates: duplicateCount, failed: errors.length - duplicateCount,
+    });
+    return;
+  }
+
+  const { error: insertErr } = await supabase.from("chapters").insert(rows);
+  if (insertErr) {
+    res.status(500).json({ error: `Database insert failed: ${insertErr.message}`, errors });
+    return;
+  }
+
+  await writeAuditLog(req.user!.id, "bulk_chapter_import", "chapter", "bulk", {
+    imported: rows.length, duplicates: duplicateCount, failed: errors.length - duplicateCount,
+  });
+
+  res.json({
+    message: `Import complete: ${rows.length} created, ${duplicateCount} duplicate${duplicateCount !== 1 ? "s" : ""} skipped.`,
+    imported: rows.length, duplicates: duplicateCount, failed: errors.length - duplicateCount, errors,
+  });
+});
+
+// ── Bulk topic import ─────────────────────────────────────────────────────────
+router.post("/admin/topics/bulk-import", requireAdmin, async (req: AuthRequest, res) => {
+  const { topics } = req.body as {
+    topics?: Array<{ subject_name?: string; chapter_name?: string; topic_name?: string; description?: string; display_order?: number; telegram_link?: string }>;
+  };
+
+  if (!Array.isArray(topics) || topics.length === 0) {
+    res.status(400).json({ error: "topics array is required and must not be empty." });
+    return;
+  }
+  if (topics.length > 1000) {
+    res.status(400).json({ error: "Maximum 1000 topics per import." });
+    return;
+  }
+
+  const { data: existingSubjects } = await supabase.from("subjects").select("id, title").eq("is_active", true);
+  const subjectMap = new Map<string, string>();
+  (existingSubjects ?? []).forEach((s: { id: string; title: string }) => subjectMap.set(s.title.toLowerCase().trim(), s.id));
+
+  const { data: existingChapters } = await supabase.from("chapters").select("id, title, subject_id");
+  const chapterMap = new Map<string, string>();
+  (existingChapters ?? []).forEach((c: { id: string; title: string; subject_id: string }) => {
+    chapterMap.set(`${c.subject_id}:${c.title.toLowerCase().trim()}`, c.id);
+  });
+
+  const { data: existingTopics } = await supabase.from("topics").select("title, chapter_id");
+  const existingTopicKeys = new Set<string>();
+  (existingTopics ?? []).forEach((t: { title: string; chapter_id: string }) => {
+    existingTopicKeys.add(`${t.chapter_id}:${t.title.toLowerCase().trim()}`);
+  });
+
+  const rows: Array<Record<string, unknown>> = [];
+  const errors: Array<{ row: number; topic_name: string; error: string }> = [];
+  const seenInBatch = new Set<string>();
+  let duplicateCount = 0;
+
+  for (let i = 0; i < topics.length; i++) {
+    const t = topics[i];
+    const rowNum = i + 2;
+
+    if (!t.subject_name?.trim()) {
+      errors.push({ row: rowNum, topic_name: t.topic_name ?? "", error: `Row ${rowNum}: Subject Name is required.` });
+      continue;
+    }
+    if (!t.chapter_name?.trim()) {
+      errors.push({ row: rowNum, topic_name: t.topic_name ?? "", error: `Row ${rowNum}: Chapter Name is required.` });
+      continue;
+    }
+    if (!t.topic_name?.trim()) {
+      errors.push({ row: rowNum, topic_name: "", error: `Row ${rowNum}: Topic Name is required.` });
+      continue;
+    }
+
+    const subjectId = subjectMap.get(t.subject_name.trim().toLowerCase());
+    if (!subjectId) {
+      errors.push({ row: rowNum, topic_name: t.topic_name.trim(), error: `Row ${rowNum}: Subject "${t.subject_name.trim()}" not found.` });
+      continue;
+    }
+
+    const chapterId = chapterMap.get(`${subjectId}:${t.chapter_name.trim().toLowerCase()}`);
+    if (!chapterId) {
+      errors.push({ row: rowNum, topic_name: t.topic_name.trim(), error: `Row ${rowNum}: Chapter "${t.chapter_name.trim()}" not found under Subject "${t.subject_name.trim()}".` });
+      continue;
+    }
+
+    const topicKey = `${chapterId}:${t.topic_name.trim().toLowerCase()}`;
+
+    if (existingTopicKeys.has(topicKey)) {
+      duplicateCount++;
+      errors.push({ row: rowNum, topic_name: t.topic_name.trim(), error: `Row ${rowNum}: Topic "${t.topic_name.trim()}" already exists in "${t.chapter_name.trim()}" — skipped.` });
+      continue;
+    }
+
+    if (seenInBatch.has(topicKey)) {
+      errors.push({ row: rowNum, topic_name: t.topic_name.trim(), error: `Row ${rowNum}: Topic "${t.topic_name.trim()}" appears more than once — skipped.` });
+      continue;
+    }
+
+    seenInBatch.add(topicKey);
+    rows.push({
+      chapter_id: chapterId,
+      title: t.topic_name.trim(),
+      description: t.description?.trim() || null,
+      order_index: typeof t.display_order === "number" && !isNaN(t.display_order) ? t.display_order : rows.length + 1,
+      telegram_link: t.telegram_link?.trim() || null,
+      allowed_roles: ["student", "admin", "super_admin"],
+      is_creator_only: false,
+      is_active: true,
+    });
+  }
+
+  if (rows.length === 0) {
+    res.status(422).json({
+      error: duplicateCount === topics.length ? "All topics already exist." : "No valid topics to import.",
+      errors, imported: 0, duplicates: duplicateCount, failed: errors.length - duplicateCount,
+    });
+    return;
+  }
+
+  const { error: insertErr } = await supabase.from("topics").insert(rows);
+  if (insertErr) {
+    res.status(500).json({ error: `Database insert failed: ${insertErr.message}`, errors });
+    return;
+  }
+
+  await writeAuditLog(req.user!.id, "bulk_topic_import", "topic", "bulk", {
+    imported: rows.length, duplicates: duplicateCount, failed: errors.length - duplicateCount,
+  });
+
+  res.json({
+    message: `Import complete: ${rows.length} created, ${duplicateCount} duplicate${duplicateCount !== 1 ? "s" : ""} skipped.`,
+    imported: rows.length, duplicates: duplicateCount, failed: errors.length - duplicateCount, errors,
+  });
+});
+
+// ── Bulk hierarchy import (auto-creates subjects → chapters → topics) ──────────
+router.post("/admin/hierarchy/bulk-import", requireAdmin, async (req: AuthRequest, res) => {
+  const { rows: hierarchyRows } = req.body as {
+    rows?: Array<{ subject?: string; chapter?: string; topic?: string; description?: string; telegram_link?: string }>;
+  };
+
+  if (!Array.isArray(hierarchyRows) || hierarchyRows.length === 0) {
+    res.status(400).json({ error: "rows array is required and must not be empty." });
+    return;
+  }
+  if (hierarchyRows.length > 1000) {
+    res.status(400).json({ error: "Maximum 1000 rows per import." });
+    return;
+  }
+
+  const errors: Array<{ row: number; error: string }> = [];
+  const validRows: Array<{ subject: string; chapter: string; topic: string; description?: string; telegram_link?: string; rowNum: number }> = [];
+
+  for (let i = 0; i < hierarchyRows.length; i++) {
+    const r = hierarchyRows[i];
+    const rowNum = i + 2;
+    if (!r.subject?.trim() || !r.chapter?.trim() || !r.topic?.trim()) {
+      errors.push({ row: rowNum, error: `Row ${rowNum}: Subject, Chapter, and Topic are all required.` });
+      continue;
+    }
+    validRows.push({ subject: r.subject.trim(), chapter: r.chapter.trim(), topic: r.topic.trim(), description: r.description, telegram_link: r.telegram_link, rowNum });
+  }
+
+  if (validRows.length === 0) {
+    res.status(422).json({ error: "No valid rows to import.", errors, subjects_created: 0, chapters_created: 0, topics_created: 0, topics_skipped: 0 });
+    return;
+  }
+
+  // ── Step 1: Fetch / upsert subjects ──
+  const { data: existingSubjectsData } = await supabase.from("subjects").select("id, title").eq("is_active", true);
+  const subjectMap = new Map<string, string>();
+  (existingSubjectsData ?? []).forEach((s: { id: string; title: string }) => subjectMap.set(s.title.toLowerCase().trim(), s.id));
+
+  const uniqueSubjectNames = [...new Set(validRows.map(r => r.subject))];
+  const newSubjectNames = uniqueSubjectNames.filter(name => !subjectMap.has(name.toLowerCase()));
+  let subjectsCreated = 0;
+
+  if (newSubjectNames.length > 0) {
+    const { data: created, error: err } = await supabase.from("subjects").insert(
+      newSubjectNames.map((name, idx) => ({
+        title: name, is_active: true, visibility_roles: ["student", "admin", "super_admin"],
+        is_creator_only: false, creator_id: req.user!.id,
+        order_index: (existingSubjectsData?.length ?? 0) + idx + 1,
+      }))
+    ).select("id, title");
+    if (err) { res.status(500).json({ error: `Failed to create subjects: ${err.message}` }); return; }
+    (created ?? []).forEach((s: { id: string; title: string }) => subjectMap.set(s.title.toLowerCase().trim(), s.id));
+    subjectsCreated = newSubjectNames.length;
+  }
+
+  // ── Step 2: Fetch / upsert chapters ──
+  const { data: existingChaptersData } = await supabase.from("chapters").select("id, title, subject_id");
+  const chapterMap = new Map<string, string>();
+  (existingChaptersData ?? []).forEach((c: { id: string; title: string; subject_id: string }) => {
+    chapterMap.set(`${c.subject_id}:${c.title.toLowerCase().trim()}`, c.id);
+  });
+
+  const chapterInserts: Array<{ subject_id: string; title: string; key: string }> = [];
+  const seenChapterKeys = new Set<string>();
+
+  for (const r of validRows) {
+    const sid = subjectMap.get(r.subject.toLowerCase());
+    if (!sid) continue;
+    const key = `${sid}:${r.chapter.toLowerCase()}`;
+    if (!chapterMap.has(key) && !seenChapterKeys.has(key)) {
+      seenChapterKeys.add(key);
+      chapterInserts.push({ subject_id: sid, title: r.chapter, key });
+    }
+  }
+  let chaptersCreated = 0;
+
+  if (chapterInserts.length > 0) {
+    const { data: created, error: err } = await supabase.from("chapters").insert(
+      chapterInserts.map((c, idx) => ({ subject_id: c.subject_id, title: c.title, order_index: idx + 1, is_active: true }))
+    ).select("id, title, subject_id");
+    if (err) { res.status(500).json({ error: `Failed to create chapters: ${err.message}` }); return; }
+    (created ?? []).forEach((c: { id: string; title: string; subject_id: string }) => {
+      chapterMap.set(`${c.subject_id}:${c.title.toLowerCase().trim()}`, c.id);
+    });
+    chaptersCreated = chapterInserts.length;
+  }
+
+  // ── Step 3: Fetch existing topics, create new ones ──
+  const { data: existingTopicsData } = await supabase.from("topics").select("title, chapter_id");
+  const existingTopicKeys = new Set<string>();
+  (existingTopicsData ?? []).forEach((t: { title: string; chapter_id: string }) => {
+    existingTopicKeys.add(`${t.chapter_id}:${t.title.toLowerCase().trim()}`);
+  });
+
+  const topicRows: Array<Record<string, unknown>> = [];
+  const seenTopicKeys = new Set<string>();
+  let topicsSkipped = 0;
+
+  for (const r of validRows) {
+    const sid = subjectMap.get(r.subject.toLowerCase());
+    if (!sid) { topicsSkipped++; continue; }
+    const cid = chapterMap.get(`${sid}:${r.chapter.toLowerCase()}`);
+    if (!cid) { topicsSkipped++; continue; }
+    const tKey = `${cid}:${r.topic.toLowerCase()}`;
+    if (existingTopicKeys.has(tKey) || seenTopicKeys.has(tKey)) { topicsSkipped++; continue; }
+    seenTopicKeys.add(tKey);
+    topicRows.push({
+      chapter_id: cid, title: r.topic, description: r.description?.trim() || null,
+      telegram_link: r.telegram_link?.trim() || null, order_index: topicRows.length + 1,
+      allowed_roles: ["student", "admin", "super_admin"], is_creator_only: false, is_active: true,
+    });
+  }
+
+  if (topicRows.length > 0) {
+    const { error: err } = await supabase.from("topics").insert(topicRows);
+    if (err) { res.status(500).json({ error: `Failed to create topics: ${err.message}` }); return; }
+  }
+
+  await writeAuditLog(req.user!.id, "bulk_hierarchy_import", "hierarchy", "bulk", {
+    subjects_created: subjectsCreated, chapters_created: chaptersCreated,
+    topics_created: topicRows.length, topics_skipped: topicsSkipped,
+  });
+
+  res.json({
+    message: "Import complete.",
+    subjects_created: subjectsCreated, chapters_created: chaptersCreated,
+    topics_created: topicRows.length, topics_skipped: topicsSkipped,
+    errors,
+  });
+});
+
 // ── Bulk quiz import ──────────────────────────────────────────────────────────
 router.post("/admin/quizzes/bulk-import", requireAdmin, async (req: AuthRequest, res) => {
   const { quizzes } = req.body as {
