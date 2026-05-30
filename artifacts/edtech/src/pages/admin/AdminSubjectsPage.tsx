@@ -741,49 +741,16 @@ function ContentBulkImportDialog({ open, onClose, onImported }: {
               </div>
             ) : (
               <>
-                <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-3 text-sm">
-                  <div className="flex items-start justify-between gap-3 flex-wrap">
-                    <p className="font-medium">File format — Subjects</p>
-                    <Button variant="outline" size="sm" className="gap-1.5 shrink-0" onClick={() => dlCsv(SUBJECT_CSV_TEMPLATE, "subject_import_template.csv")}>
-                      <Download className="w-3.5 h-3.5" /> Download CSV Template
-                    </Button>
-                  </div>
-                  <div className="overflow-x-auto rounded-md border border-border">
-                    <table className="w-full text-xs">
-                      <thead className="bg-muted/60">
-                        <tr>
-                          <th className="px-3 py-1.5 text-left font-medium whitespace-nowrap">Column</th>
-                          <th className="px-3 py-1.5 text-left font-medium whitespace-nowrap">Required</th>
-                          <th className="px-3 py-1.5 text-left font-medium whitespace-nowrap">Description</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border">
-                        <tr><td className="px-3 py-1.5 font-mono text-primary">subject_name</td><td className="px-3 py-1.5 text-success font-medium">Yes</td><td className="px-3 py-1.5 text-muted-foreground">Unique subject title (e.g. Physics)</td></tr>
-                        <tr><td className="px-3 py-1.5 font-mono text-muted-foreground">description</td><td className="px-3 py-1.5 text-muted-foreground">No</td><td className="px-3 py-1.5 text-muted-foreground">Short description shown to students</td></tr>
-                        <tr><td className="px-3 py-1.5 font-mono text-muted-foreground">display_order</td><td className="px-3 py-1.5 text-muted-foreground">No</td><td className="px-3 py-1.5 text-muted-foreground">Number controlling sort order (default: 0)</td></tr>
-                      </tbody>
-                    </table>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1.5 font-medium">Example rows:</p>
-                    <div className="overflow-x-auto rounded-md border border-border">
-                      <table className="w-full text-xs font-mono">
-                        <thead className="bg-muted/60">
-                          <tr>
-                            <th className="px-3 py-1.5 text-left text-muted-foreground font-normal">subject_name</th>
-                            <th className="px-3 py-1.5 text-left text-muted-foreground font-normal">description</th>
-                            <th className="px-3 py-1.5 text-left text-muted-foreground font-normal">display_order</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
-                          <tr className="hover:bg-muted/20"><td className="px-3 py-1.5">Physics</td><td className="px-3 py-1.5 text-muted-foreground">Study of matter and forces</td><td className="px-3 py-1.5 text-muted-foreground">1</td></tr>
-                          <tr className="hover:bg-muted/20"><td className="px-3 py-1.5">Chemistry</td><td className="px-3 py-1.5 text-muted-foreground">Study of elements and reactions</td><td className="px-3 py-1.5 text-muted-foreground">2</td></tr>
-                          <tr className="hover:bg-muted/20"><td className="px-3 py-1.5">Mathematics</td><td className="px-3 py-1.5 text-muted-foreground"></td><td className="px-3 py-1.5 text-muted-foreground">3</td></tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground">Duplicates skipped. Max 500 rows.</p>
+                <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-2 text-sm">
+                  <p className="font-medium">File format</p>
+                  <p className="text-muted-foreground text-xs">
+                    Required: <span className="font-mono text-foreground">subject_name</span>.
+                    Optional: <span className="font-mono text-foreground">description</span>, <span className="font-mono text-foreground">display_order</span>.
+                    Duplicates skipped. Max 500 rows.
+                  </p>
+                  <Button variant="outline" size="sm" className="gap-1.5" onClick={() => dlCsv(SUBJECT_CSV_TEMPLATE, "subject_import_template.csv")}>
+                    <Download className="w-3.5 h-3.5" /> Download CSV Template
+                  </Button>
                 </div>
                 <UploadArea fileRef={sRef} onFile={handleSFile} />
                 <textarea rows={4} value={sCsv} onChange={e => handleSCsv(e.target.value)} placeholder={SUBJECT_CSV_TEMPLATE}
@@ -846,51 +813,16 @@ function ContentBulkImportDialog({ open, onClose, onImported }: {
               </div>
             ) : (
               <>
-                <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-3 text-sm">
-                  <div className="flex items-start justify-between gap-3 flex-wrap">
-                    <p className="font-medium">File format — Chapters</p>
-                    <Button variant="outline" size="sm" className="gap-1.5 shrink-0" onClick={() => dlCsv(CHAPTER_CSV_TEMPLATE, "chapter_import_template.csv")}>
-                      <Download className="w-3.5 h-3.5" /> Download CSV Template
-                    </Button>
-                  </div>
-                  <div className="overflow-x-auto rounded-md border border-border">
-                    <table className="w-full text-xs">
-                      <thead className="bg-muted/60">
-                        <tr>
-                          <th className="px-3 py-1.5 text-left font-medium whitespace-nowrap">Column</th>
-                          <th className="px-3 py-1.5 text-left font-medium whitespace-nowrap">Required</th>
-                          <th className="px-3 py-1.5 text-left font-medium whitespace-nowrap">Description</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border">
-                        <tr><td className="px-3 py-1.5 font-mono text-primary">subject_name</td><td className="px-3 py-1.5 text-success font-medium">Yes</td><td className="px-3 py-1.5 text-muted-foreground">Must match an existing subject exactly</td></tr>
-                        <tr><td className="px-3 py-1.5 font-mono text-primary">chapter_name</td><td className="px-3 py-1.5 text-success font-medium">Yes</td><td className="px-3 py-1.5 text-muted-foreground">Chapter title (unique within its subject)</td></tr>
-                        <tr><td className="px-3 py-1.5 font-mono text-muted-foreground">description</td><td className="px-3 py-1.5 text-muted-foreground">No</td><td className="px-3 py-1.5 text-muted-foreground">Short description shown to students</td></tr>
-                        <tr><td className="px-3 py-1.5 font-mono text-muted-foreground">display_order</td><td className="px-3 py-1.5 text-muted-foreground">No</td><td className="px-3 py-1.5 text-muted-foreground">Number controlling sort order (default: 0)</td></tr>
-                      </tbody>
-                    </table>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1.5 font-medium">Example rows:</p>
-                    <div className="overflow-x-auto rounded-md border border-border">
-                      <table className="w-full text-xs font-mono">
-                        <thead className="bg-muted/60">
-                          <tr>
-                            <th className="px-3 py-1.5 text-left text-muted-foreground font-normal">subject_name</th>
-                            <th className="px-3 py-1.5 text-left text-muted-foreground font-normal">chapter_name</th>
-                            <th className="px-3 py-1.5 text-left text-muted-foreground font-normal">description</th>
-                            <th className="px-3 py-1.5 text-left text-muted-foreground font-normal">display_order</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
-                          <tr className="hover:bg-muted/20"><td className="px-3 py-1.5">Physics</td><td className="px-3 py-1.5">Mechanics</td><td className="px-3 py-1.5 text-muted-foreground">Laws of motion and forces</td><td className="px-3 py-1.5 text-muted-foreground">1</td></tr>
-                          <tr className="hover:bg-muted/20"><td className="px-3 py-1.5">Physics</td><td className="px-3 py-1.5">Thermodynamics</td><td className="px-3 py-1.5 text-muted-foreground"></td><td className="px-3 py-1.5 text-muted-foreground">2</td></tr>
-                          <tr className="hover:bg-muted/20"><td className="px-3 py-1.5">Mathematics</td><td className="px-3 py-1.5">Calculus</td><td className="px-3 py-1.5 text-muted-foreground">Differentiation and integration</td><td className="px-3 py-1.5 text-muted-foreground">1</td></tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground">Subject must already exist. Duplicates skipped. Max 500 rows.</p>
+                <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-2 text-sm">
+                  <p className="font-medium">File format</p>
+                  <p className="text-muted-foreground text-xs">
+                    Required: <span className="font-mono text-foreground">subject_name</span>, <span className="font-mono text-foreground">chapter_name</span>.
+                    Optional: <span className="font-mono text-foreground">description</span>, <span className="font-mono text-foreground">display_order</span>.
+                    Subject must already exist. Duplicates skipped. Max 500 rows.
+                  </p>
+                  <Button variant="outline" size="sm" className="gap-1.5" onClick={() => dlCsv(CHAPTER_CSV_TEMPLATE, "chapter_import_template.csv")}>
+                    <Download className="w-3.5 h-3.5" /> Download CSV Template
+                  </Button>
                 </div>
                 <UploadArea fileRef={cRef} onFile={handleCFile} />
                 <textarea rows={4} value={cCsv} onChange={e => handleCCsv(e.target.value)} placeholder={CHAPTER_CSV_TEMPLATE}
@@ -954,52 +886,16 @@ function ContentBulkImportDialog({ open, onClose, onImported }: {
               </div>
             ) : (
               <>
-                <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-3 text-sm">
-                  <div className="flex items-start justify-between gap-3 flex-wrap">
-                    <p className="font-medium">File format — Topics</p>
-                    <Button variant="outline" size="sm" className="gap-1.5 shrink-0" onClick={() => dlCsv(TOPIC_CSV_TEMPLATE, "topic_import_template.csv")}>
-                      <Download className="w-3.5 h-3.5" /> Download CSV Template
-                    </Button>
-                  </div>
-                  <div className="overflow-x-auto rounded-md border border-border">
-                    <table className="w-full text-xs">
-                      <thead className="bg-muted/60">
-                        <tr>
-                          <th className="px-3 py-1.5 text-left font-medium whitespace-nowrap">Column</th>
-                          <th className="px-3 py-1.5 text-left font-medium whitespace-nowrap">Required</th>
-                          <th className="px-3 py-1.5 text-left font-medium whitespace-nowrap">Description</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border">
-                        <tr><td className="px-3 py-1.5 font-mono text-primary">subject_name</td><td className="px-3 py-1.5 text-success font-medium">Yes</td><td className="px-3 py-1.5 text-muted-foreground">Must match an existing subject exactly</td></tr>
-                        <tr><td className="px-3 py-1.5 font-mono text-primary">chapter_name</td><td className="px-3 py-1.5 text-success font-medium">Yes</td><td className="px-3 py-1.5 text-muted-foreground">Must match an existing chapter under that subject</td></tr>
-                        <tr><td className="px-3 py-1.5 font-mono text-primary">topic_name</td><td className="px-3 py-1.5 text-success font-medium">Yes</td><td className="px-3 py-1.5 text-muted-foreground">Topic title (unique within its chapter)</td></tr>
-                        <tr><td className="px-3 py-1.5 font-mono text-muted-foreground">description</td><td className="px-3 py-1.5 text-muted-foreground">No</td><td className="px-3 py-1.5 text-muted-foreground">Short description shown to students</td></tr>
-                        <tr><td className="px-3 py-1.5 font-mono text-muted-foreground">display_order</td><td className="px-3 py-1.5 text-muted-foreground">No</td><td className="px-3 py-1.5 text-muted-foreground">Number controlling sort order (default: 0)</td></tr>
-                      </tbody>
-                    </table>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1.5 font-medium">Example rows:</p>
-                    <div className="overflow-x-auto rounded-md border border-border">
-                      <table className="w-full text-xs font-mono">
-                        <thead className="bg-muted/60">
-                          <tr>
-                            <th className="px-3 py-1.5 text-left text-muted-foreground font-normal">subject_name</th>
-                            <th className="px-3 py-1.5 text-left text-muted-foreground font-normal">chapter_name</th>
-                            <th className="px-3 py-1.5 text-left text-muted-foreground font-normal">topic_name</th>
-                            <th className="px-3 py-1.5 text-left text-muted-foreground font-normal">display_order</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
-                          <tr className="hover:bg-muted/20"><td className="px-3 py-1.5">Physics</td><td className="px-3 py-1.5">Mechanics</td><td className="px-3 py-1.5">Newton's Laws</td><td className="px-3 py-1.5 text-muted-foreground">1</td></tr>
-                          <tr className="hover:bg-muted/20"><td className="px-3 py-1.5">Physics</td><td className="px-3 py-1.5">Mechanics</td><td className="px-3 py-1.5">Work Energy Power</td><td className="px-3 py-1.5 text-muted-foreground">2</td></tr>
-                          <tr className="hover:bg-muted/20"><td className="px-3 py-1.5">Physics</td><td className="px-3 py-1.5">Thermodynamics</td><td className="px-3 py-1.5">Heat Transfer</td><td className="px-3 py-1.5 text-muted-foreground">1</td></tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground">Subject and Chapter must already exist. Max 1000 rows.</p>
+                <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-2 text-sm">
+                  <p className="font-medium">File format</p>
+                  <p className="text-muted-foreground text-xs">
+                    Required: <span className="font-mono text-foreground">subject_name</span>, <span className="font-mono text-foreground">chapter_name</span>, <span className="font-mono text-foreground">topic_name</span>.
+                    Optional: <span className="font-mono text-foreground">description</span>, <span className="font-mono text-foreground">display_order</span>.
+                    Subject and Chapter must already exist. Max 1000 rows.
+                  </p>
+                  <Button variant="outline" size="sm" className="gap-1.5" onClick={() => dlCsv(TOPIC_CSV_TEMPLATE, "topic_import_template.csv")}>
+                    <Download className="w-3.5 h-3.5" /> Download CSV Template
+                  </Button>
                 </div>
                 <UploadArea fileRef={tRef} onFile={handleTFile} />
                 <textarea rows={4} value={tCsv} onChange={e => handleTCsv(e.target.value)} placeholder={TOPIC_CSV_TEMPLATE}
@@ -1067,55 +963,20 @@ function ContentBulkImportDialog({ open, onClose, onImported }: {
               </div>
             ) : (
               <>
-                <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-3 text-sm">
-                  <div className="flex items-start justify-between gap-3 flex-wrap">
-                    <div>
-                      <p className="font-medium text-primary">Recommended: Full Hierarchy Import</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">Creates subjects, chapters, and topics in one pass. Missing entries are auto-created; existing ones are safely skipped.</p>
-                    </div>
-                    <Button variant="outline" size="sm" className="gap-1.5 shrink-0" onClick={() => dlCsv(HIERARCHY_CSV_TEMPLATE, "hierarchy_import_template.csv")}>
-                      <Download className="w-3.5 h-3.5" /> Download CSV Template
-                    </Button>
-                  </div>
-                  <div className="overflow-x-auto rounded-md border border-primary/20">
-                    <table className="w-full text-xs">
-                      <thead className="bg-primary/10">
-                        <tr>
-                          <th className="px-3 py-1.5 text-left font-medium whitespace-nowrap">Column</th>
-                          <th className="px-3 py-1.5 text-left font-medium whitespace-nowrap">Required</th>
-                          <th className="px-3 py-1.5 text-left font-medium whitespace-nowrap">Description</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border">
-                        <tr><td className="px-3 py-1.5 font-mono text-primary">subject</td><td className="px-3 py-1.5 text-success font-medium">Yes</td><td className="px-3 py-1.5 text-muted-foreground">Subject name — created automatically if missing</td></tr>
-                        <tr><td className="px-3 py-1.5 font-mono text-primary">chapter</td><td className="px-3 py-1.5 text-success font-medium">Yes</td><td className="px-3 py-1.5 text-muted-foreground">Chapter name — created under subject if missing</td></tr>
-                        <tr><td className="px-3 py-1.5 font-mono text-primary">topic</td><td className="px-3 py-1.5 text-success font-medium">Yes</td><td className="px-3 py-1.5 text-muted-foreground">Topic name — created under chapter if missing</td></tr>
-                        <tr><td className="px-3 py-1.5 font-mono text-muted-foreground">description</td><td className="px-3 py-1.5 text-muted-foreground">No</td><td className="px-3 py-1.5 text-muted-foreground">Topic description shown to students</td></tr>
-                      </tbody>
-                    </table>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1.5 font-medium">Example rows:</p>
-                    <div className="overflow-x-auto rounded-md border border-primary/20">
-                      <table className="w-full text-xs font-mono">
-                        <thead className="bg-primary/10">
-                          <tr>
-                            <th className="px-3 py-1.5 text-left text-muted-foreground font-normal">subject</th>
-                            <th className="px-3 py-1.5 text-left text-muted-foreground font-normal">chapter</th>
-                            <th className="px-3 py-1.5 text-left text-muted-foreground font-normal">topic</th>
-                            <th className="px-3 py-1.5 text-left text-muted-foreground font-normal">description</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
-                          <tr className="hover:bg-primary/5"><td className="px-3 py-1.5">Physics</td><td className="px-3 py-1.5">Mechanics</td><td className="px-3 py-1.5">Newton's Laws</td><td className="px-3 py-1.5 text-muted-foreground">Forces and motion</td></tr>
-                          <tr className="hover:bg-primary/5"><td className="px-3 py-1.5">Physics</td><td className="px-3 py-1.5">Mechanics</td><td className="px-3 py-1.5">Friction</td><td className="px-3 py-1.5 text-muted-foreground"></td></tr>
-                          <tr className="hover:bg-primary/5"><td className="px-3 py-1.5">Physics</td><td className="px-3 py-1.5">Thermodynamics</td><td className="px-3 py-1.5">Heat Transfer</td><td className="px-3 py-1.5 text-muted-foreground"></td></tr>
-                          <tr className="hover:bg-primary/5"><td className="px-3 py-1.5">Chemistry</td><td className="px-3 py-1.5">Organic</td><td className="px-3 py-1.5">Hydrocarbons</td><td className="px-3 py-1.5 text-muted-foreground"></td></tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground">Max 1000 rows. No duplicates created.</p>
+                <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-2 text-sm">
+                  <p className="font-medium text-primary">Recommended: Full Hierarchy Import</p>
+                  <p className="text-muted-foreground text-xs">
+                    Import subjects, chapters, and topics all at once. The system automatically creates subjects and chapters that don't exist yet,
+                    then creates topics under the correct chapters. Existing entries are safely skipped — no duplicates created.
+                    Max 1000 rows.
+                  </p>
+                  <p className="text-muted-foreground text-xs">
+                    Required columns: <span className="font-mono text-foreground">subject</span>, <span className="font-mono text-foreground">chapter</span>, <span className="font-mono text-foreground">topic</span>.
+                    Optional: <span className="font-mono text-foreground">description</span>.
+                  </p>
+                  <Button variant="outline" size="sm" className="gap-1.5" onClick={() => dlCsv(HIERARCHY_CSV_TEMPLATE, "hierarchy_import_template.csv")}>
+                    <Download className="w-3.5 h-3.5" /> Download CSV Template
+                  </Button>
                 </div>
                 <UploadArea fileRef={hRef} onFile={handleHFile} />
                 <textarea rows={5} value={hCsv} onChange={e => handleHCsv(e.target.value)} placeholder={HIERARCHY_CSV_TEMPLATE}
