@@ -44,6 +44,16 @@ router.patch("/notifications/read-all", requireAuth, async (req: AuthRequest, re
   res.json({ message: "All marked as read" });
 });
 
+router.delete("/notifications/:notifId", requireAuth, async (req: AuthRequest, res) => {
+  const { error } = await supabase
+    .from("notifications")
+    .delete()
+    .eq("id", req.params["notifId"] as string)
+    .eq("user_id", req.user!.id);
+  if (error) { res.status(500).json({ error: error.message }); return; }
+  res.status(204).send();
+});
+
 export async function createNotification(
   userId: string,
   title: string,

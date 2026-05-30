@@ -64,7 +64,7 @@ export function NotificationBell() {
   const dropdownRef                   = useRef<HTMLDivElement>(null);
   const push                          = usePushNotifications();
 
-  const { notifications, unreadCount, loading, refresh, markRead, markAllRead } =
+  const { notifications, unreadCount, loading, refresh, markRead, markAllRead, deleteNotif } =
     useNotificationStore();
 
   // ── Notification preferences ────────────────────────────────────────────────
@@ -366,7 +366,7 @@ export function NotificationBell() {
                       key={n.id}
                       onClick={() => { if (!n.is_read) markRead(n.id); }}
                       className={cn(
-                        "flex gap-3 px-4 py-3 border-b border-border last:border-0 cursor-pointer hover:bg-muted/40 transition-colors",
+                        "group flex gap-3 px-4 py-3 border-b border-border last:border-0 cursor-pointer hover:bg-muted/40 transition-colors",
                         !n.is_read && "bg-primary/5"
                       )}
                     >
@@ -378,9 +378,19 @@ export function NotificationBell() {
                           {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
                         </p>
                       </div>
-                      {!n.is_read && (
-                        <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-1.5" />
-                      )}
+                      <div className="flex flex-col items-end gap-1.5 shrink-0">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); deleteNotif(n.id); }}
+                          className="p-0.5 rounded text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                          aria-label="Delete notification"
+                          title="Delete notification"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                        {!n.is_read && (
+                          <div className="w-2 h-2 rounded-full bg-primary mt-0.5" />
+                        )}
+                      </div>
                     </div>
                   ))
                 )}

@@ -20,6 +20,7 @@ interface NotificationStore {
   refresh: () => Promise<void>;
   markRead: (id: string) => Promise<void>;
   markAllRead: () => Promise<void>;
+  deleteNotif: (id: string) => Promise<void>;
 }
 
 // Module-level singletons — live outside Zustand state so they never
@@ -143,5 +144,23 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
     try {
       await apiFetch("/notifications/read-all", { method: "PATCH" });
     } catch {}
+  },
+
+  deleteNotif: async (id) => {
+    // Optimistic removal — UI responds instantly
+    set((state) => {
+      const target = state.notifications.find((n) => n.id === id);
+      return {
+        notifications: state.notifications.filter((n) => n.id !== id),
+        unreadCount: target && !target.is_read
+          ? Math.max(0, state.unreadCount - 1)
+          : state.unreadCount,
+      };
+    });
+    try {
+      await apiFetch(`/notifications/${id}`, { method: "DELETE" });
+    } catch {
+      // Best-effort — optimistic removal is kept; a refresh will reconcile
+    }
   },
 }));

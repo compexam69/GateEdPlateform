@@ -951,3 +951,20 @@ create index if not exists idx_subjects_is_creator_only
 -- drop policy if exists "chapters_read" on chapters;
 -- create policy "subjects_read" on subjects for select using (auth.role() = 'authenticated');
 -- create policy "chapters_read" on chapters for select using (auth.role() = 'authenticated');
+
+-- ============================================================
+-- SECTION 25: Notification Delete RLS Policy
+-- ============================================================
+-- Allows users to permanently delete their own notifications.
+-- Run in Supabase SQL Editor.
+-- ============================================================
+
+-- 1. Add DELETE policy (users can only delete rows they own)
+drop policy if exists "notifications_delete" on notifications;
+create policy "notifications_delete" on notifications
+  for delete using (user_id = auth.uid());
+
+-- ============================================================
+-- SECTION 25 ROLLBACK (keep commented unless needed):
+-- ============================================================
+-- drop policy if exists "notifications_delete" on notifications;
