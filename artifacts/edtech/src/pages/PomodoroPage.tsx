@@ -2,9 +2,10 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { RotateCcw, Coffee, Brain, Clock, Tag, X, Trophy, Settings } from "lucide-react";
+import { RotateCcw, Coffee, Brain, Clock, Tag, X, Trophy, Settings, History } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { getPomodoroStats, getGetPomodoroStatsUrl } from "@workspace/api-client-react";
+import { getPomodoroStats, getGetPomodoroStatsUrl, getPomodoroSessions, getGetPomodoroSessionsUrl } from "@workspace/api-client-react";
+import { formatDistanceToNow } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
@@ -60,8 +61,20 @@ export default function PomodoroPage() {
     refetchInterval: 30000,
   });
 
+  const { data: sessions = [], refetch: refetchSessions } = useQuery({
+    queryKey: [getGetPomodoroSessionsUrl()],
+    queryFn: () => getPomodoroSessions(),
+    refetchInterval: 60000,
+  });
+
+  // Sorted newest-first, capped at 5
+  const recentSessions = [...sessions]
+    .sort((a, b) => new Date(b.end_time).getTime() - new Date(a.end_time).getTime())
+    .slice(0, 5);
+
   useEffect(() => {
     refetchStats();
+    refetchSessions();
   }, [store.sessionCount]);
 
   const { data: topicOptions = [] } = useQuery<TopicOption[]>({
@@ -233,7 +246,7 @@ export default function PomodoroPage() {
             */}
             <div
               className="relative flex items-center justify-center md:w-56 md:h-56"
-              style={{ width: "min(42vw, 190px)", height: "min(42vw, 190px)" }}
+              style={{ width: "min(38vw, 175px)", height: "min(38vw, 175px)" }}
             >
               <svg
                 className="w-full h-full transform -rotate-90 absolute inset-0"
@@ -328,27 +341,74 @@ export default function PomodoroPage() {
             </Card>
           </div>
 
-          {/* Focus Master badge — only when streak ≥ 7 */}
+          {/* Focus Master badge — compact pill on mobile, full card on desktop */}
           {streakDays >= 7 && (
-            <Card className="bg-warning/5 border-warning/30">
-              <CardContent className="p-2.5 md:p-4 flex items-center gap-2.5 md:gap-3">
-                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-warning/20 flex items-center justify-center shrink-0">
-                  <Trophy className="w-4 h-4 md:w-5 md:h-5 text-warning" />
-                </div>
-                <div>
-                  <p className="font-semibold text-xs md:text-sm text-warning">Focus Master</p>
-                  <p className="text-[10px] md:text-xs text-muted-foreground">
-                    {streakDays}-day streak. Outstanding dedication!
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            <>
+              {/* Mobile: single-line pill to save vertical space */}
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-warning/10 border border-warning/25 md:hidden">
+                <Trophy className="w-3 h-3 text-warning shrink-0" />
+                <span className="text-[11px] font-semibold text-warning">{streakDays}-day streak</span>
+                <span className="text-[10px] text-muted-foreground">· Focus Master</span>
+              </div>
+              {/* Desktop: full card */}
+              <Card className="hidden md:block bg-warning/5 border-warning/30">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-warning/20 flex items-center justify-center shrink-0">
+                    <Trophy className="w-5 h-5 text-warning" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm text-warning">Focus Master</p>
+                    <p className="text-xs text-muted-foreground">
+                      {streakDays}-day streak. Outstanding dedication!
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
           )}
 
-          {/* Focus tip — visible on desktop; on mobile shown only in focus mode when streak < 7 to save space */}
+          {/* Session history — mobile: last 3, desktop: last 5 */}
+          <Card className="bg-card">
+            <CardContent className="p-2.5 md:p-3">
+              <div className="flex items-center gap-1.5 mb-2">
+                <History className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider md:text-xs">
+                  Recent Sessions
+                </span>
+              </div>
+              {recentSessions.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-1.5">
+                  No sessions recorded yet
+                </p>
+              ) : (
+                <div className="space-y-1.5">
+                  {recentSessions.map((s, i) => (
+                    <div
+                      key={s.id}
+                      className={`flex items-center justify-between gap-2 min-w-0 ${i >= 3 ? "hidden md:flex" : ""}`}
+                    >
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="font-mono text-xs font-bold text-primary tabular-nums shrink-0">
+                          {Math.round(s.duration_seconds / 60)}m
+                        </span>
+                        <span className="text-[11px] text-muted-foreground truncate">
+                          {s.topic_context ?? "Free focus"}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-muted-foreground/70 shrink-0 whitespace-nowrap">
+                        {formatDistanceToNow(new Date(s.end_time), { addSuffix: true })}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Focus tip — desktop only; replaced on mobile by session history */}
           {mode === "focus" && (
-            <Card className={`bg-card/50 border-dashed ${streakDays >= 7 ? "hidden md:block" : ""}`}>
-              <CardContent className="p-2.5 md:p-4">
+            <Card className="hidden md:block bg-card/50 border-dashed">
+              <CardContent className="p-4">
                 <div className="flex items-start gap-2">
                   <Clock className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
                   <p className="text-xs text-muted-foreground leading-relaxed">
