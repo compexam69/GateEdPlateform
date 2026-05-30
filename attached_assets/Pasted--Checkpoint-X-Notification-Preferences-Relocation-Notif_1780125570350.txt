@@ -1,0 +1,403 @@
+🟢 Checkpoint X: Notification Preferences Relocation & Notification Settings Architecture Refactor
+
+Goal:
+
+Refactor the Notification Settings architecture by moving all Notification Preference controls from the Profile module into the Notifications module, making them accessible exclusively through the ⚙️ (Gear/Settings) button within the Notifications section while preserving all existing notification functionality, user preferences, permissions, and delivery behavior.
+
+Context:
+
+Currently, Notification Preferences are located inside the Profile module.
+
+This creates several UX and architectural issues:
+
+* Notification-related settings are separated from the actual Notifications module.
+* Users must navigate to Profile Settings to manage notification preferences.
+* Notification management is fragmented across different areas of the application.
+* The Notification section contains a Settings (⚙️) button but does not act as the central location for notification configuration.
+
+The platform requires a more intuitive and centralized notification management experience.
+
+New Requirement:
+
+Move all Notification Preference settings currently located in the Profile module into the Notifications section.
+
+Users should manage notification settings through:
+
+Notifications
+→ ⚙️ Settings Button
+→ Notification Preferences
+
+Important Requirements:
+
+* Remove Notification Preferences from the Profile module.
+* Notification Preferences must only be managed through the Notifications section.
+* Existing preference values must remain intact.
+* No user settings should be lost during migration.
+* Existing notification delivery logic must remain unchanged.
+
+Instructions:
+
+1. Analyze Existing Notification Architecture
+
+Review:
+
+* Profile module
+* Notification module
+* Notification Settings UI
+* Notification Preference storage
+* Database schema
+* User preference APIs
+* Notification delivery system
+* Push notification system
+* Email notification system
+* In-app notification system
+* Existing permission logic
+* Existing settings management architecture
+
+Identify:
+
+* Where notification preferences are currently rendered
+* How preferences are stored
+* Which APIs manage notification settings
+* Existing dependencies on Profile module
+* Potential migration risks
+
+2. Analyze Existing Preference Types
+
+Review all available notification preferences.
+
+Examples may include:
+
+* Push notifications
+* Email notifications
+* System notifications
+* Content notifications
+* Exam notifications
+* Announcement notifications
+* Marketing notifications
+* Reminder notifications
+
+Identify:
+
+* Which preferences exist
+* Default values
+* Storage format
+* Dependencies
+
+Document:
+
+* Existing behavior
+* Expected post-migration behavior
+
+3. Refactor Notification Settings Location
+
+Move Notification Preferences from:
+
+Profile
+→ Notification Preferences
+
+To:
+
+Notifications
+→ ⚙️ Gear Button
+→ Notification Preferences
+
+Requirements:
+
+* Settings accessible only through Notification module
+* Consistent user experience
+* Clean navigation flow
+* No duplicated settings screens
+
+Ensure:
+
+* Existing settings components are reused where possible
+* No duplicate state management is introduced
+* Existing preference data remains intact
+
+4. Design Notification Settings UI
+
+Implement a dedicated Notification Settings interface.
+
+Requirements:
+
+* Clean modern design
+* Mobile-friendly layout
+* Responsive behavior
+* Accessible controls
+* Consistent styling
+
+Possible layout:
+
+Notifications Page
+
+⚙️ Settings
+
+Inside:
+
+* Push Notifications
+* Email Notifications
+* Content Notifications
+* Exam Notifications
+* Announcements
+* Reminder Settings
+* Other existing notification preferences
+
+Ensure:
+
+* Settings remain easy to understand
+* Existing toggle behavior remains unchanged
+* No layout overflow occurs
+
+5. Update Navigation Flow
+
+Implement:
+
+Notifications
+→ Gear Button
+→ Notification Settings
+
+Ensure:
+
+* Settings open correctly
+* Navigation works consistently
+* Browser history behaves correctly
+* Back navigation works correctly
+
+Handle:
+
+* Direct URL access
+* Page refreshes
+* PWA mode
+* Mobile navigation
+
+6. Remove Notification Preferences from Profile Module
+
+Remove ONLY:
+
+* Notification Preferences section
+* Notification Settings navigation
+* Related UI controls
+
+Do NOT remove:
+
+* User profile settings
+* Account settings
+* Profile image settings
+* Security settings
+* Other profile functionality
+
+Verify:
+
+* No broken links remain
+* No orphaned components remain
+* No unused routes remain
+
+7. Preserve Existing Functionality
+
+Ensure implementation does NOT break:
+
+* Notification delivery
+* Push notifications
+* Email notifications
+* In-app notifications
+* Announcement notifications
+* Notification history
+* Read/unread states
+* Existing user preferences
+* Analytics tracking
+* Mobile/PWA behavior
+
+8. Database & SQL Analysis
+
+Review:
+
+* Notification preference tables
+* User settings tables
+* Preference storage structure
+* Related database functions
+* Existing RLS policies
+
+Determine whether SQL changes are required.
+
+A. If Notification Preferences Are Already Stored Properly
+
+Then:
+
+* No SQL changes required
+
+Explicitly state:
+
+"No SQL Editor changes are required."
+
+B. If Schema Changes Are Required
+
+Provide:
+
+* SQL migration scripts
+* Rollback scripts
+* RLS updates
+* Data migration instructions
+
+Explain:
+
+* Why changes are required
+* Risk level
+* Existing data impact
+
+IMPORTANT:
+
+Do not perform destructive schema changes without migration strategy.
+
+9. API & State Management Review
+
+Review:
+
+* Preference update APIs
+* Preference fetch APIs
+* Notification settings hooks
+* State management logic
+
+Ensure:
+
+* Existing APIs continue functioning
+* No duplicate API requests
+* No stale state issues
+* No preference synchronization issues
+
+10. Error Handling & Edge Cases
+
+Handle:
+
+* Missing preference records
+* Failed settings updates
+* Network failures
+* Partial saves
+* Stale cached preferences
+* Unauthorized access
+* Invalid preference values
+
+Ensure:
+
+* User-friendly error messages
+* Stable UI behavior
+* Proper loading states
+* Proper retry behavior
+
+11. Responsive & Accessibility Validation
+
+Verify functionality on:
+
+* Mobile browsers
+* Tablets
+* Desktop browsers
+* Installed PWA mode
+
+Ensure:
+
+* Touch-friendly controls
+* Proper spacing
+* Keyboard accessibility
+* Screen-reader compatibility
+* No overflow issues
+
+12. Codebase Cleanup
+
+After relocation:
+
+Identify and remove:
+
+* Unused Profile notification components
+* Unused routes
+* Unused imports
+* Dead state management logic
+* Obsolete navigation references
+
+Verify:
+
+* No dead code remains
+* No runtime warnings occur
+
+13. Testing & Validation
+
+Test:
+
+* Opening Notification Settings
+* Updating preferences
+* Saving preferences
+* Notification delivery behavior
+* Push notifications
+* Email notifications
+* Mobile responsiveness
+* Desktop responsiveness
+* PWA mode
+* Browser refresh behavior
+
+Verify:
+
+* Preferences save correctly
+* Existing settings remain preserved
+* Notifications continue functioning
+* No console/runtime errors occur
+
+14. What YOU Need To Do Before Implementation
+
+A. Verify Current Preference Storage
+
+Check:
+
+* Where notification preferences are stored
+* Whether Profile module contains business logic or only UI
+
+B. Backup Existing Settings
+
+Recommended:
+
+* Export notification settings schema
+* Backup preference tables
+* Backup current RLS policies
+
+C. Test Existing Notification Flows
+
+Before migration:
+
+Verify current notification behavior so post-migration comparisons can be made.
+
+15. Final Implementation Report
+
+Provide:
+
+* Files modified
+* Components moved/refactored
+* Navigation updates
+* State management changes
+* API updates
+* SQL changes (if any)
+* Dead code removed
+* Remaining limitations/issues
+
+16. Checkpoint Requirement
+
+After completing and verifying implementation:
+
+Create a proper checkpoint/commit immediately.
+
+Checkpoint Name:
+
+"Notification Preferences Relocation & Notification Settings Refactor"
+
+Ensure implementation is fully stable and production-ready before checkpoint creation.
+
+Acceptance Criteria:
+
+* [ ] Notification Preferences are removed from the Profile module.
+* [ ] Notification Preferences are accessible through Notifications → ⚙️ Settings.
+* [ ] Existing preference values remain preserved.
+* [ ] Existing notification delivery logic remains unchanged.
+* [ ] No duplicate settings screens exist.
+* [ ] Navigation works correctly on mobile, desktop, and PWA environments.
+* [ ] Existing notification functionality remains unaffected.
+* [ ] No dead code remains after relocation.
+* [ ] SQL changes are documented if required, otherwise explicitly stated as unnecessary.
+* [ ] No console/runtime errors occur.
+* [ ] Checkpoint/commit is created after successful implementation and testing.

@@ -4,13 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogOut, User, Eye, EyeOff, CheckCircle, Shield, Pencil, Phone, Bell, Mail, Download, ImagePlus, Trash2, X, ZoomIn } from "lucide-react";
+import { LogOut, User, Eye, EyeOff, CheckCircle, Shield, Pencil, Phone, Mail, Download, ImagePlus, Trash2, X, ZoomIn } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Switch } from "@/components/ui/switch";
 import { PhotoCropModal } from "@/components/PhotoCropModal";
 
 import { apiFetch, getApiBase } from "@/lib/api";
@@ -18,14 +17,6 @@ import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 
 const MOBILE_REGEX = /^(\+91)[\s-]?[6-9]\d{9}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-interface NotifPrefs {
-  daily_plan: boolean;
-  streak: boolean;
-  exam_reminders: boolean;
-}
-
-const DEFAULT_PREFS: NotifPrefs = { daily_plan: true, streak: true, exam_reminders: true };
 
 export default function ProfilePage() {
   const { user, signOut, role } = useAuth();
@@ -243,14 +234,6 @@ export default function ProfilePage() {
 
   // Avatar URL syncing and DB fallback are now handled by useAvatarUrl.
 
-  const rawPrefs = user?.user_metadata?.notification_prefs;
-  const [notifPrefs, setNotifPrefs] = useState<NotifPrefs>({
-    daily_plan: rawPrefs?.daily_plan ?? DEFAULT_PREFS.daily_plan,
-    streak: rawPrefs?.streak ?? DEFAULT_PREFS.streak,
-    exam_reminders: rawPrefs?.exam_reminders ?? DEFAULT_PREFS.exam_reminders,
-  });
-  const [savingPrefs, setSavingPrefs] = useState(false);
-
   // role is read from the profiles table via useAuth (authoritative, not JWT metadata)
   const effectiveRole = role ?? "student";
   const isAdmin = effectiveRole === "admin" || effectiveRole === "super_admin";
@@ -422,28 +405,10 @@ export default function ProfilePage() {
     } finally { setChangingPwd(false); }
   }
 
-  async function handlePrefChange(key: keyof NotifPrefs, value: boolean) {
-    const updated = { ...notifPrefs, [key]: value };
-    setNotifPrefs(updated);
-    setSavingPrefs(true);
-    try {
-      await supabase.auth.updateUser({ data: { notification_prefs: updated } });
-    } catch {
-      setNotifPrefs(notifPrefs);
-      toast({ title: "Failed to save preference", variant: "destructive" });
-    } finally { setSavingPrefs(false); }
-  }
-
   const maskedMobile = user?.user_metadata?.mobile_number || "";
 
   const roleLabel = role === "super_admin" ? "Super Admin" : role === "admin" ? "Admin" : "Student";
   const isEmailVerified = !!(user?.email_confirmed_at);
-
-  const notifOptions: Array<{ key: keyof NotifPrefs; label: string; desc: string }> = [
-    { key: "daily_plan", label: "Daily Study Plan", desc: "Notify when your smart study plan is generated" },
-    { key: "streak", label: "Streak Reminders", desc: "Alert when your focus streak is about to break" },
-    { key: "exam_reminders", label: "Exam Reminders", desc: "Reminders before scheduled tests start" },
-  ];
 
   return (
     <AppLayout>
@@ -714,32 +679,6 @@ export default function ProfilePage() {
             <Button onClick={handleChangePassword} disabled={changingPwd || !currentPwd || !newPwd || !confirmPwd}>
               {changingPwd ? "Updating..." : "Update Password"}
             </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Bell className="w-5 h-5 text-primary" /> Notification Preferences
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              System alerts (account approved, email verification) cannot be disabled.
-            </p>
-            {notifOptions.map(opt => (
-              <div key={opt.key} className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <p className="text-sm font-medium">{opt.label}</p>
-                  <p className="text-xs text-muted-foreground">{opt.desc}</p>
-                </div>
-                <Switch
-                  checked={notifPrefs[opt.key]}
-                  onCheckedChange={v => handlePrefChange(opt.key, v)}
-                  disabled={savingPrefs}
-                />
-              </div>
-            ))}
           </CardContent>
         </Card>
 
