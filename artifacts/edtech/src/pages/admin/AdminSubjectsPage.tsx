@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Edit, Trash2, ChevronDown, ChevronRight, BookOpen, ExternalLink, Info, Link, Eye, Shield, Lock } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Edit, Trash2, ChevronDown, ChevronRight, BookOpen, ExternalLink, Info, Link, Eye, Shield, Lock, Upload, Download, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getSubjects, getGetSubjectsUrl,
@@ -15,9 +16,9 @@ import {
   getTopics, getGetTopicsUrl,
 } from "@workspace/api-client-react";
 import type { Subject, Chapter, Topic } from "@workspace/api-client-react";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/lib/supabase";
 import { apiFetch } from "@/lib/api";
 import { Separator } from "@/components/ui/separator";
@@ -191,6 +192,246 @@ function VisibilitySettings({
   );
 }
 
+// ── Subject bulk import ───────────────────────────────────────────────────────
+
+const SUBJECT_CSV_TEMPLATE = `subject_name,description,display_order
+Physics,Study of matter energy and forces,1
+Chemistry,Study of elements compounds and reactions,2
+Mathematics,Study of numbers equations and proofs,3`;
+
+type ImportSubject = { subject_name: string; description: string; display_order: number };
+type SubjectImportResult = {
+  message: string;
+  imported: number;
+  duplicates: number;
+  failed: number;
+  errors: Array<{ subject_name: string; error: string }>;
+};
+
+function parseSubjectCSV(text: string): ImportSubject[] {
+  const lines = text.trim().split(/\r?\n/).filter(Boolean);
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(",").map(h => h.trim().toLowerCase().replace(/^"|"$/g, ""));
+  const ni = headers.indexOf("subject_name");
+  const di = headers.indexOf("description");
+  const oi = headers.indexOf("display_order");
+  if (ni === -1) throw new Error("CSV must have a 'subject_name' column");
+  return lines.slice(1).map((line, idx) => {
+    const cols = line.split(",").map(c => c.trim().replace(/^"|"$/g, ""));
+    return {
+      subject_name: cols[ni] ?? "",
+      description: di !== -1 ? (cols[di] ?? "") : "",
+      display_order: oi !== -1 ? (parseInt(cols[oi] ?? "", 10) || idx + 1) : idx + 1,
+    };
+  }).filter(s => s.subject_name.trim());
+}
+
+function SubjectImportDialog({ open, onClose, onImported }: {
+  open: boolean;
+  onClose: () => void;
+  onImported: (count: number) => void;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [csv, setCsv] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [preview, setPreview] = useState<ImportSubject[] | null>(null);
+  const [importResult, setImportResult] = useState<SubjectImportResult | null>(null);
+
+  function downloadTemplate() {
+    const blob = new Blob([SUBJECT_CSV_TEMPLATE], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "subject_import_template.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function resetDialog() {
+    setCsv("");
+    setParseError(null);
+    setPreview(null);
+    setImportResult(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setParseError(null);
+    setPreview(null);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      try {
+        const parsed = parseSubjectCSV(text);
+        if (parsed.length === 0) { setParseError("No valid rows found. Check the CSV format."); return; }
+        setCsv(text);
+        setPreview(parsed);
+      } catch (err) { setParseError((err as Error).message); }
+    };
+    reader.readAsText(file);
+  }
+
+  function handleCsvChange(text: string) {
+    setCsv(text);
+    setParseError(null);
+    setPreview(null);
+    if (!text.trim()) return;
+    try {
+      const parsed = parseSubjectCSV(text);
+      if (parsed.length > 0) setPreview(parsed);
+    } catch (err) { setParseError((err as Error).message); }
+  }
+
+  async function handleImport() {
+    if (!preview || preview.length === 0) return;
+    setImporting(true);
+    try {
+      const result = await apiFetch("/admin/subjects/bulk-import", {
+        method: "POST",
+        body: JSON.stringify({
+          subjects: preview.map(s => ({
+            title: s.subject_name,
+            description: s.description || null,
+            order_index: s.display_order,
+          })),
+        }),
+      }) as SubjectImportResult;
+      setImportResult(result);
+    } catch (err) {
+      setParseError((err as Error).message);
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={v => { if (!v) { resetDialog(); onClose(); } }}>
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Upload className="w-5 h-5 text-primary" /> Bulk Import Subjects
+          </DialogTitle>
+        </DialogHeader>
+
+        {importResult ? (
+          <div className="space-y-4 py-2">
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="w-8 h-8 text-success shrink-0" />
+              <div>
+                <p className="font-semibold text-lg">Import Complete</p>
+                <p className="text-sm text-muted-foreground">
+                  <span className="text-success font-medium">{importResult.imported} created</span>
+                  {importResult.duplicates > 0 && <>, <span className="text-warning font-medium">{importResult.duplicates} duplicate{importResult.duplicates !== 1 ? "s" : ""} skipped</span></>}
+                  {importResult.failed > 0 && <>, <span className="text-destructive font-medium">{importResult.failed} failed</span></>}
+                </p>
+              </div>
+            </div>
+            {importResult.errors.length > 0 && (
+              <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-1 max-h-52 overflow-y-auto">
+                <p className="text-xs font-semibold text-destructive uppercase tracking-wider mb-2">Skipped / Failed rows</p>
+                {importResult.errors.map((e, i) => (
+                  <div key={i} className="text-xs flex gap-2">
+                    {e.subject_name && <span className="text-muted-foreground font-medium shrink-0">{e.subject_name}</span>}
+                    <span className="text-destructive">{e.error}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <DialogFooter>
+              <Button onClick={() => { resetDialog(); onImported(importResult.imported); onClose(); }}>Done</Button>
+            </DialogFooter>
+          </div>
+        ) : (
+          <div className="space-y-4 py-1">
+            <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-2 text-sm">
+              <p className="font-medium">File format</p>
+              <p className="text-muted-foreground text-xs">
+                Upload a <span className="font-mono text-foreground">.csv</span> file.
+                Required column: <span className="font-mono text-foreground">subject_name</span>.
+                Optional: <span className="font-mono text-foreground">description</span>, <span className="font-mono text-foreground">display_order</span> (integer).
+                Duplicate subjects are automatically skipped. Maximum 500 rows per import.
+              </p>
+              <Button variant="outline" size="sm" className="gap-1.5 mt-1" onClick={downloadTemplate}>
+                <Download className="w-3.5 h-3.5" /> Download CSV Template
+              </Button>
+            </div>
+
+            <div
+              className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+              <p className="text-sm font-medium">Click to select CSV file</p>
+              <p className="text-xs text-muted-foreground mt-1">or paste below</p>
+              <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={handleFileChange} />
+            </div>
+
+            <div>
+              <textarea
+                rows={4}
+                value={csv}
+                onChange={e => handleCsvChange(e.target.value)}
+                placeholder={SUBJECT_CSV_TEMPLATE}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-mono shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+              />
+            </div>
+
+            {parseError && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{parseError}</span>
+              </div>
+            )}
+
+            {preview && preview.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">{preview.length} subject{preview.length !== 1 ? "s" : ""} ready to import</p>
+                  <Badge variant="outline" className="text-xs">{preview.length} row{preview.length !== 1 ? "s" : ""}</Badge>
+                </div>
+                <div className="border border-border rounded-lg overflow-hidden">
+                  <div className="overflow-x-auto max-h-60 overflow-y-auto">
+                    <table className="w-full text-xs">
+                      <thead className="bg-muted/40 sticky top-0">
+                        <tr>
+                          {["#", "Subject Name", "Description", "Display Order"].map(h => (
+                            <th key={h} className="px-3 py-2 text-left font-medium text-muted-foreground whitespace-nowrap">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {preview.map((s, i) => (
+                          <tr key={i} className="hover:bg-muted/20">
+                            <td className="px-3 py-2 text-muted-foreground">{i + 1}</td>
+                            <td className="px-3 py-2 font-medium truncate max-w-[160px]">{s.subject_name}</td>
+                            <td className="px-3 py-2 text-muted-foreground truncate max-w-[200px]">{s.description || "—"}</td>
+                            <td className="px-3 py-2 text-center text-muted-foreground">{s.display_order}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <DialogFooter className="pt-2">
+                  <Button variant="outline" onClick={() => { resetDialog(); onClose(); }}>Cancel</Button>
+                  <Button disabled={importing} onClick={handleImport}>
+                    {importing
+                      ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Importing…</>
+                      : `Import ${preview.length} Subject${preview.length !== 1 ? "s" : ""}`}
+                  </Button>
+                </DialogFooter>
+              </div>
+            )}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Page component ─────────────────────────────────────────────────────────────
 
 export default function AdminSubjectsPage() {
@@ -200,6 +441,7 @@ export default function AdminSubjectsPage() {
   const [expandedChapters, setExpandedChapters] = useState<Set<string>>(new Set());
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
   const [saving, setSaving] = useState(false);
+  const [importDialog, setImportDialog] = useState(false);
 
   const { data: subjects = [], isLoading } = useQuery({
     queryKey: [getGetSubjectsUrl()],
@@ -355,9 +597,14 @@ export default function AdminSubjectsPage() {
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Content Editor</h1>
             <p className="text-muted-foreground mt-1">Manage subjects, chapters, and topics.</p>
           </div>
-          <Button onClick={() => setEditTarget({ type: "subject", data: { title: "", description: "", visibility_roles: [...ALL_ROLES], is_creator_only: false } })}>
-            <Plus className="w-4 h-4 mr-2" /> Add Subject
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setImportDialog(true)}>
+              <Upload className="w-4 h-4 mr-2" /> Bulk Import
+            </Button>
+            <Button onClick={() => setEditTarget({ type: "subject", data: { title: "", description: "", visibility_roles: [...ALL_ROLES], is_creator_only: false } })}>
+              <Plus className="w-4 h-4 mr-2" /> Add Subject
+            </Button>
+          </div>
         </div>
 
         {isLoading ? (
@@ -537,6 +784,17 @@ export default function AdminSubjectsPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* ── Bulk Import Dialog ── */}
+      <SubjectImportDialog
+        open={importDialog}
+        onClose={() => setImportDialog(false)}
+        onImported={(count) => {
+          setImportDialog(false);
+          queryClient.invalidateQueries({ queryKey: [getGetSubjectsUrl()] });
+          toast({ title: `${count} subject${count !== 1 ? "s" : ""} imported successfully` });
+        }}
+      />
     </AppLayout>
   );
 }

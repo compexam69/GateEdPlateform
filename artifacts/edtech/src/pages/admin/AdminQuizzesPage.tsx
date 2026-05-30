@@ -7,13 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Edit, Trash2, ChevronDown, ChevronRight, QrCode, FileJson, BookOpen, HelpCircle, ExternalLink, FileText, Upload, Eye, Shield } from "lucide-react";
+import { Plus, Edit, Trash2, ChevronDown, ChevronRight, QrCode, FileJson, BookOpen, HelpCircle, ExternalLink, FileText, Upload, Download, AlertCircle, CheckCircle2, Loader2, Eye, Shield } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getSubjects, getGetSubjectsUrl, getChapters, getGetChaptersUrl, getTopics, getGetTopicsUrl } from "@workspace/api-client-react";
 import { supabase } from "@/lib/supabase";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -673,17 +673,46 @@ function parseCsvToQuestions(csv: string): unknown[] {
   });
 }
 
+const QUESTION_CSV_TEMPLATE = `question_text,option_a,option_b,option_c,option_d,correct_answer,explanation,video_solution_url,difficulty
+"What is the SI unit of force?","Joule","Newton","Watt","Pascal","B","Force is measured in Newtons (N).","",2
+"Acceleration due to gravity on Earth is:","9.8 m/s²","8.9 m/s²","","","A","Standard gravity is 9.8 m/s².","",1`;
+
+type QuestionPreviewRow = {
+  valid: boolean;
+  question_text: string;
+  correct_answer: string;
+  difficulty: number;
+  error?: string;
+};
+
+function validateQuestionClient(q: unknown, idx: number): QuestionPreviewRow {
+  const raw = q as Record<string, unknown>;
+  const opts = raw.options as Record<string, string> | undefined;
+  const question_text = typeof raw.question_text === "string" ? raw.question_text.trim() : "";
+  const correct_answer = typeof raw.correct_answer === "string" ? raw.correct_answer.trim().toUpperCase() : "";
+  const difficulty = Math.round(Number(raw.difficulty ?? 3) || 3);
+  const base = { question_text, correct_answer, difficulty };
+  if (!question_text) return { ...base, valid: false, error: `Row ${idx + 1}: Question text is missing` };
+  if (!opts?.A?.trim()) return { ...base, valid: false, error: `Row ${idx + 1}: Option A is required` };
+  if (!opts?.B?.trim()) return { ...base, valid: false, error: `Row ${idx + 1}: Option B is required` };
+  if (!["A", "B", "C", "D"].includes(correct_answer))
+    return { ...base, valid: false, error: `Row ${idx + 1}: Correct answer must be A, B, C, or D (got "${raw.correct_answer}")` };
+  return { ...base, valid: true };
+}
+
 function BulkImportDialog({ open, quizId, onClose, onImported }: {
   open: boolean;
   quizId?: string;
   onClose: () => void;
   onImported: (count: number) => void;
 }) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [json, setJson] = useState("");
   const [csv, setCsv] = useState("");
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState("");
-  const [activeTab, setActiveTab] = useState("json");
+  const [activeTab, setActiveTab] = useState("csv");
+  const [importResult, setImportResult] = useState<{ imported: number; skipped: number; errors: string[] } | null>(null);
 
   const exampleJson = JSON.stringify([
     {
@@ -705,9 +734,28 @@ function BulkImportDialog({ open, quizId, onClose, onImported }: {
     },
   ], null, 2);
 
-  const exampleCsv = `question_text,option_a,option_b,option_c,option_d,correct_answer,explanation,video_solution_url,difficulty
-"What is the SI unit of force?","Joule","Newton","Watt","Pascal","B","Force is measured in Newtons (N).","",2
-"What is the value of g?","9.8 m/s²","8.9 m/s²","","","A","Standard gravity is 9.8 m/s².","https://youtube.com/watch?v=example",1`;
+  const csvParsed = activeTab === "csv" && csv.trim() ? parseCsvToQuestions(csv) : [];
+  const csvValidated: QuestionPreviewRow[] = csvParsed.map((q, i) => validateQuestionClient(q, i));
+  const validCount = csvValidated.filter(r => r.valid).length;
+  const invalidCount = csvValidated.filter(r => !r.valid).length;
+
+  function downloadTemplate() {
+    const blob = new Blob([QUESTION_CSV_TEMPLATE], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "question_import_template.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function resetDialog() {
+    setJson("");
+    setCsv("");
+    setError("");
+    setImportResult(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
 
   async function handleImport() {
     setError("");
@@ -721,8 +769,15 @@ function BulkImportDialog({ open, quizId, onClose, onImported }: {
     }
     setImporting(true);
     try {
-      const result = await apiFetch("/questions/bulk-import", { method: "POST", body: JSON.stringify({ quiz_id: quizId, questions }) }) as { imported?: number };
-      onImported(result.imported ?? questions.length);
+      const result = await apiFetch("/questions/bulk-import", {
+        method: "POST",
+        body: JSON.stringify({ quiz_id: quizId, questions }),
+      }) as { imported?: number; skipped?: number; errors?: string[] };
+      setImportResult({
+        imported: result.imported ?? 0,
+        skipped: result.skipped ?? 0,
+        errors: result.errors ?? [],
+      });
     } catch (e: unknown) {
       setError((e as Error).message);
     } finally {
@@ -738,155 +793,227 @@ function BulkImportDialog({ open, quizId, onClose, onImported }: {
     reader.readAsText(file);
   }
 
-  const inputText = activeTab === "json" ? json : csv;
-
   return (
-    <Dialog open={open} onOpenChange={o => !o && onClose()}>
+    <Dialog open={open} onOpenChange={o => { if (!o) { resetDialog(); onClose(); } }}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Bulk Import Questions</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <Upload className="w-5 h-5 text-primary" /> Bulk Import Questions
+          </DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 pt-2">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList>
-              <TabsTrigger value="json"><FileJson className="w-3.5 h-3.5 mr-1.5" />JSON</TabsTrigger>
-              <TabsTrigger value="csv"><FileText className="w-3.5 h-3.5 mr-1.5" />CSV</TabsTrigger>
-              <TabsTrigger value="format">Format Guide</TabsTrigger>
-            </TabsList>
-            <TabsContent value="json" className="space-y-3 mt-3">
-              <Textarea
-                rows={12}
-                value={json}
-                onChange={e => setJson(e.target.value)}
-                placeholder={exampleJson}
-                className="font-mono text-xs"
-              />
-            </TabsContent>
-            <TabsContent value="csv" className="space-y-3 mt-3">
-              <div className="flex items-center gap-2">
-                <Label htmlFor="csv-file" className="cursor-pointer">
-                  <div className="flex items-center gap-2 px-3 py-2 border border-border rounded-md text-sm hover:bg-muted transition-colors">
-                    <Upload className="w-4 h-4" /> Upload CSV file
-                  </div>
-                </Label>
-                <input id="csv-file" type="file" accept=".csv,text/csv" className="hidden" onChange={handleCsvFile} />
-                <span className="text-xs text-muted-foreground">or paste below</span>
-              </div>
-              <Textarea
-                rows={10}
-                value={csv}
-                onChange={e => setCsv(e.target.value)}
-                placeholder={exampleCsv}
-                className="font-mono text-xs"
-              />
-              {csv && (
-                <p className="text-xs text-muted-foreground">
-                  {parseCsvToQuestions(csv).length} questions detected
+
+        {importResult ? (
+          <div className="space-y-4 py-2">
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="w-8 h-8 text-success shrink-0" />
+              <div>
+                <p className="font-semibold text-lg">Import Complete</p>
+                <p className="text-sm text-muted-foreground">
+                  <span className="text-success font-medium">{importResult.imported} imported</span>
+                  {importResult.skipped > 0 && <>, <span className="text-muted-foreground">{importResult.skipped} skipped</span></>}
+                  {importResult.errors.length > 0 && <>, <span className="text-destructive font-medium">{importResult.errors.length} failed</span></>}
                 </p>
-              )}
-            </TabsContent>
-            <TabsContent value="format" className="mt-3">
-              <div className="space-y-5 text-sm">
-
-                {/* Section 1: File Formats */}
-                <div className="p-3 rounded-lg bg-muted/50 border border-border">
-                  <h4 className="font-semibold mb-2">Supported file formats</h4>
-                  <ul className="space-y-1 text-muted-foreground">
-                    <li><span className="text-primary font-medium">JSON</span> — paste a JSON array directly</li>
-                    <li><span className="text-primary font-medium">CSV</span> — upload a .csv file or paste text (Excel exports to CSV via File → Save As)</li>
-                    <li className="text-xs">XLSX is not directly supported — open in Excel/Sheets and export as CSV first.</li>
-                  </ul>
-                </div>
-
-                {/* Section 2: Fields */}
-                <div>
-                  <h4 className="font-semibold mb-2">Fields reference</h4>
-                  <div className="space-y-1.5">
-                    {[
-                      { name: "question_text / question", req: true, desc: "Full question text. Supports plain text and LaTeX (e.g. $x^2$)." },
-                      { name: "option_a / A", req: true, desc: "Option A text." },
-                      { name: "option_b / B", req: true, desc: "Option B text." },
-                      { name: "option_c / C", req: false, desc: "Option C — leave blank to omit." },
-                      { name: "option_d / D", req: false, desc: "Option D — leave blank to omit." },
-                      { name: "correct_answer / answer", req: true, desc: "Must be exactly A, B, C, or D (uppercase)." },
-                      { name: "explanation", req: false, desc: "Text explanation shown to students after the exam. Can include LaTeX." },
-                      { name: "video_solution_url", req: false, desc: "YouTube URL for video solution. Leave blank for text-only questions." },
-                      { name: "difficulty", req: false, desc: "Integer 1–5 (1 = easiest). Defaults to 3 if omitted." },
-                    ].map(f => (
-                      <div key={f.name} className="flex gap-2 text-xs">
-                        <span className={`shrink-0 w-16 font-medium rounded px-1 py-0.5 text-center ${f.req ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"}`}>
-                          {f.req ? "required" : "optional"}
-                        </span>
-                        <div>
-                          <code className="text-primary">{f.name}</code>
-                          <span className="text-muted-foreground ml-1">— {f.desc}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Section 3: JSON Example */}
-                <div>
-                  <h4 className="font-semibold mb-1">JSON example</h4>
-                  <pre className="text-xs bg-muted p-2 rounded overflow-auto">{exampleJson}</pre>
-                </div>
-
-                {/* Section 4: CSV Example */}
-                <div>
-                  <h4 className="font-semibold mb-1">CSV example</h4>
-                  <p className="text-xs text-muted-foreground mb-1">First row must be the header. Wrap fields containing commas in double-quotes.</p>
-                  <pre className="text-xs bg-muted p-2 rounded overflow-auto">{exampleCsv}</pre>
-                </div>
-
-                {/* Section 5: PDF Workflow */}
-                <div className="p-3 rounded-lg bg-muted/50 border border-border">
-                  <h4 className="font-semibold mb-2">Importing questions from a PDF (step-by-step)</h4>
-                  <ol className="space-y-2 text-muted-foreground list-decimal list-inside text-xs">
-                    <li><strong className="text-foreground">Extract text from the PDF.</strong> Open the PDF and copy-paste questions, or use a free tool like <span className="text-primary">Adobe Acrobat Reader → Edit → Copy</span>, <span className="text-primary">Smallpdf.com</span>, or <span className="text-primary">ilovepdf.com</span> to convert to Word/text first.</li>
-                    <li><strong className="text-foreground">Clean the extracted text.</strong> Remove page numbers, headers, footers, and any non-question text. Ensure each MCQ has a clear question stem and 4 options labeled A/B/C/D.</li>
-                    <li><strong className="text-foreground">Use AI to structure the questions.</strong> Paste the cleaned text into ChatGPT or any AI tool with this prompt: <em className="text-foreground">"Convert these MCQs into a JSON array with fields: question_text, options (A/B/C/D), correct_answer, explanation, difficulty (1-5). Video_solution_url should be empty string."</em></li>
-                    <li><strong className="text-foreground">Review the AI output.</strong> Check that: correct answers match the answer key, LaTeX formulas use $ signs, options C and D are present or properly omitted.</li>
-                    <li><strong className="text-foreground">Paste into JSON tab and import.</strong> The importer validates every row and reports errors for individual questions without failing the entire batch.</li>
-                  </ol>
-                  <div className="mt-3 p-2 rounded bg-destructive/10 border border-destructive/20 text-xs text-muted-foreground">
-                    <strong className="text-foreground">Common mistakes to avoid:</strong>
-                    {" "}correct_answer must be A/B/C/D (not "Option A" or "1"). Options object must use uppercase keys. Don't include markdown formatting in question text. For large sets (&gt;100 questions), split into batches.
-                  </div>
-                </div>
-
-                {/* Section 6: What happens in each scenario */}
-                <div>
-                  <h4 className="font-semibold mb-2">Scenarios</h4>
-                  <div className="space-y-1 text-xs text-muted-foreground">
-                    {[
-                      ["Video URL present", "QR code is auto-generated; students see a Watch Video button and QR code."],
-                      ["Video URL blank", "No QR generated; students see text-only explanation. The Videos tab is hidden."],
-                      ["Explanation blank", "Students see 'No explanation available' placeholder."],
-                      ["Invalid correct_answer", "That row is skipped with an error; the rest still import."],
-                      ["Missing option A or B", "Row is rejected. C and D can be omitted for True/False questions."],
-                      ["Duplicate questions", "Imported as new rows — check manually and delete duplicates if needed."],
-                      ["More than 500 rows", "Batch is rejected. Split into multiple imports of ≤ 500 each."],
-                    ].map(([scenario, outcome]) => (
-                      <div key={scenario} className="flex gap-2">
-                        <span className="shrink-0 text-primary font-medium">{scenario}:</span>
-                        <span>{outcome}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
               </div>
-            </TabsContent>
-          </Tabs>
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          <div className="flex gap-2 justify-end">
-            <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button onClick={handleImport} disabled={importing || !inputText.trim()}>
-              {importing ? "Importing..." : "Import Questions"}
-            </Button>
+            </div>
+            {importResult.errors.length > 0 && (
+              <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-1 max-h-52 overflow-y-auto">
+                <p className="text-xs font-semibold text-destructive uppercase tracking-wider mb-2">Validation errors</p>
+                {importResult.errors.map((e, i) => (
+                  <div key={i} className="text-xs text-destructive">{e}</div>
+                ))}
+              </div>
+            )}
+            <DialogFooter>
+              <Button onClick={() => { resetDialog(); onImported(importResult.imported); onClose(); }}>Done</Button>
+            </DialogFooter>
           </div>
-        </div>
+        ) : (
+          <div className="space-y-4 pt-2">
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList>
+                <TabsTrigger value="csv"><FileText className="w-3.5 h-3.5 mr-1.5" />CSV</TabsTrigger>
+                <TabsTrigger value="json"><FileJson className="w-3.5 h-3.5 mr-1.5" />JSON</TabsTrigger>
+                <TabsTrigger value="format">Format Guide</TabsTrigger>
+              </TabsList>
+
+              {/* ── CSV tab ── */}
+              <TabsContent value="csv" className="space-y-3 mt-3">
+                <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-2 text-sm">
+                  <p className="font-medium">CSV Format</p>
+                  <p className="text-muted-foreground text-xs">
+                    Required: <span className="font-mono text-foreground">question_text</span>, <span className="font-mono text-foreground">option_a</span>, <span className="font-mono text-foreground">option_b</span>, <span className="font-mono text-foreground">correct_answer</span> (A/B/C/D).
+                    Optional: <span className="font-mono text-foreground">option_c</span>, <span className="font-mono text-foreground">option_d</span>, <span className="font-mono text-foreground">explanation</span>, <span className="font-mono text-foreground">video_solution_url</span>, <span className="font-mono text-foreground">difficulty</span> (1–5). Max 500 rows.
+                  </p>
+                  <Button variant="outline" size="sm" className="gap-1.5 mt-1" onClick={downloadTemplate}>
+                    <Download className="w-3.5 h-3.5" /> Download CSV Template
+                  </Button>
+                </div>
+
+                <div
+                  className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-sm font-medium">Click to select CSV file</p>
+                  <p className="text-xs text-muted-foreground mt-1">or paste below</p>
+                  <input ref={fileInputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleCsvFile} />
+                </div>
+
+                <Textarea rows={5} value={csv} onChange={e => setCsv(e.target.value)} placeholder={QUESTION_CSV_TEMPLATE} className="font-mono text-xs" />
+
+                {csvValidated.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-medium">{csvValidated.length} row{csvValidated.length !== 1 ? "s" : ""} parsed</span>
+                      {validCount > 0 && <Badge className="bg-success/15 text-success border-success/25 text-xs">{validCount} valid</Badge>}
+                      {invalidCount > 0 && <Badge variant="destructive" className="text-xs">{invalidCount} invalid</Badge>}
+                    </div>
+                    <div className="border border-border rounded-lg overflow-hidden">
+                      <div className="overflow-x-auto max-h-52 overflow-y-auto">
+                        <table className="w-full text-xs">
+                          <thead className="bg-muted/40 sticky top-0">
+                            <tr>
+                              {["#", "Question", "Answer", "Difficulty", "Status"].map(h => (
+                                <th key={h} className="px-3 py-2 text-left font-medium text-muted-foreground whitespace-nowrap">{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border">
+                            {csvValidated.map((r, i) => (
+                              <tr key={i} className={`hover:bg-muted/20 ${!r.valid ? "bg-destructive/5" : ""}`}>
+                                <td className="px-3 py-2 text-muted-foreground shrink-0">{i + 1}</td>
+                                <td className="px-3 py-2 max-w-[220px] truncate" title={r.question_text}>{r.question_text || "—"}</td>
+                                <td className="px-3 py-2 font-mono font-bold text-primary">{r.correct_answer || "—"}</td>
+                                <td className="px-3 py-2 text-center">{r.difficulty}</td>
+                                <td className="px-3 py-2">
+                                  {r.valid
+                                    ? <Badge className="bg-success/15 text-success border-success/25 text-[10px] px-1.5 py-0">Valid</Badge>
+                                    : <Badge variant="destructive" className="text-[10px] px-1.5 py-0" title={r.error}>Error</Badge>}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    {invalidCount > 0 && (
+                      <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-1 max-h-36 overflow-y-auto">
+                        <p className="text-xs font-semibold text-destructive uppercase tracking-wider mb-1">Errors ({invalidCount})</p>
+                        {csvValidated.filter(r => !r.valid).map((r, i) => (
+                          <div key={i} className="text-xs text-destructive">{r.error}</div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </TabsContent>
+
+              {/* ── JSON tab ── */}
+              <TabsContent value="json" className="space-y-3 mt-3">
+                <Textarea rows={12} value={json} onChange={e => setJson(e.target.value)} placeholder={exampleJson} className="font-mono text-xs" />
+              </TabsContent>
+
+              {/* ── Format Guide tab ── */}
+              <TabsContent value="format" className="mt-3">
+                <div className="space-y-5 text-sm">
+                  <div className="p-3 rounded-lg bg-muted/50 border border-border">
+                    <h4 className="font-semibold mb-2">Supported file formats</h4>
+                    <ul className="space-y-1 text-muted-foreground">
+                      <li><span className="text-primary font-medium">CSV</span> — download the template, fill it in Excel/Sheets, upload or paste.</li>
+                      <li><span className="text-primary font-medium">JSON</span> — paste a JSON array directly in the JSON tab.</li>
+                      <li className="text-xs">XLSX is not directly supported — export as CSV from Excel first (File → Save As → CSV).</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold mb-2">Fields reference</h4>
+                    <div className="space-y-1.5">
+                      {[
+                        { name: "question_text / question", req: true, desc: "Full question text. Supports plain text and LaTeX (e.g. $x^2$)." },
+                        { name: "option_a / A", req: true, desc: "Option A text." },
+                        { name: "option_b / B", req: true, desc: "Option B text." },
+                        { name: "option_c / C", req: false, desc: "Option C — leave blank to omit (for True/False questions)." },
+                        { name: "option_d / D", req: false, desc: "Option D — leave blank to omit." },
+                        { name: "correct_answer / answer", req: true, desc: "Must be exactly A, B, C, or D (uppercase)." },
+                        { name: "explanation", req: false, desc: "Text explanation shown after the exam. Supports LaTeX." },
+                        { name: "video_solution_url", req: false, desc: "YouTube URL for video solution. Leave blank for text-only." },
+                        { name: "difficulty", req: false, desc: "Integer 1–5 (1 = easiest). Defaults to 3 if omitted." },
+                      ].map(f => (
+                        <div key={f.name} className="flex gap-2 text-xs">
+                          <span className={`shrink-0 w-16 font-medium rounded px-1 py-0.5 text-center ${f.req ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"}`}>
+                            {f.req ? "required" : "optional"}
+                          </span>
+                          <div>
+                            <code className="text-primary">{f.name}</code>
+                            <span className="text-muted-foreground ml-1">— {f.desc}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold mb-1">JSON example</h4>
+                    <pre className="text-xs bg-muted p-2 rounded overflow-auto">{exampleJson}</pre>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold mb-1">CSV example</h4>
+                    <p className="text-xs text-muted-foreground mb-1">First row must be the header. Wrap fields containing commas in double-quotes.</p>
+                    <pre className="text-xs bg-muted p-2 rounded overflow-auto">{QUESTION_CSV_TEMPLATE}</pre>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/50 border border-border">
+                    <h4 className="font-semibold mb-2">Importing from a PDF</h4>
+                    <ol className="space-y-1.5 text-muted-foreground list-decimal list-inside text-xs">
+                      <li><strong className="text-foreground">Extract text from the PDF.</strong> Copy-paste questions, or use Smallpdf/ilovepdf to convert to Word/text.</li>
+                      <li><strong className="text-foreground">Clean the extracted text.</strong> Remove page numbers, headers, footers. Each MCQ should have a clear stem and A/B/C/D options.</li>
+                      <li><strong className="text-foreground">Use AI to structure the questions.</strong> Paste into ChatGPT: <em className="text-foreground">"Convert these MCQs into a JSON array with fields: question_text, options (A/B/C/D), correct_answer, explanation, difficulty (1-5)."</em></li>
+                      <li><strong className="text-foreground">Paste into the JSON tab and import.</strong></li>
+                    </ol>
+                    <div className="mt-3 p-2 rounded bg-destructive/10 border border-destructive/20 text-xs text-muted-foreground">
+                      <strong className="text-foreground">Common mistakes:</strong>
+                      {" "}correct_answer must be A/B/C/D (not "Option A"). Options must use uppercase keys. For large sets (&gt;100 questions), split into batches.
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold mb-2">Scenarios</h4>
+                    <div className="space-y-1 text-xs text-muted-foreground">
+                      {[
+                        ["Video URL present", "QR code is auto-generated; students see a Watch Video button and QR code."],
+                        ["Video URL blank", "No QR generated; students see text-only explanation."],
+                        ["Invalid correct_answer", "That row is skipped with an error; the rest still import."],
+                        ["Missing option A or B", "Row is rejected. C and D can be omitted for True/False questions."],
+                        ["Duplicate questions", "Imported as new rows — check manually and delete duplicates if needed."],
+                        ["More than 500 rows", "Batch is rejected. Split into multiple imports of ≤ 500 each."],
+                      ].map(([scenario, outcome]) => (
+                        <div key={scenario} className="flex gap-2">
+                          <span className="shrink-0 text-primary font-medium">{scenario}:</span>
+                          <span>{outcome}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
+
+            {error && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => { resetDialog(); onClose(); }}>Cancel</Button>
+              <Button
+                onClick={handleImport}
+                disabled={importing || (activeTab === "csv" ? !csv.trim() : !json.trim())}
+              >
+                {importing
+                  ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Importing…</>
+                  : "Import Questions"}
+              </Button>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

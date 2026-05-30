@@ -768,6 +768,102 @@ router.post("/admin/users/bulk-import", requireAdmin, async (req: AuthRequest, r
   });
 });
 
+// ── Admin: bulk import subjects (CSV/JSON) ────────────────────────────────────
+router.post("/admin/subjects/bulk-import", requireAdmin, async (req: AuthRequest, res) => {
+  const { subjects } = req.body as {
+    subjects?: Array<{ title: string; description?: string; order_index?: number }>;
+  };
+
+  if (!Array.isArray(subjects) || subjects.length === 0) {
+    res.status(400).json({ error: "subjects array is required and must not be empty." });
+    return;
+  }
+  if (subjects.length > 500) {
+    res.status(400).json({ error: "Maximum 500 subjects per import." });
+    return;
+  }
+
+  const { data: existing } = await supabase
+    .from("subjects")
+    .select("title")
+    .eq("is_active", true);
+  const existingTitles = new Set(
+    (existing ?? []).map((s: { title: string }) => s.title.toLowerCase().trim())
+  );
+
+  const rows: Array<Record<string, unknown>> = [];
+  const errors: Array<{ subject_name: string; error: string }> = [];
+  const seenInBatch = new Set<string>();
+  let duplicateCount = 0;
+
+  for (let i = 0; i < subjects.length; i++) {
+    const s = subjects[i];
+    const rowNum = i + 2; // row 1 = CSV header
+
+    if (!s.title?.trim()) {
+      errors.push({ subject_name: "", error: `Row ${rowNum}: Subject Name is required.` });
+      continue;
+    }
+
+    const key = s.title.trim().toLowerCase();
+
+    if (existingTitles.has(key)) {
+      duplicateCount++;
+      errors.push({ subject_name: s.title.trim(), error: `Row ${rowNum}: "${s.title.trim()}" already exists — skipped.` });
+      continue;
+    }
+
+    if (seenInBatch.has(key)) {
+      errors.push({ subject_name: s.title.trim(), error: `Row ${rowNum}: "${s.title.trim()}" appears more than once in this import — skipped.` });
+      continue;
+    }
+
+    seenInBatch.add(key);
+    rows.push({
+      title: s.title.trim(),
+      description: s.description?.trim() || null,
+      order_index: typeof s.order_index === "number" && !isNaN(s.order_index) ? s.order_index : rows.length + 1,
+      is_active: true,
+      visibility_roles: ["student", "admin", "super_admin"],
+      is_creator_only: false,
+      creator_id: req.user!.id,
+    });
+  }
+
+  if (rows.length === 0) {
+    res.status(422).json({
+      error: duplicateCount === subjects.length
+        ? "All subjects already exist in the database."
+        : "No valid subjects to import.",
+      errors,
+      imported: 0,
+      duplicates: duplicateCount,
+      failed: errors.length - duplicateCount,
+    });
+    return;
+  }
+
+  const { error: insertErr } = await supabase.from("subjects").insert(rows);
+  if (insertErr) {
+    res.status(500).json({ error: `Database insert failed: ${insertErr.message}`, errors });
+    return;
+  }
+
+  await writeAuditLog(req.user!.id, "bulk_subject_import", "subject", "bulk", {
+    imported: rows.length,
+    duplicates: duplicateCount,
+    failed: errors.length - duplicateCount,
+  });
+
+  res.json({
+    message: `Import complete: ${rows.length} created, ${duplicateCount} duplicate${duplicateCount !== 1 ? "s" : ""} skipped.`,
+    imported: rows.length,
+    duplicates: duplicateCount,
+    failed: errors.length - duplicateCount,
+    errors,
+  });
+});
+
 // ── Rate-limit monitor ────────────────────────────────────────────────────────
 // Maps key prefix → { maxRequests, windowMs, label }
 const RATE_LIMIT_RULES: Record<string, { maxRequests: number; windowMs: number; label: string }> = {

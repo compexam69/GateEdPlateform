@@ -1,0 +1,691 @@
+🟢 Checkpoint X: Reusable CSV Template Download & Bulk Import Framework for Question Import and Subject Creation
+
+Goal:
+
+Implement the same downloadable CSV template file functionality and bulk import workflow currently used in the Bulk User Import feature within the Admin Dashboard and extend it to:
+
+1. Question Import (Quiz & Question Editor)
+2. Subject Creation (Content Editor / Lecture Management)
+
+The implementation must reuse the existing Bulk User Import architecture, user experience, validation patterns, template generation approach, error handling, and import workflow wherever possible to ensure consistency across the platform.
+
+---
+
+Context
+
+Currently:
+
+Existing Feature
+
+User Management → Bulk User Import
+
+Already supports:
+
+* Download CSV Template
+* Upload CSV
+* Validation
+* Error reporting
+* Import processing
+* Success feedback
+
+This workflow is familiar to administrators and already works well.
+
+---
+
+Missing Features
+
+The same functionality does not currently exist for:
+
+Quiz & Question Editor
+
+Administrators cannot:
+
+* Download a question import template
+* Generate import-ready CSV files easily
+* Follow a consistent import workflow
+
+---
+
+Content Editor
+
+Administrators cannot:
+
+* Download a subject creation template
+* Bulk create subjects
+* Use the same import experience available in User Management
+
+---
+
+New Requirement
+
+Implement identical workflow patterns used in Bulk User Import for:
+
+Quiz & Question Editor
+
+Add:
+
+* Download Question CSV Template
+* Upload Question CSV
+* Validate Question CSV
+* Import Questions
+
+---
+
+Content Editor
+
+Add:
+
+* Download Subject CSV Template
+* Upload Subject CSV
+* Validate Subject CSV
+* Bulk Create Subjects
+
+---
+
+Important Requirement
+
+Reuse existing Bulk User Import architecture wherever possible.
+
+Avoid:
+
+* Building separate import systems
+* Duplicating logic
+* Creating inconsistent user experiences
+
+The workflow should feel identical throughout the Admin Dashboard.
+
+---
+
+Instructions
+
+1. Analyze Existing Bulk User Import System
+
+Review:
+
+* Bulk User Import UI
+* CSV template generation
+* CSV parsing
+* Validation logic
+* Upload workflow
+* Error handling
+* Import processing
+* Progress indicators
+* Success messages
+* Failure reporting
+* Database insert workflow
+
+Identify:
+
+* Reusable components
+* Shared services
+* Shared hooks
+* Existing import utilities
+* Existing CSV generation logic
+
+Document:
+
+* Which components can be reused
+* Which services should be generalized
+
+---
+
+2. Create Shared Bulk Import Framework
+
+Refactor existing import logic into reusable modules if necessary.
+
+Recommended:
+
+Create generic import architecture supporting:
+
+* Users
+* Questions
+* Subjects
+
+Examples:
+
+* CSV Template Generator
+* CSV Validator
+* CSV Parser
+* Bulk Upload Handler
+* Import Summary Modal
+
+Ensure:
+
+* Minimal duplication
+* Consistent behavior
+* Easier future expansion
+
+---
+
+SECTION A
+
+Question Import (Quiz & Question Editor)
+
+---
+
+3. Add Downloadable Question CSV Template
+
+Inside:
+
+Admin Dashboard
+→ Quiz & Question Editor
+
+Add:
+
+Download CSV Template button
+
+Use same styling as:
+
+Bulk User Import
+
+---
+
+Question Template Structure
+
+At minimum include:
+
+| Question | Option A | Option B | Option C | Option D | Correct Answer | Explanation |
+
+Support additional fields if system already uses them:
+
+* Difficulty
+* Subject
+* Chapter
+* Topic
+* Video URL (optional)
+* QR URL (optional)
+* Marks
+* Negative Marks
+
+---
+
+Template Requirements
+
+Include:
+
+* Proper headers
+* Sample row
+* Example values
+* UTF-8 compatibility
+
+Ensure:
+
+* Opens correctly in Excel
+* Opens correctly in Google Sheets
+* Opens correctly in CSV editors
+
+---
+
+4. Implement Question CSV Upload
+
+Add:
+
+Upload CSV button
+
+Workflow:
+
+1. Download template
+2. Fill questions
+3. Upload CSV
+4. Validate
+5. Preview
+6. Import
+
+Ensure:
+
+* Consistent UX with User Import
+
+---
+
+5. Question Validation
+
+Validate:
+
+* Required columns
+* Missing options
+* Missing answers
+* Invalid answers
+* Empty questions
+* Duplicate questions
+
+Prevent:
+
+* Partial imports
+* Broken records
+* Corrupted data
+
+---
+
+6. Question Import Preview
+
+Before import:
+
+Display:
+
+* Total Questions
+* Valid Questions
+* Invalid Questions
+* Duplicate Questions
+
+Allow:
+
+* Cancel
+* Proceed
+
+---
+
+SECTION B
+
+Subject Creation Import (Content Editor)
+
+---
+
+7. Add Downloadable Subject CSV Template
+
+Inside:
+
+Admin Dashboard
+→ Content Editor
+
+Add:
+
+Download Subject Template button
+
+Use same UI pattern as User Import.
+
+---
+
+Subject Template Structure
+
+Minimum:
+
+| Subject Name | Description |
+
+Optional:
+
+| Subject Code | Display Order | Status |
+
+Depending on existing schema.
+
+---
+
+Template Requirements
+
+Include:
+
+* Sample row
+* Example values
+* Proper formatting
+
+Ensure:
+
+* Compatible with Excel
+* Compatible with Google Sheets
+
+---
+
+8. Implement Subject CSV Upload
+
+Workflow:
+
+1. Download template
+2. Fill data
+3. Upload CSV
+4. Validate
+5. Preview
+6. Import
+
+Maintain consistency with:
+
+Bulk User Import
+
+---
+
+9. Subject Validation
+
+Validate:
+
+* Subject Name required
+* Duplicate subjects
+* Invalid formatting
+* Empty rows
+
+Prevent:
+
+* Duplicate subject creation
+* Corrupt records
+
+---
+
+10. Subject Import Preview
+
+Display:
+
+* Total Subjects
+* New Subjects
+* Duplicates
+* Invalid Rows
+
+Allow:
+
+* Cancel
+* Proceed
+
+---
+
+Error Handling
+
+11. Validation Error Reporting
+
+Provide user-friendly errors.
+
+Examples:
+
+Questions
+
+Row 14:
+
+Missing Correct Answer
+
+Row 22:
+
+Option D Missing
+
+---
+
+Subjects
+
+Row 5:
+
+Subject Name Missing
+
+Row 12:
+
+Duplicate Subject
+
+---
+
+Avoid:
+
+Generic errors
+
+Such as:
+
+"Import Failed"
+
+---
+
+12. Partial Failure Handling
+
+Analyze current User Import behavior.
+
+Maintain same strategy.
+
+If system supports:
+
+Option A
+
+Import valid rows only
+
+OR
+
+Option B
+
+Block entire import
+
+Document which strategy is used.
+
+Apply consistently.
+
+---
+
+Mobile Responsiveness
+
+13. Responsive UI Validation
+
+Ensure:
+
+Question Import
+
+* Download Template button responsive
+* Upload button responsive
+* Preview modal responsive
+
+---
+
+Subject Import
+
+* Download Template button responsive
+* Upload button responsive
+* Preview modal responsive
+
+---
+
+Verify:
+
+* Mobile browsers
+* Tablets
+* Desktop browsers
+* Installed PWA
+
+---
+
+Security Review
+
+14. CSV Upload Security
+
+Validate:
+
+* File type
+* File size
+* CSV structure
+
+Prevent:
+
+* Malformed uploads
+* Unexpected columns
+* Injection attempts
+
+Ensure:
+
+* Safe parsing
+* Sanitized input
+
+---
+
+Backend Analysis
+
+15. Database & SQL Review
+
+Review:
+
+Question Tables
+
+* questions
+* question_options
+* quizzes
+
+---
+
+Subject Tables
+
+* subjects
+* content hierarchy tables
+
+Determine:
+
+Whether schema already supports bulk creation.
+
+---
+
+Scenario A
+
+If existing schema supports imports:
+
+Explicitly state:
+
+SQL Editor Changes Required: NO
+
+---
+
+Scenario B
+
+If new metadata fields are required:
+
+Provide:
+
+* SQL migrations
+* Rollback scripts
+* RLS updates
+* Deployment instructions
+
+Explain:
+
+* Why changes are needed
+* Existing data impact
+
+---
+
+16. API Review
+
+Review:
+
+* User Import API
+* Question APIs
+* Subject APIs
+
+Determine:
+
+Can existing import architecture be reused?
+
+Refactor if necessary.
+
+---
+
+Testing & Validation
+
+17. Testing Scenarios
+
+Test:
+
+Questions
+
+* 10 questions
+* 100 questions
+* 1000 questions
+* Invalid answers
+* Missing columns
+* Duplicate questions
+
+---
+
+Subjects
+
+* New subjects
+* Duplicate subjects
+* Empty rows
+* Large imports
+
+---
+
+Verify:
+
+* Import success
+* Error reporting
+* Performance
+* No console errors
+
+---
+
+Documentation Requirement
+
+18. Provide Administrator Guide
+
+After implementation provide:
+
+Question Import Guide
+
+Explain:
+
+* Download template
+* Fill template
+* Upload file
+* Resolve validation errors
+* Complete import
+
+---
+
+Subject Import Guide
+
+Explain:
+
+* Download template
+* Fill template
+* Upload file
+* Resolve validation errors
+* Complete import
+
+Include:
+
+* Sample rows
+* Common mistakes
+* Best practices
+
+---
+
+Final Implementation Report
+
+19. Provide Summary
+
+Include:
+
+* Files modified
+* Reused User Import components
+* New template generators
+* Validation rules
+* Preview workflow
+* API changes
+* SQL changes (if any)
+* Remaining limitations
+
+---
+
+Checkpoint Requirement
+
+20. Create Checkpoint After Successful Validation
+
+After implementation:
+
+Create checkpoint immediately.
+
+Checkpoint Name:
+
+"Reusable CSV Template & Bulk Import Framework for Questions and Subjects"
+
+Provide verification summary including:
+
+* Question template download working
+* Subject template download working
+* CSV upload working
+* Validation working
+* Import preview working
+* Mobile responsiveness verified
+* SQL requirements verified
+
+---
+
+Acceptance Criteria
+
+* [ ] Question Import has a downloadable CSV template.
+* [ ] Subject Creation has a downloadable CSV template.
+* [ ] Templates follow the same UX as Bulk User Import.
+* [ ] CSV upload workflow matches User Import workflow.
+* [ ] Question validation works correctly.
+* [ ] Subject validation works correctly.
+* [ ] Import preview appears before processing.
+* [ ] Error reporting is user-friendly.
+* [ ] Mobile responsiveness is maintained.
+* [ ] Existing User Import functionality remains unaffected.
+* [ ] SQL changes are documented if required, otherwise explicitly stated as unnecessary.
+* [ ] No console/runtime errors occur.
+* [ ] Checkpoint/commit is created after successful implementation and testing.
