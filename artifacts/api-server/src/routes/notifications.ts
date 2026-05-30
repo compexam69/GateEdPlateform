@@ -54,6 +54,15 @@ router.delete("/notifications/:notifId", requireAuth, async (req: AuthRequest, r
   res.status(204).send();
 });
 
+router.delete("/notifications", requireAuth, async (req: AuthRequest, res) => {
+  const { error } = await supabase
+    .from("notifications")
+    .delete()
+    .eq("user_id", req.user!.id);
+  if (error) { res.status(500).json({ error: error.message }); return; }
+  res.status(204).send();
+});
+
 export async function createNotification(
   userId: string,
   title: string,

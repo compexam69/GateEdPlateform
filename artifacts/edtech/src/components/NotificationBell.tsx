@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useLayoutEffect, useCallback } from "react";
-import { Bell, X, CheckCheck, Info, AlertCircle, Sparkles, UserCheck, BellOff, BellRing, Settings, ArrowLeft } from "lucide-react";
+import { Bell, X, CheckCheck, Info, AlertCircle, Sparkles, UserCheck, BellOff, BellRing, Settings, ArrowLeft, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
@@ -64,7 +64,7 @@ export function NotificationBell() {
   const dropdownRef                   = useRef<HTMLDivElement>(null);
   const push                          = usePushNotifications();
 
-  const { notifications, unreadCount, loading, refresh, markRead, markAllRead, deleteNotif } =
+  const { notifications, unreadCount, loading, refresh, markRead, markAllRead, deleteNotif, clearAll } =
     useNotificationStore();
 
   // ── Notification preferences ────────────────────────────────────────────────
@@ -223,6 +223,16 @@ export function NotificationBell() {
                       className="text-xs text-primary hover:underline flex items-center gap-1"
                     >
                       <CheckCheck className="w-3 h-3" /> All read
+                    </button>
+                  )}
+                  {notifications.length > 0 && (
+                    <button
+                      onClick={clearAll}
+                      className="text-xs text-muted-foreground hover:text-destructive flex items-center gap-1 ml-1"
+                      title="Clear all notifications"
+                      aria-label="Clear all notifications"
+                    >
+                      <Trash2 className="w-3 h-3" /> Clear all
                     </button>
                   )}
                   <button

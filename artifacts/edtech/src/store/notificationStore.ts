@@ -21,6 +21,7 @@ interface NotificationStore {
   markRead: (id: string) => Promise<void>;
   markAllRead: () => Promise<void>;
   deleteNotif: (id: string) => Promise<void>;
+  clearAll: () => Promise<void>;
 }
 
 // Module-level singletons — live outside Zustand state so they never
@@ -161,6 +162,16 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
       await apiFetch(`/notifications/${id}`, { method: "DELETE" });
     } catch {
       // Best-effort — optimistic removal is kept; a refresh will reconcile
+    }
+  },
+
+  clearAll: async () => {
+    // Optimistic — wipe everything instantly
+    set({ notifications: [], unreadCount: 0 });
+    try {
+      await apiFetch("/notifications", { method: "DELETE" });
+    } catch {
+      // Best-effort
     }
   },
 }));
