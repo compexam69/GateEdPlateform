@@ -1607,11 +1607,50 @@ function SortableChapterRow(props: ChapterRowProps) {
 }
 
 function ChapterRow({ chapter, expanded, onToggle, onDelete, onAddTopic, onEditTopic, onDeleteTopic, dragListeners, dragAttributes }: ChapterRowProps) {
-  const { data: topics = [] } = useQuery({
+  const { data: topicsRaw = [] } = useQuery({
     queryKey: [getGetTopicsUrl(chapter.id)],
     queryFn: () => getTopics(chapter.id),
     enabled: expanded,
   });
+
+  const [topicOrder, setTopicOrder] = useState<string[] | null>(null);
+  const prevTopicCount = useRef(0);
+  useEffect(() => {
+    const count = (topicsRaw as TopicWithAccess[]).length;
+    if (count !== prevTopicCount.current) {
+      prevTopicCount.current = count;
+      setTopicOrder(null);
+    }
+  }, [topicsRaw]);
+
+  const displayTopics = useMemo(() => {
+    const list = topicsRaw as TopicWithAccess[];
+    if (!topicOrder) return list;
+    const map = new Map(list.map(t => [t.id, t]));
+    const ordered = topicOrder.map(id => map.get(id)).filter((t): t is TopicWithAccess => !!t);
+    const extra = list.filter(t => !topicOrder.includes(t.id));
+    return [...ordered, ...extra];
+  }, [topicsRaw, topicOrder]);
+
+  const topicSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+
+  async function handleTopicDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIdx = displayTopics.findIndex(t => t.id === active.id);
+    const newIdx = displayTopics.findIndex(t => t.id === over.id);
+    if (oldIdx === -1 || newIdx === -1) return;
+    const reordered = arrayMove(displayTopics, oldIdx, newIdx);
+    setTopicOrder(reordered.map(t => t.id));
+    try {
+      await apiFetch("/topics/reorder", {
+        method: "POST",
+        body: JSON.stringify({ topics: reordered.map((t, i) => ({ id: t.id, order_index: i + 1 })) }),
+      });
+    } catch {
+      setTopicOrder(null);
+    }
+  }
 
   return (
     <div className="border border-border rounded-md bg-card">
@@ -1633,46 +1672,68 @@ function ChapterRow({ chapter, expanded, onToggle, onDelete, onAddTopic, onEditT
         </div>
       </div>
       {expanded && (
-        <div className="border-t border-border px-4 pb-3 pt-2 space-y-1">
-          {(topics as TopicWithAccess[]).map((topic) => (
-            <div key={topic.id} className="flex items-center gap-1.5 py-1 group">
-              <span className="text-sm text-muted-foreground flex-1 min-w-0 truncate">• {topic.title}</span>
-
-              {/* Visibility badge */}
-              <VisibilityBadge
-                roles={topic.allowed_roles ?? ALL_ROLES}
-                creatorOnly={topic.is_creator_only ?? false}
-              />
-
-              {/* Telegram link indicator */}
-              {topic.telegram_link && (
-                <Link className="w-3 h-3 text-primary/60 shrink-0 hidden sm:block" />
-              )}
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-6 w-6 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={() => onEditTopic(topic as unknown as Topic)}
-                title="Edit topic"
-              >
-                <Edit className="w-3 h-3" />
-              </Button>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-6 w-6 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={() => onDeleteTopic(topic.id)}
-                title="Remove topic"
-              >
-                <Trash2 className="w-3 h-3" />
-              </Button>
-            </div>
-          ))}
+        <div className="border-t border-border px-4 pb-3 pt-2 space-y-0.5">
+          <DndContext sensors={topicSensors} collisionDetection={closestCenter} onDragEnd={handleTopicDragEnd}>
+            <SortableContext items={displayTopics.map(t => t.id)} strategy={verticalListSortingStrategy}>
+              {displayTopics.map((topic) => (
+                <SortableTopicRow
+                  key={topic.id}
+                  topic={topic}
+                  onEditTopic={onEditTopic}
+                  onDeleteTopic={onDeleteTopic}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
           <Button size="sm" variant="ghost" className="text-xs h-7 mt-1" onClick={onAddTopic}>
             <Plus className="w-3 h-3 mr-1" /> Add Topic
           </Button>
         </div>
       )}
+    </div>
+  );
+}
+
+function SortableTopicRow({ topic, onEditTopic, onDeleteTopic }: {
+  topic: TopicWithAccess;
+  onEditTopic: (t: Topic) => void;
+  onDeleteTopic: (id: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: topic.id });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 20 : undefined, opacity: isDragging ? 0.6 : 1 }}
+      className="flex items-center gap-1.5 py-1 group"
+    >
+      <button
+        {...(attributes as React.HTMLAttributes<HTMLButtonElement>)}
+        {...(listeners as React.HTMLAttributes<HTMLButtonElement>)}
+        className="cursor-grab active:cursor-grabbing touch-none shrink-0 p-0.5 rounded hover:bg-muted/60 transition-colors"
+        tabIndex={-1}
+        title="Drag to reorder topic"
+      >
+        <GripVertical className="w-3 h-3 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors" />
+      </button>
+      <span className="text-sm text-muted-foreground flex-1 min-w-0 truncate">{topic.title}</span>
+      <VisibilityBadge roles={topic.allowed_roles ?? ALL_ROLES} creatorOnly={topic.is_creator_only ?? false} />
+      {topic.telegram_link && <Link className="w-3 h-3 text-primary/60 shrink-0 hidden sm:block" />}
+      <Button
+        size="icon" variant="ghost"
+        className="h-6 w-6 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+        onClick={() => onEditTopic(topic as unknown as Topic)}
+        title="Edit topic"
+      >
+        <Edit className="w-3 h-3" />
+      </Button>
+      <Button
+        size="icon" variant="ghost"
+        className="h-6 w-6 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+        onClick={() => onDeleteTopic(topic.id)}
+        title="Remove topic"
+      >
+        <Trash2 className="w-3 h-3" />
+      </Button>
     </div>
   );
 }

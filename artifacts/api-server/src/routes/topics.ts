@@ -193,4 +193,17 @@ router.patch("/topics/:topicId", requireAdmin, async (req: AuthRequest, res) => 
   res.json(data);
 });
 
+// ── POST /topics/reorder ─────────────────────────────────────────────────────
+router.post("/topics/reorder", requireAdmin, async (req: AuthRequest, res) => {
+  const { topics } = req.body as { topics?: Array<{ id: string; order_index: number }> };
+  if (!Array.isArray(topics) || topics.length === 0) {
+    res.status(400).json({ error: "topics array required" });
+    return;
+  }
+  await Promise.all(
+    topics.map(t => supabase.from("topics").update({ order_index: t.order_index }).eq("id", t.id))
+  );
+  res.json({ message: "Reordered" });
+});
+
 export default router;
