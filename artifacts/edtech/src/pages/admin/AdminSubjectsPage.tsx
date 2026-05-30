@@ -700,11 +700,11 @@ function ContentBulkImportDialog({ open, onClose, onImported }: {
         </DialogHeader>
 
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="w-full grid grid-cols-4">
+          <TabsList className="w-full grid grid-cols-2 md:grid-cols-4">
             <TabsTrigger value="subjects">Subjects</TabsTrigger>
             <TabsTrigger value="chapters">Chapters</TabsTrigger>
             <TabsTrigger value="topics">Topics</TabsTrigger>
-            <TabsTrigger value="hierarchy">Full Hierarchy</TabsTrigger>
+            <TabsTrigger value="hierarchy" className="text-xs sm:text-sm">Full Hierarchy</TabsTrigger>
           </TabsList>
 
           {/* ── SUBJECTS ──────────────────────────────────────────────────────── */}
