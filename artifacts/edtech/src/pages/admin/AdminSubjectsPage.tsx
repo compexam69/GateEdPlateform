@@ -700,11 +700,25 @@ function ContentBulkImportDialog({ open, onClose, onImported }: {
         </DialogHeader>
 
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="w-full grid grid-cols-2 md:grid-cols-4">
+          {/* Mobile: dropdown selector */}
+          <div className="md:hidden">
+            <select
+              value={tab}
+              onChange={e => setTab(e.target.value)}
+              className="w-full rounded-md border border-border bg-muted px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="subjects">Subjects</option>
+              <option value="chapters">Chapters</option>
+              <option value="topics">Topics</option>
+              <option value="hierarchy">Full Hierarchy</option>
+            </select>
+          </div>
+          {/* Desktop: full tab row */}
+          <TabsList className="hidden md:grid w-full grid-cols-4">
             <TabsTrigger value="subjects">Subjects</TabsTrigger>
             <TabsTrigger value="chapters">Chapters</TabsTrigger>
             <TabsTrigger value="topics">Topics</TabsTrigger>
-            <TabsTrigger value="hierarchy" className="text-xs sm:text-sm">Full Hierarchy</TabsTrigger>
+            <TabsTrigger value="hierarchy">Full Hierarchy</TabsTrigger>
           </TabsList>
 
           {/* ── SUBJECTS ──────────────────────────────────────────────────────── */}
