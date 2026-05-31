@@ -386,6 +386,30 @@ export interface BulkImportResult {
   errors: string[];
 }
 
+export type SubjectBulkImportInputSubjectsItem = {
+  title: string;
+  /** @nullable */
+  description?: string | null;
+  order_index?: number;
+};
+
+export interface SubjectBulkImportInput {
+  subjects: SubjectBulkImportInputSubjectsItem[];
+}
+
+export type SubjectBulkImportResultErrorsItem = {
+  subject_name?: string;
+  error?: string;
+};
+
+export interface SubjectBulkImportResult {
+  message?: string;
+  imported: number;
+  duplicates: number;
+  failed: number;
+  errors: SubjectBulkImportResultErrorsItem[];
+}
+
 export type QrInputLevel = typeof QrInputLevel[keyof typeof QrInputLevel];
 
 

@@ -335,6 +335,23 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Topic"
+    delete:
+      operationId: deleteTopic
+      tags: [topics]
+      summary: Delete a topic (admin only)
+      parameters:
+        - name: topicId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
 
   # ── Progress (Gate Checker) ───────────────────────────────────────────
   /gate/check:

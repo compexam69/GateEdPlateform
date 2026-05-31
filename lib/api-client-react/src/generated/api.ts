@@ -62,6 +62,8 @@ import type {
   StudyTaskInput,
   StudyTaskUpdate,
   Subject,
+  SubjectBulkImportInput,
+  SubjectBulkImportResult,
   SubjectInput,
   SubjectUpdate,
   Topic,
@@ -1189,6 +1191,76 @@ export const useUpdateTopic = <TError = ErrorType<unknown>,
       return useMutation(getUpdateTopicMutationOptions(options));
     }
 
+export const getDeleteTopicUrl = (topicId: string,) => {
+
+
+
+
+  return `/api/topics/${topicId}`
+}
+
+/**
+ * @summary Delete a topic (admin only)
+ */
+export const deleteTopic = async (topicId: string, options?: RequestInit): Promise<MessageResponse> => {
+
+  return customFetch<MessageResponse>(getDeleteTopicUrl(topicId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteTopicMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteTopic>>, TError,{topicId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteTopic>>, TError,{topicId: string}, TContext> => {
+
+const mutationKey = ['deleteTopic'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteTopic>>, {topicId: string}> = (props) => {
+          const {topicId} = props ?? {};
+
+          return  deleteTopic(topicId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteTopicMutationResult = NonNullable<Awaited<ReturnType<typeof deleteTopic>>>
+
+    export type DeleteTopicMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete a topic (admin only)
+ */
+export const useDeleteTopic = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteTopic>>, TError,{topicId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteTopic>>,
+        TError,
+        {topicId: string},
+        TContext
+      > => {
+      return useMutation(getDeleteTopicMutationOptions(options));
+    }
+
 export const getCheckGateUrl = () => {
 
 
@@ -1992,6 +2064,77 @@ export const useBulkImportQuestions = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getBulkImportQuestionsMutationOptions(options));
+    }
+
+export const getAdminBulkImportSubjectsUrl = () => {
+
+
+
+
+  return `/api/admin/subjects/bulk-import`
+}
+
+/**
+ * @summary Bulk import subjects from CSV/JSON (admin only)
+ */
+export const adminBulkImportSubjects = async (subjectBulkImportInput: SubjectBulkImportInput, options?: RequestInit): Promise<SubjectBulkImportResult> => {
+
+  return customFetch<SubjectBulkImportResult>(getAdminBulkImportSubjectsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      subjectBulkImportInput,)
+  }
+);}
+
+
+
+
+export const getAdminBulkImportSubjectsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminBulkImportSubjects>>, TError,{data: BodyType<SubjectBulkImportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminBulkImportSubjects>>, TError,{data: BodyType<SubjectBulkImportInput>}, TContext> => {
+
+const mutationKey = ['adminBulkImportSubjects'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminBulkImportSubjects>>, {data: BodyType<SubjectBulkImportInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  adminBulkImportSubjects(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminBulkImportSubjectsMutationResult = NonNullable<Awaited<ReturnType<typeof adminBulkImportSubjects>>>
+    export type AdminBulkImportSubjectsMutationBody = BodyType<SubjectBulkImportInput>
+    export type AdminBulkImportSubjectsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Bulk import subjects from CSV/JSON (admin only)
+ */
+export const useAdminBulkImportSubjects = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminBulkImportSubjects>>, TError,{data: BodyType<SubjectBulkImportInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminBulkImportSubjects>>,
+        TError,
+        {data: BodyType<SubjectBulkImportInput>},
+        TContext
+      > => {
+      return useMutation(getAdminBulkImportSubjectsMutationOptions(options));
     }
 
 export const getGenerateQrUrl = () => {

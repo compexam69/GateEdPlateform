@@ -193,6 +193,17 @@ router.patch("/topics/:topicId", requireAdmin, async (req: AuthRequest, res) => 
   res.json(data);
 });
 
+// ── DELETE /topics/:topicId ───────────────────────────────────────────────────
+router.delete("/topics/:topicId", requireAdmin, async (req: AuthRequest, res) => {
+  const topicId = req.params["topicId"] as string;
+  const { error } = await supabase
+    .from("topics")
+    .delete()
+    .eq("id", topicId);
+  if (error) { res.status(500).json({ error: error.message }); return; }
+  res.json({ message: "Deleted" });
+});
+
 // ── POST /topics/reorder ─────────────────────────────────────────────────────
 router.post("/topics/reorder", requireAdmin, async (req: AuthRequest, res) => {
   const { topics } = req.body as { topics?: Array<{ id: string; order_index: number }> };

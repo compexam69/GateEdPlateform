@@ -271,6 +271,18 @@ export const UpdateTopicResponse = zod.object({
 
 
 /**
+ * @summary Delete a topic (admin only)
+ */
+export const DeleteTopicParams = zod.object({
+  "topicId": zod.coerce.string()
+})
+
+export const DeleteTopicResponse = zod.object({
+  "message": zod.string()
+})
+
+
+/**
  * @summary Check if a gate/step is accessible for current user
  */
 export const CheckGateBody = zod.object({
@@ -478,6 +490,29 @@ export const BulkImportQuestionsBody = zod.object({
   "difficulty": zod.number(),
   "order_index": zod.number(),
   "video_solution_url": zod.string().nullish()
+}))
+})
+
+
+/**
+ * @summary Bulk import subjects from CSV/JSON (admin only)
+ */
+export const AdminBulkImportSubjectsBody = zod.object({
+  "subjects": zod.array(zod.object({
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "order_index": zod.number().optional()
+}))
+})
+
+export const AdminBulkImportSubjectsResponse = zod.object({
+  "message": zod.string().optional(),
+  "imported": zod.number(),
+  "duplicates": zod.number(),
+  "failed": zod.number(),
+  "errors": zod.array(zod.object({
+  "subject_name": zod.string().optional(),
+  "error": zod.string().optional()
 }))
 })
 

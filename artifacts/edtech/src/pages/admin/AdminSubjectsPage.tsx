@@ -14,6 +14,7 @@ import {
   useDeleteSubject,
   useCreateChapter, useDeleteChapter,
   getTopics, getGetTopicsUrl,
+  useDeleteTopic,
 } from "@workspace/api-client-react";
 import type { Subject, Chapter, Topic } from "@workspace/api-client-react";
 import { useState, useRef, useEffect, useMemo } from "react";
@@ -23,7 +24,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { supabase } from "@/lib/supabase";
 import { apiFetch } from "@/lib/api";
 import { Separator } from "@/components/ui/separator";
 
@@ -1171,6 +1171,9 @@ export default function AdminSubjectsPage() {
   const deleteChapter = useDeleteChapter({
     mutation: { onSuccess: () => { queryClient.invalidateQueries(); toast({ title: "Chapter deleted" }); } },
   });
+  const deleteTopic = useDeleteTopic({
+    mutation: { onSuccess: () => { queryClient.invalidateQueries(); toast({ title: "Topic deleted" }); } },
+  });
 
   function toggleSubject(id: string) {
     setExpandedSubjects(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -1179,15 +1182,6 @@ export default function AdminSubjectsPage() {
     setExpandedChapters(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   }
 
-  async function handleDeleteTopic(topicId: string) {
-    try {
-      await supabase.from("topics").update({ is_active: false }).eq("id", topicId);
-      queryClient.invalidateQueries();
-      toast({ title: "Topic removed" });
-    } catch {
-      toast({ title: "Error deleting topic", variant: "destructive" });
-    }
-  }
 
   async function handleSave() {
     if (!editTarget) return;
@@ -1369,7 +1363,7 @@ export default function AdminSubjectsPage() {
                         is_creator_only: (topic as TopicWithAccess).is_creator_only ?? false,
                       },
                     })}
-                    onDeleteTopic={handleDeleteTopic}
+                    onDeleteTopic={(id) => deleteTopic.mutateAsync({ topicId: id })}
                   />
                 ))}
               </div>
