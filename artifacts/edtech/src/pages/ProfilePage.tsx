@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogOut, User, Eye, EyeOff, CheckCircle, Shield, Pencil, Phone, Mail, Download, ImagePlus, Trash2, X, ZoomIn } from "lucide-react";
+import { LogOut, User, Eye, EyeOff, CheckCircle, Shield, Pencil, Phone, Mail, Download, ImagePlus, Trash2, X, ZoomIn, ChevronDown } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
@@ -44,6 +44,7 @@ export default function ProfilePage() {
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [changingPwd, setChangingPwd] = useState(false);
+  const [passwordExpanded, setPasswordExpanded] = useState(false);
 
   // storedAvatarPath is still needed here for handleRemovePhoto's storage
   // deletion check — the hook uses it internally for syncing.
@@ -659,27 +660,44 @@ export default function ProfilePage() {
         </Card>
 
         <Card>
-          <CardContent className="p-4 sm:p-6 space-y-3">
-            <p className="text-sm font-semibold text-foreground">Change Password</p>
-            {[
-              { label: "Current Password", value: currentPwd, set: setCurrentPwd, show: showCurrent, toggle: () => setShowCurrent(v => !v), placeholder: "Your current password", auto: "current-password" },
-              { label: "New Password", value: newPwd, set: setNewPwd, show: showNew, toggle: () => setShowNew(v => !v), placeholder: "Min 8 chars, mixed case, number, special", auto: "new-password" },
-              { label: "Confirm New Password", value: confirmPwd, set: setConfirmPwd, show: showConfirm, toggle: () => setShowConfirm(v => !v), placeholder: "Repeat new password", auto: "new-password" },
-            ].map(field => (
-              <div key={field.label} className="space-y-1">
-                <Label className="text-xs">{field.label}</Label>
-                <div className="relative">
-                  <Input type={field.show ? "text" : "password"} value={field.value} onChange={e => field.set(e.target.value)}
-                    placeholder={field.placeholder} autoComplete={field.auto} className="h-9 text-sm pr-9" />
-                  <button type="button" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={field.toggle}>
-                    {field.show ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                  </button>
-                </div>
+          <CardContent className="p-0">
+            {/* Collapsible header — tap to expand/collapse */}
+            <button
+              type="button"
+              onClick={() => setPasswordExpanded(v => !v)}
+              className="w-full flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-[inherit]"
+              aria-expanded={passwordExpanded}
+            >
+              <span className="text-sm font-semibold text-foreground">Change Password</span>
+              <ChevronDown
+                className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${passwordExpanded ? "rotate-180" : ""}`}
+              />
+            </button>
+
+            {/* Collapsible body */}
+            {passwordExpanded && (
+              <div className="px-4 sm:px-6 pb-4 sm:pb-6 space-y-3 border-t border-border pt-3">
+                {[
+                  { label: "Current Password", value: currentPwd, set: setCurrentPwd, show: showCurrent, toggle: () => setShowCurrent(v => !v), placeholder: "Your current password", auto: "current-password" },
+                  { label: "New Password", value: newPwd, set: setNewPwd, show: showNew, toggle: () => setShowNew(v => !v), placeholder: "Min 8 chars, mixed case, number, special", auto: "new-password" },
+                  { label: "Confirm New Password", value: confirmPwd, set: setConfirmPwd, show: showConfirm, toggle: () => setShowConfirm(v => !v), placeholder: "Repeat new password", auto: "new-password" },
+                ].map(field => (
+                  <div key={field.label} className="space-y-1">
+                    <Label className="text-xs">{field.label}</Label>
+                    <div className="relative">
+                      <Input type={field.show ? "text" : "password"} value={field.value} onChange={e => field.set(e.target.value)}
+                        placeholder={field.placeholder} autoComplete={field.auto} className="h-9 text-sm pr-9" />
+                      <button type="button" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={field.toggle}>
+                        {field.show ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                <Button size="sm" className="h-8 text-sm" onClick={handleChangePassword} disabled={changingPwd || !currentPwd || !newPwd || !confirmPwd}>
+                  {changingPwd ? "Updating..." : "Update Password"}
+                </Button>
               </div>
-            ))}
-            <Button size="sm" className="h-8 text-sm" onClick={handleChangePassword} disabled={changingPwd || !currentPwd || !newPwd || !confirmPwd}>
-              {changingPwd ? "Updating..." : "Update Password"}
-            </Button>
+            )}
           </CardContent>
         </Card>
 
