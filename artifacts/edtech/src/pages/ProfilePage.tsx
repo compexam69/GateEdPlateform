@@ -340,12 +340,12 @@ export default function ProfilePage() {
 
   return (
     <AppLayout>
-      <div className="max-w-xl sm:max-w-2xl mx-auto space-y-4 sm:space-y-6">
+      <div className="max-w-xl sm:max-w-2xl mx-auto space-y-3 sm:space-y-6">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Profile Settings</h1>
 
         {/* ── Profile Header Card ── */}
         <Card className="bg-card">
-          <CardContent className="p-5 sm:p-6">
+          <CardContent className="p-4 sm:p-6">
             {/*
               ┌─ MOBILE (default) ─────────────────────┐
               │  flex-col, items-center                  │
@@ -359,7 +359,7 @@ export default function ProfilePage() {
               │  Info stacked on right                   │
               └─────────────────────────────────────────┘
             */}
-            <div className="flex flex-col items-center sm:flex-row sm:items-start gap-3 sm:gap-6">
+            <div className="flex flex-col items-center sm:flex-row sm:items-start gap-2 sm:gap-6">
 
               {/* ── Avatar column ── */}
               <div className="relative shrink-0">
@@ -482,7 +482,7 @@ export default function ProfilePage() {
               {/* ── Info column ──
                   Mobile:  w-full, centered alignment — uses the full card width
                   Desktop: flex-1, left-aligned — standard side-by-side column */}
-              <div className="w-full sm:flex-1 sm:min-w-0 space-y-2 sm:space-y-2.5">
+              <div className="w-full sm:flex-1 sm:min-w-0 space-y-1.5 sm:space-y-2.5">
 
                 {/* Name row */}
                 {editingName && canEditOwnProfile ? (
@@ -514,7 +514,7 @@ export default function ProfilePage() {
                 )}
 
                 {/* Secondary info block */}
-                <div className="space-y-2 sm:space-y-1.5">
+                <div className="space-y-1.5">
 
                   {/* Email row */}
                   <div className="space-y-1.5">
@@ -613,7 +613,7 @@ export default function ProfilePage() {
                   )}
 
                   {/* Role badge row */}
-                  <div className="flex items-center gap-1.5 justify-center sm:justify-start pt-0.5">
+                  <div className="flex items-center gap-1.5 justify-center sm:justify-start">
                     {isAdmin && <Shield className="w-3.5 h-3.5 text-primary" />}
                     <Badge variant="outline" className={`text-xs px-2 py-0.5 ${isAdmin ? "border-primary text-primary" : ""}`}>
                       {roleLabel}
@@ -631,7 +631,7 @@ export default function ProfilePage() {
             <button
               type="button"
               onClick={() => setPasswordExpanded(v => !v)}
-              className="w-full flex items-center justify-between px-4 sm:px-6 py-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-[inherit]"
+              className="w-full flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-[inherit]"
               aria-expanded={passwordExpanded}
             >
               <span className="text-sm sm:text-base font-semibold text-foreground">Change Password</span>
@@ -677,11 +677,11 @@ export default function ProfilePage() {
         {/* ── Account Actions Card ── */}
         <Card>
           <CardContent className="p-4 sm:p-6">
-            <p className="text-sm font-semibold text-foreground mb-3 sm:mb-4">Account</p>
-            <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3">
+            <p className="text-sm font-semibold text-foreground mb-2 sm:mb-4">Account</p>
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
               <Button
                 variant="outline"
-                className="justify-center sm:justify-start h-11 sm:h-10 text-sm flex-1"
+                className="justify-center sm:justify-start h-10 text-sm flex-1"
                 onClick={async () => {
                   try {
                     const res = await fetch(`${getApiBase()}/user/export`, {
@@ -704,7 +704,7 @@ export default function ProfilePage() {
               </Button>
               <Button
                 variant="outline"
-                className="justify-center sm:justify-start h-11 sm:h-10 text-sm flex-1 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+                className="justify-center sm:justify-start h-10 text-sm flex-1 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
                 onClick={() => signOut()}
               >
                 <LogOut className="w-4 h-4 mr-2" /> Sign Out
