@@ -446,10 +446,13 @@ export default function ProfilePage() {
                       aria-hidden="true"
                       onClick={() => setPhotoMenuOpen(false)}
                     />
-                    {/* Menu panel */}
+                    {/* Menu panel — left-0 anchors left edge to avatar left, preventing
+                        the off-screen clipping that occurred with the old left-1/2 centering
+                        after the profile card changed from flex-col (centered avatar) to
+                        flex-row (left-anchored avatar). max-w clamps to viewport on 320px. */}
                     <div
                       role="menu"
-                      className="absolute left-1/2 -translate-x-1/2 top-[calc(100%+10px)] z-50 min-w-[188px] rounded-xl border border-border bg-card shadow-2xl overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150"
+                      className="absolute left-0 top-[calc(100%+10px)] z-50 min-w-[188px] max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-card shadow-2xl overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150"
                     >
                       {/* View Photo — only shown when a photo exists */}
                       {photoUrl && (

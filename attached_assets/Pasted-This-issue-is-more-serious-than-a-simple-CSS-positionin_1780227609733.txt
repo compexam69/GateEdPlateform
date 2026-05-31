@@ -1,0 +1,571 @@
+This issue is more serious than a simple CSS positioning bug because it affects **core profile editing functionality**, especially on mobile devices. Based on your description, the popup/modal is likely suffering from one or more of the following:
+
+* Fixed-width modal exceeding viewport width.
+* Incorrect centering calculations.
+* Negative translate values causing left-side clipping.
+* Parent container overflow restrictions.
+* Improper mobile breakpoints.
+* Dialog width not respecting safe viewport dimensions.
+* PWA viewport handling issues.
+* Nested modal/dialog positioning conflicts.
+
+The implementation should therefore include a **full modal responsiveness audit**, not just a visual adjustment.
+
+---
+
+# 🟢 Checkpoint X: Profile Settings Edit Popup Mobile Responsiveness & Viewport Positioning Fix
+
+## Goal
+
+Fix the Profile Settings Edit (✏️) popup/modal so that it always remains fully visible within the viewport across all supported screen sizes.
+
+Currently, portions of the popup extend beyond the left side of the screen, making content and actions inaccessible.
+
+The updated implementation must:
+
+* Keep the entire popup visible inside the viewport.
+* Prevent any clipping or off-screen rendering.
+* Automatically adapt to mobile, tablet, desktop, and PWA environments.
+* Maintain accessibility and usability.
+* Preserve all existing profile editing functionality.
+* Be production-ready and thoroughly tested.
+
+---
+
+# Context Analysis
+
+## Current Issue
+
+When clicking:
+
+```text
+Profile Settings
+→ Edit (✏️)
+```
+
+the popup/modal:
+
+* Extends beyond the left edge.
+* Becomes partially hidden.
+* Makes some controls inaccessible.
+* Creates a poor mobile experience.
+
+Observed behavior:
+
+```text
+❌ Popup partially off-screen
+❌ Left side cut off
+❌ Some controls unreachable
+❌ Poor responsiveness
+```
+
+Expected behavior:
+
+```text
+✅ Fully visible
+✅ Properly centered
+✅ Responsive sizing
+✅ All actions accessible
+```
+
+---
+
+# Instructions
+
+## 1. Analyze Existing Modal Implementation
+
+Review:
+
+* Profile Settings modal component
+* Dialog implementation
+* Popup positioning logic
+* Overlay/container structure
+* Parent layout containers
+* Responsive breakpoints
+* Mobile rendering behavior
+* PWA rendering behavior
+* Animation/transitions
+
+Identify:
+
+* Why the modal exceeds viewport bounds.
+* Whether the issue is caused by:
+
+  * Fixed width values
+  * Position calculations
+  * Transform offsets
+  * Overflow settings
+  * Responsive breakpoint failures
+  * Nested container constraints
+
+Document the root cause before implementing changes.
+
+---
+
+# 2. Audit Modal Dimensions
+
+Review:
+
+### Modal Width
+
+Determine:
+
+* Current fixed width values.
+* Maximum width settings.
+* Responsive width behavior.
+
+Verify modal never exceeds available viewport width.
+
+---
+
+### Modal Height
+
+Determine:
+
+* Whether content causes overflow.
+* Whether scrolling behavior is handled correctly.
+
+---
+
+# 3. Implement Mobile-First Modal Responsiveness
+
+Refactor the popup to follow mobile-first principles.
+
+Requirements:
+
+### Small Screens
+
+Examples:
+
+```text
+320px
+360px
+375px
+```
+
+Modal must:
+
+* Remain fully visible.
+* Stay within safe viewport boundaries.
+* Maintain readability.
+
+---
+
+### Medium Screens
+
+Examples:
+
+```text
+Tablet Portrait
+Tablet Landscape
+```
+
+Modal should scale naturally.
+
+---
+
+### Large Screens
+
+Examples:
+
+```text
+Desktop
+Wide Desktop
+```
+
+Modal should remain centered and visually balanced.
+
+---
+
+# 4. Fix Positioning Logic
+
+Ensure modal positioning:
+
+### Horizontally
+
+* Never extends beyond left edge.
+* Never extends beyond right edge.
+
+### Vertically
+
+* Remains visible.
+* Avoids clipping near top or bottom.
+
+Prevent:
+
+```text
+Negative viewport positioning
+```
+
+and
+
+```text
+Off-screen rendering
+```
+
+---
+
+# 5. Prevent Container Overflow Issues
+
+Review parent containers.
+
+Ensure:
+
+* Parent layouts do not clip modal content.
+* Overflow rules do not hide dialog sections.
+* Modal renders independently from restrictive containers if necessary.
+
+---
+
+# 6. Implement Safe Viewport Constraints
+
+Ensure modal respects:
+
+### Viewport Width
+
+### Viewport Height
+
+### Device Safe Areas
+
+Examples:
+
+```text
+iPhone notch areas
+Android safe areas
+PWA viewport constraints
+```
+
+---
+
+# 7. Improve Modal Content Layout
+
+Review:
+
+* Form fields
+* Action buttons
+* Sections
+* Labels
+
+Ensure content remains usable when modal width shrinks.
+
+Prevent:
+
+* Text clipping
+* Horizontal scrolling
+* Overlapping controls
+
+---
+
+# 8. Improve Mobile UX
+
+Ensure:
+
+### Comfortable Touch Targets
+
+Buttons remain easy to tap.
+
+### Readable Forms
+
+Fields resize appropriately.
+
+### Stable Scrolling
+
+If content exceeds height:
+
+* Internal scrolling should work correctly.
+* Entire page should not become unusable.
+
+---
+
+# 9. Preserve Existing Functionality
+
+Ensure the fix does NOT break:
+
+* Profile editing
+* Name editing
+* Email editing
+* Mobile number editing
+* Profile image editing
+* Validation logic
+* Permission logic
+* Audit logging
+* Existing save/update flows
+
+Only modal responsiveness should change unless required.
+
+---
+
+# 10. Accessibility Validation
+
+Verify:
+
+### Keyboard Navigation
+
+Works correctly.
+
+### Focus Trapping
+
+Remains inside modal.
+
+### Focus Restoration
+
+Returns correctly after closing.
+
+### Screen Readers
+
+Continue identifying modal elements properly.
+
+---
+
+# 11. Prevent Modal State Issues
+
+Ensure:
+
+### Multiple Open/Close Cycles
+
+Work correctly.
+
+### Cancel Actions
+
+Reset state properly.
+
+### Nested Dialogs
+
+Do not create positioning conflicts.
+
+Prevent:
+
+```text
+Duplicate modal instances
+```
+
+and
+
+```text
+Broken dialog state
+```
+
+---
+
+# 12. Responsive Validation
+
+Test:
+
+## Mobile
+
+### Portrait
+
+### Landscape
+
+---
+
+## Tablets
+
+### Portrait
+
+### Landscape
+
+---
+
+## Desktop
+
+### Chrome
+
+### Firefox
+
+### Edge
+
+---
+
+## Installed PWA Mode
+
+Verify:
+
+* Full visibility.
+* Proper centering.
+* No clipping.
+
+---
+
+# 13. Performance Validation
+
+Ensure:
+
+* No excessive re-renders.
+* No layout thrashing.
+* No animation glitches.
+* No memory leaks.
+
+---
+
+# 14. Error Prevention
+
+Verify:
+
+* No clipped content.
+* No hidden buttons.
+* No horizontal scrolling.
+* No off-screen rendering.
+* No overflow warnings.
+
+---
+
+# 15. Backend / API / Database Review
+
+This appears to be a frontend issue.
+
+Determine whether:
+
+* API changes required.
+* Database changes required.
+* Permission changes required.
+
+Document findings.
+
+---
+
+# 16. SQL & Supabase Guidance
+
+Expected implementation:
+
+```text
+SQL Changes Required: NO
+Database Changes Required: NO
+RLS Changes Required: NO
+Supabase Changes Required: NO
+```
+
+This should be a frontend modal responsiveness fix.
+
+If any SQL modifications are proposed, explain why they are necessary.
+
+---
+
+# 17. Testing & Validation
+
+Test:
+
+### Edit Profile Modal
+
+* Open
+* Close
+* Save
+* Cancel
+
+### Mobile Devices
+
+* 320px
+* 360px
+* 375px
+* 430px
+
+### Tablets
+
+Portrait and landscape.
+
+### Desktop
+
+Multiple resolutions.
+
+Verify:
+
+* Entire modal visible.
+* All buttons accessible.
+* No clipping.
+* No overflow.
+* No runtime errors.
+
+---
+
+# 18. Final Implementation Report
+
+Provide:
+
+### Files Modified
+
+### Root Cause Identified
+
+### Positioning Fixes Applied
+
+### Responsive Improvements
+
+### Mobile Validation Results
+
+### Tablet Validation Results
+
+### Desktop Validation Results
+
+### Accessibility Validation
+
+### Remaining Limitations
+
+---
+
+# 19. Checkpoint Requirement
+
+After implementation and testing:
+
+Create checkpoint immediately.
+
+### Checkpoint Name
+
+**"Profile Settings Edit Modal Viewport Responsiveness & Positioning Fix"**
+
+---
+
+Checkpoint verification must confirm:
+
+* Modal fully visible on all supported devices.
+* No left-side clipping.
+* Responsive behavior validated.
+* Accessibility validated.
+* Existing profile editing functionality preserved.
+* No console/runtime errors remain.
+
+---
+
+# Acceptance Criteria
+
+* [ ] Edit popup/modal remains fully visible within the viewport.
+* [ ] No portion of the popup extends beyond the left side of the screen.
+* [ ] Modal adapts correctly to mobile, tablet, desktop, and PWA environments.
+* [ ] All content and actions remain accessible.
+* [ ] No horizontal scrolling occurs inside the modal.
+* [ ] No clipping or overflow issues remain.
+* [ ] Existing profile editing functionality remains fully operational.
+* [ ] Accessibility requirements are met.
+* [ ] No console/runtime errors occur.
+* [ ] Checkpoint created after successful implementation and testing.
+
+---
+
+## Guidance for You
+
+### Supabase SQL Editor
+
+Do **NOT** run any SQL.
+
+Expected classification:
+
+```text
+Frontend UI / Modal Responsiveness Issue
+```
+
+Expected outcome:
+
+```text
+SQL Required: NO
+Database Changes Required: NO
+RLS Changes Required: NO
+Supabase Changes Required: NO
+```
+
+### Post-Implementation Verification
+
+Ask the developer to provide:
+
+1. Mobile screenshots before and after the fix.
+2. Testing results for 320px, 360px, 375px, and 430px screen widths.
+3. Confirmation that no modal content is clipped.
+4. Confirmation that save/cancel actions work correctly.
+5. Checkpoint creation confirmation with modified files and validation results.
