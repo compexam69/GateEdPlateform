@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash2, ChevronDown, ChevronRight, BookOpen, ExternalLink, Info, Link, Eye, Shield, Lock, Upload, Download, AlertCircle, CheckCircle2, Loader2, GripVertical } from "lucide-react";
+import { Plus, Edit, Trash2, ChevronDown, ChevronRight, BookOpen, ExternalLink, Info, Link, Eye, Shield, Lock, Upload, Download, AlertCircle, CheckCircle2, Loader2, GripVertical, AlertTriangle } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getSubjects, getGetSubjectsUrl,
@@ -1031,6 +1031,81 @@ function ContentBulkImportDialog({ open, onClose, onImported }: {
   );
 }
 
+// ── Delete Confirmation Dialog ─────────────────────────────────────────────────
+
+function DeleteConfirmDialog({
+  open,
+  type,
+  itemName,
+  onConfirm,
+  onCancel,
+  isDeleting,
+}: {
+  open: boolean;
+  type: "chapter" | "topic";
+  itemName: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  isDeleting?: boolean;
+}) {
+  const label = type === "chapter" ? "Chapter" : "Topic";
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v && !isDeleting) onCancel(); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5 text-destructive shrink-0" />
+            Delete {label}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 py-1">
+          <p className="text-sm text-muted-foreground">
+            Are you sure you want to permanently delete{" "}
+            <span className="font-semibold text-foreground">"{itemName}"</span>?
+          </p>
+          <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2.5 space-y-1.5">
+            <p className="text-sm font-medium text-destructive">This action cannot be undone.</p>
+            <p className="text-xs text-muted-foreground">
+              The {label.toLowerCase()} will be permanently removed from the database.
+            </p>
+            {type === "chapter" && (
+              <p className="text-xs text-muted-foreground">
+                Deleting this chapter may also remove associated topics and lecture references.
+              </p>
+            )}
+            {type === "topic" && (
+              <p className="text-xs text-muted-foreground">
+                Deleting this topic may remove associated lecture references and analytics.
+              </p>
+            )}
+          </div>
+        </div>
+        <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
+          <Button
+            variant="outline"
+            onClick={onCancel}
+            disabled={isDeleting}
+            className="w-full sm:w-auto"
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={onConfirm}
+            disabled={isDeleting}
+            className="w-full sm:w-auto min-w-[140px]"
+          >
+            {isDeleting
+              ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Deleting…</>
+              : "Delete Permanently"
+            }
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Page component ─────────────────────────────────────────────────────────────
 
 export default function AdminSubjectsPage() {
@@ -1276,7 +1351,7 @@ export default function AdminSubjectsPage() {
                     })}
                     onDelete={() => deleteSubject.mutate({ subjectId: subject.id })}
                     onAddChapter={() => setEditTarget({ type: "chapter", subjectId: subject.id, data: { title: "", description: "" } })}
-                    onDeleteChapter={(id) => deleteChapter.mutate({ chapterId: id })}
+                    onDeleteChapter={(id) => deleteChapter.mutateAsync({ chapterId: id })}
                     onAddTopic={(chapterId) => setEditTarget({
                       type: "topic",
                       chapterId,
@@ -1586,10 +1661,10 @@ type ChapterRowProps = {
   chapter: Chapter;
   expanded: boolean;
   onToggle: () => void;
-  onDelete: () => void;
+  onDelete: () => void | Promise<void>;
   onAddTopic: () => void;
   onEditTopic: (topic: Topic) => void;
-  onDeleteTopic: (id: string) => void;
+  onDeleteTopic: (id: string) => void | Promise<void>;
   dragListeners?: Record<string, unknown>;
   dragAttributes?: Record<string, unknown>;
 };
@@ -1607,6 +1682,21 @@ function SortableChapterRow(props: ChapterRowProps) {
 }
 
 function ChapterRow({ chapter, expanded, onToggle, onDelete, onAddTopic, onEditTopic, onDeleteTopic, dragListeners, dragAttributes }: ChapterRowProps) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const { toast } = useToast();
+
+  async function handleConfirmDelete() {
+    setIsDeleting(true);
+    try {
+      await onDelete();
+      setConfirmDelete(false);
+    } catch {
+      toast({ title: "Unable to delete Chapter. Please try again.", variant: "destructive" });
+      setIsDeleting(false);
+    }
+  }
+
   const { data: topicsRaw = [] } = useQuery({
     queryKey: [getGetTopicsUrl(chapter.id)],
     queryFn: () => getTopics(chapter.id),
@@ -1668,7 +1758,14 @@ function ChapterRow({ chapter, expanded, onToggle, onDelete, onAddTopic, onEditT
         {expanded ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
         <span className="font-medium text-sm flex-1 min-w-0 truncate">{chapter.title}</span>
         <div className="flex gap-1 shrink-0" onClick={e => e.stopPropagation()}>
-          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={onDelete}><Trash2 className="w-3 h-3" /></Button>
+          <Button
+            size="icon" variant="ghost"
+            className="h-7 w-7 text-destructive hover:text-destructive"
+            onClick={() => setConfirmDelete(true)}
+            title="Delete chapter"
+          >
+            <Trash2 className="w-3 h-3" />
+          </Button>
         </div>
       </div>
       {expanded && (
@@ -1690,6 +1787,15 @@ function ChapterRow({ chapter, expanded, onToggle, onDelete, onAddTopic, onEditT
           </Button>
         </div>
       )}
+
+      <DeleteConfirmDialog
+        open={confirmDelete}
+        type="chapter"
+        itemName={chapter.title}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => { if (!isDeleting) setConfirmDelete(false); }}
+        isDeleting={isDeleting}
+      />
     </div>
   );
 }
@@ -1697,43 +1803,69 @@ function ChapterRow({ chapter, expanded, onToggle, onDelete, onAddTopic, onEditT
 function SortableTopicRow({ topic, onEditTopic, onDeleteTopic }: {
   topic: TopicWithAccess;
   onEditTopic: (t: Topic) => void;
-  onDeleteTopic: (id: string) => void;
+  onDeleteTopic: (id: string) => Promise<void> | void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: topic.id });
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const { toast } = useToast();
+
+  async function handleConfirmDelete() {
+    setIsDeleting(true);
+    try {
+      await onDeleteTopic(topic.id);
+      setConfirmDelete(false);
+    } catch {
+      toast({ title: "Unable to delete Topic. Please try again.", variant: "destructive" });
+      setIsDeleting(false);
+    }
+  }
+
   return (
-    <div
-      ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 20 : undefined, opacity: isDragging ? 0.6 : 1 }}
-      className="flex items-center gap-1.5 py-1 group"
-    >
-      <button
-        {...(attributes as React.HTMLAttributes<HTMLButtonElement>)}
-        {...(listeners as React.HTMLAttributes<HTMLButtonElement>)}
-        className="cursor-grab active:cursor-grabbing touch-none shrink-0 p-0.5 rounded hover:bg-muted/60 transition-colors"
-        tabIndex={-1}
-        title="Drag to reorder topic"
+    <>
+      <div
+        ref={setNodeRef}
+        style={{ transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 20 : undefined, opacity: isDragging ? 0.6 : 1 }}
+        className="flex items-center gap-1.5 py-1 group"
       >
-        <GripVertical className="w-3 h-3 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors" />
-      </button>
-      <span className="text-sm text-muted-foreground flex-1 min-w-0 truncate">{topic.title}</span>
-      <VisibilityBadge roles={topic.allowed_roles ?? ALL_ROLES} creatorOnly={topic.is_creator_only ?? false} />
-      {topic.telegram_link && <Link className="w-3 h-3 text-primary/60 shrink-0 hidden sm:block" />}
-      <Button
-        size="icon" variant="ghost"
-        className="h-6 w-6 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-        onClick={() => onEditTopic(topic as unknown as Topic)}
-        title="Edit topic"
-      >
-        <Edit className="w-3 h-3" />
-      </Button>
-      <Button
-        size="icon" variant="ghost"
-        className="h-6 w-6 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-        onClick={() => onDeleteTopic(topic.id)}
-        title="Remove topic"
-      >
-        <Trash2 className="w-3 h-3" />
-      </Button>
-    </div>
+        <button
+          {...(attributes as React.HTMLAttributes<HTMLButtonElement>)}
+          {...(listeners as React.HTMLAttributes<HTMLButtonElement>)}
+          className="cursor-grab active:cursor-grabbing touch-none shrink-0 p-0.5 rounded hover:bg-muted/60 transition-colors"
+          tabIndex={-1}
+          title="Drag to reorder topic"
+        >
+          <GripVertical className="w-3 h-3 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors" />
+        </button>
+        <span className="text-sm text-muted-foreground flex-1 min-w-0 truncate">{topic.title}</span>
+        <VisibilityBadge roles={topic.allowed_roles ?? ALL_ROLES} creatorOnly={topic.is_creator_only ?? false} />
+        {topic.telegram_link && <Link className="w-3 h-3 text-primary/60 shrink-0 hidden sm:block" />}
+        <Button
+          size="icon" variant="ghost"
+          className="h-6 w-6 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+          onClick={() => onEditTopic(topic as unknown as Topic)}
+          title="Edit topic"
+        >
+          <Edit className="w-3 h-3" />
+        </Button>
+        <Button
+          size="icon" variant="ghost"
+          className="h-6 w-6 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+          onClick={() => setConfirmDelete(true)}
+          title="Remove topic"
+        >
+          <Trash2 className="w-3 h-3" />
+        </Button>
+      </div>
+
+      <DeleteConfirmDialog
+        open={confirmDelete}
+        type="topic"
+        itemName={topic.title}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => { if (!isDeleting) setConfirmDelete(false); }}
+        isDeleting={isDeleting}
+      />
+    </>
   );
 }
