@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash2, ChevronDown, ChevronRight, BookOpen, ExternalLink, Info, Link, Eye, Shield, Lock, Upload, Download, AlertCircle, CheckCircle2, Loader2, GripVertical, AlertTriangle } from "lucide-react";
+import { Plus, Edit, Trash2, ChevronDown, ChevronRight, BookOpen, ExternalLink, Info, Link, Eye, Shield, Lock, Upload, Download, AlertCircle, CheckCircle2, Loader2, GripVertical, AlertTriangle, Search, X } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getSubjects, getGetSubjectsUrl,
@@ -15,9 +15,10 @@ import {
   useCreateChapter, useDeleteChapter,
   getTopics, getGetTopicsUrl,
   useDeleteTopic,
+  getSearch, getGetSearchUrl,
 } from "@workspace/api-client-react";
-import type { Subject, Chapter, Topic } from "@workspace/api-client-react";
-import { useState, useRef, useEffect, useMemo } from "react";
+import type { Subject, Chapter, Topic, SearchResult } from "@workspace/api-client-react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -1117,6 +1118,51 @@ export default function AdminSubjectsPage() {
   const [saving, setSaving] = useState(false);
   const [importDialog, setImportDialog] = useState(false);
 
+  // ── Search state ──────────────────────────────────────────────────────────
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [searchFocused, setSearchFocused] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(searchQuery), 220);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  const { data: searchResults = [], isLoading: isSearchLoading } = useQuery({
+    queryKey: [getGetSearchUrl({ q: debouncedQuery }), debouncedQuery],
+    queryFn: () => getSearch({ q: debouncedQuery }),
+    enabled: debouncedQuery.trim().length >= 2,
+    staleTime: 30_000,
+  });
+
+  const showResults = searchFocused && searchQuery.trim().length >= 2;
+
+  const navigateToResult = useCallback((result: SearchResult) => {
+    setSearchQuery("");
+    setSearchFocused(false);
+    searchInputRef.current?.blur();
+
+    if (result.type === "subject") {
+      setExpandedSubjects(prev => new Set([...prev, result.subject_id]));
+      setTimeout(() => {
+        document.getElementById(`subject-${result.subject_id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    } else if (result.type === "chapter" && result.chapter_id) {
+      setExpandedSubjects(prev => new Set([...prev, result.subject_id]));
+      setTimeout(() => {
+        setExpandedChapters(prev => new Set([...prev, result.chapter_id!]));
+        document.getElementById(`chapter-${result.chapter_id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 450);
+    } else if (result.type === "topic" && result.chapter_id) {
+      setExpandedSubjects(prev => new Set([...prev, result.subject_id]));
+      setExpandedChapters(prev => new Set([...prev, result.chapter_id!]));
+      setTimeout(() => {
+        document.getElementById(`topic-${result.topic_id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 650);
+    }
+  }, []);
+
   const { data: subjects = [], isLoading } = useQuery({
     queryKey: [getGetSubjectsUrl()],
     queryFn: () => getSubjects(),
@@ -1313,6 +1359,95 @@ export default function AdminSubjectsPage() {
               <Plus className="w-4 h-4 mr-2" /> Add Subject
             </Button>
           </div>
+        </div>
+
+        {/* ── Global Search Bar ── */}
+        <div className="relative">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <Input
+              ref={searchInputRef}
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setTimeout(() => setSearchFocused(false), 180)}
+              onKeyDown={e => {
+                if (e.key === "Escape") { setSearchQuery(""); setSearchFocused(false); searchInputRef.current?.blur(); }
+              }}
+              placeholder="Search subjects, chapters, topics…"
+              className="pl-9 pr-8 h-10"
+              aria-label="Search content hierarchy"
+              autoComplete="off"
+            />
+            {searchQuery && (
+              <button
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-muted/60 transition-colors focus:outline-none"
+                onMouseDown={e => e.preventDefault()}
+                onClick={() => { setSearchQuery(""); setDebouncedQuery(""); searchInputRef.current?.focus(); }}
+                title="Clear search"
+                aria-label="Clear search"
+                tabIndex={-1}
+              >
+                <X className="w-3.5 h-3.5 text-muted-foreground" />
+              </button>
+            )}
+          </div>
+
+          {/* Results panel */}
+          {showResults && (
+            <div className="absolute z-50 top-full mt-1.5 left-0 right-0 border border-border rounded-lg bg-card shadow-xl overflow-hidden max-h-[400px] overflow-y-auto">
+              {isSearchLoading ? (
+                <div className="flex items-center gap-2 px-4 py-3.5 text-sm text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                  Searching…
+                </div>
+              ) : searchResults.length === 0 ? (
+                <div className="px-4 py-6 text-sm text-muted-foreground text-center">
+                  No results for <span className="font-medium text-foreground">"{searchQuery.trim()}"</span>
+                </div>
+              ) : (
+                <div>
+                  <div className="sticky top-0 px-3 py-1.5 text-[11px] text-muted-foreground font-medium border-b border-border bg-card/95 backdrop-blur-sm">
+                    {searchResults.length} result{searchResults.length !== 1 ? "s" : ""} for "{searchQuery.trim()}"
+                  </div>
+                  {searchResults.map((result, i) => (
+                    <button
+                      key={i}
+                      className="w-full text-left px-3 py-2.5 hover:bg-muted/50 active:bg-muted transition-colors flex items-start gap-2.5 border-b border-border/50 last:border-b-0"
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={() => navigateToResult(result)}
+                    >
+                      {result.type === "subject" ? (
+                        <BookOpen className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
+                      ) : result.type === "chapter" ? (
+                        <ChevronRight className="w-3.5 h-3.5 text-blue-400 mt-0.5 shrink-0" />
+                      ) : (
+                        <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/50 mt-0.5 shrink-0" />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        {result.type === "subject" && (
+                          <p className="text-sm font-medium text-foreground truncate">{result.subject_title}</p>
+                        )}
+                        {result.type === "chapter" && (
+                          <p className="text-sm leading-snug">
+                            <span className="text-muted-foreground text-xs">{result.subject_title} › </span>
+                            <span className="font-medium text-foreground">{result.chapter_title}</span>
+                          </p>
+                        )}
+                        {result.type === "topic" && (
+                          <p className="text-sm leading-snug">
+                            <span className="text-muted-foreground text-xs">{result.subject_title} › {result.chapter_title} › </span>
+                            <span className="font-medium text-foreground">{result.topic_title}</span>
+                          </p>
+                        )}
+                        <span className="text-[10px] uppercase tracking-wide text-muted-foreground/50 font-medium leading-tight">{result.type}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {isLoading ? (
@@ -1592,7 +1727,7 @@ function SubjectRow({
   }
 
   return (
-    <Card className={`bg-card transition-shadow ${isDragging ? "shadow-2xl ring-1 ring-primary/30" : ""}`}>
+    <Card id={`subject-${subject.id}`} className={`bg-card transition-shadow ${isDragging ? "shadow-2xl ring-1 ring-primary/30" : ""}`}>
       <CardContent className="p-0">
         <div className="flex items-center gap-2 p-4 cursor-pointer" onClick={onToggle}>
           <button
@@ -1738,7 +1873,7 @@ function ChapterRow({ chapter, expanded, onToggle, onDelete, onAddTopic, onEditT
   }
 
   return (
-    <div className="border border-border rounded-md bg-card">
+    <div id={`chapter-${chapter.id}`} className="border border-border rounded-md bg-card">
       <div className="flex items-center gap-2 p-3 cursor-pointer" onClick={onToggle}>
         <button
           {...(dragAttributes as React.HTMLAttributes<HTMLButtonElement>)}
@@ -1820,6 +1955,7 @@ function SortableTopicRow({ topic, onEditTopic, onDeleteTopic }: {
   return (
     <>
       <div
+        id={`topic-${topic.id}`}
         ref={setNodeRef}
         style={{ transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 20 : undefined, opacity: isDragging ? 0.6 : 1 }}
         className="flex items-center gap-1.5 py-1 group"

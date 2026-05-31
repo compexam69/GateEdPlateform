@@ -667,3 +667,34 @@ export interface AdminStorageStats {
   top_users: StorageUser[];
 }
 
+export type SearchResultType = typeof SearchResultType[keyof typeof SearchResultType];
+
+
+export const SearchResultType = {
+  subject: 'subject',
+  chapter: 'chapter',
+  topic: 'topic',
+} as const;
+
+export interface SearchResult {
+  type: SearchResultType;
+  subject_id: string;
+  subject_title: string;
+  chapter_id?: string;
+  chapter_title?: string;
+  topic_id?: string;
+  topic_title?: string;
+}
+
+export type GetSearchParams = {
+/**
+ * Search query (minimum 2 characters)
+ * @minLength 2
+ */
+q: string;
+/**
+ * Maximum number of results (capped at 100)
+ */
+limit?: number;
+};
+

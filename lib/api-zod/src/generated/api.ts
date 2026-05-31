@@ -17,6 +17,30 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
+ * @summary Global hierarchy search across subjects, chapters, and topics
+ */
+export const getSearchQueryQMin = 2;
+
+export const getSearchQueryLimitDefault = 50;
+
+export const GetSearchQueryParams = zod.object({
+  "q": zod.coerce.string().min(getSearchQueryQMin).describe('Search query (minimum 2 characters)'),
+  "limit": zod.coerce.number().default(getSearchQueryLimitDefault).describe('Maximum number of results (capped at 100)')
+})
+
+export const GetSearchResponseItem = zod.object({
+  "type": zod.enum(['subject', 'chapter', 'topic']),
+  "subject_id": zod.string(),
+  "subject_title": zod.string(),
+  "chapter_id": zod.string().optional(),
+  "chapter_title": zod.string().optional(),
+  "topic_id": zod.string().optional(),
+  "topic_title": zod.string().optional()
+})
+export const GetSearchResponse = zod.array(GetSearchResponseItem)
+
+
+/**
  * @summary Verify email with token
  */
 export const VerifyEmailBody = zod.object({

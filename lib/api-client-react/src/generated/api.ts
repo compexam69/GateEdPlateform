@@ -41,6 +41,7 @@ import type {
   ExternalTestInput,
   GateCheckInput,
   GateCheckResult,
+  GetSearchParams,
   HealthStatus,
   LectureClickInput,
   MessageResponse,
@@ -57,6 +58,7 @@ import type {
   Quiz,
   QuizInput,
   ResetProgressInput,
+  SearchResult,
   StorageQuota,
   StudyTask,
   StudyTaskInput,
@@ -152,6 +154,90 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getHealthCheckQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetSearchUrl = (params: GetSearchParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/search?${stringifiedParams}` : `/api/search`
+}
+
+/**
+ * @summary Global hierarchy search across subjects, chapters, and topics
+ */
+export const getSearch = async (params: GetSearchParams, options?: RequestInit): Promise<SearchResult[]> => {
+
+  return customFetch<SearchResult[]>(getGetSearchUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSearchQueryKey = (params?: GetSearchParams,) => {
+    return [
+    `/api/search`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetSearchQueryOptions = <TData = Awaited<ReturnType<typeof getSearch>>, TError = ErrorType<void>>(params: GetSearchParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSearch>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSearchQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSearch>>> = ({ signal }) => getSearch(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSearch>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSearchQueryResult = NonNullable<Awaited<ReturnType<typeof getSearch>>>
+export type GetSearchQueryError = ErrorType<void>
+
+
+/**
+ * @summary Global hierarchy search across subjects, chapters, and topics
+ */
+
+export function useGetSearch<TData = Awaited<ReturnType<typeof getSearch>>, TError = ErrorType<void>>(
+ params: GetSearchParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSearch>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSearchQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

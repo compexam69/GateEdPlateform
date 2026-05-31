@@ -36,6 +36,8 @@ tags:
     description: B2 storage operations
   - name: dashboard
     description: Dashboard summary
+  - name: search
+    description: Global hierarchy search
 
 paths:
   /healthz:
@@ -50,6 +52,39 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ── Search ────────────────────────────────────────────────────────────
+  /search:
+    get:
+      operationId: getSearch
+      tags: [search]
+      summary: Global hierarchy search across subjects, chapters, and topics
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 2
+          description: Search query (minimum 2 characters)
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+          description: Maximum number of results (capped at 100)
+      responses:
+        "200":
+          description: Array of matching results with full hierarchy context
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SearchResult"
+        "401":
+          description: Unauthorized
 
   # ── Auth ──────────────────────────────────────────────────────────────
   /auth/verify-email:
@@ -1970,3 +2005,23 @@ components:
         used_bytes:
           type: integer
       required: [user_id, full_name, used_bytes]
+
+    SearchResult:
+      type: object
+      required: [type, subject_id, subject_title]
+      properties:
+        type:
+          type: string
+          enum: [subject, chapter, topic]
+        subject_id:
+          type: string
+        subject_title:
+          type: string
+        chapter_id:
+          type: string
+        chapter_title:
+          type: string
+        topic_id:
+          type: string
+        topic_title:
+          type: string

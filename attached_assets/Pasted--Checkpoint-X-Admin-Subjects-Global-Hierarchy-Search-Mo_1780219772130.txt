@@ -1,0 +1,828 @@
+# 🟢 Checkpoint X: Admin Subjects Global Hierarchy Search & Mobile-First Navigation
+
+## Goal
+
+Implement a **live global search/filter system** on the **Admin Dashboard → Content Editor → Subjects page** that allows Admins and Super Admins to instantly find and navigate to any **Subject, Chapter, or Topic** from a single search bar.
+
+The search must:
+
+* Search across the entire content hierarchy.
+* Match Subject names, Chapter names, and Topic names.
+* Update results in real time as the user types.
+* Display complete hierarchy context:
+
+```text
+Subject
+└── Chapter
+    └── Topic
+```
+
+so administrators always know where a result belongs.
+
+The implementation must be:
+
+* Mobile-first
+* Responsive
+* Fast
+* Scalable
+* Production-ready
+
+without degrading Content Editor performance.
+
+---
+
+# Context Analysis
+
+## Current Problem
+
+As content grows:
+
+```text
+Subjects
+  → Chapters
+      → Topics
+```
+
+become difficult to navigate.
+
+Administrators currently must:
+
+```text
+Open Subject
+↓
+Open Chapter
+↓
+Locate Topic
+```
+
+manually.
+
+This becomes inefficient when managing:
+
+* Large course catalogs
+* Hundreds of Chapters
+* Thousands of Topics
+
+There is currently no centralized search experience.
+
+---
+
+# Required Search Scope
+
+The search must support:
+
+## Subject Search
+
+Example:
+
+```text
+Physics
+```
+
+returns:
+
+```text
+Physics
+```
+
+---
+
+## Chapter Search
+
+Example:
+
+```text
+Modern Physics
+```
+
+returns:
+
+```text
+Physics
+└── Modern Physics
+```
+
+---
+
+## Topic Search
+
+Example:
+
+```text
+Photoelectric Effect
+```
+
+returns:
+
+```text
+Physics
+└── Modern Physics
+    └── Photoelectric Effect
+```
+
+---
+
+# Instructions
+
+## 1. Analyze Existing Content Editor Structure
+
+Review:
+
+* Subject listing page
+* Chapter hierarchy rendering
+* Topic rendering
+* Existing filters/search
+* API queries
+* Database schema
+* Mobile layout
+* Desktop layout
+* Content loading strategy
+
+Document:
+
+* Current hierarchy structure
+* Current data-fetching approach
+* Existing search capabilities (if any)
+
+---
+
+# 2. Implement Global Hierarchy Search Bar
+
+Add a dedicated search bar on:
+
+```text
+Admin Dashboard
+→ Content Editor
+→ Subjects
+```
+
+Placement should be:
+
+* Highly visible
+* Easy to access
+* Consistent across devices
+
+Suggested placement:
+
+```text
+[ Search Subjects, Chapters, Topics... ]
+```
+
+above the content hierarchy.
+
+---
+
+# 3. Real-Time Search Behavior
+
+Search must update automatically while typing.
+
+Example:
+
+Typing:
+
+```text
+phot
+```
+
+should immediately filter results.
+
+Do NOT require:
+
+* Search button
+* Submit action
+* Page refresh
+
+Search should be:
+
+```text
+Type
+↓
+Results update instantly
+```
+
+---
+
+# 4. Search Matching Rules
+
+Support:
+
+### Subject Names
+
+```text
+Physics
+Chemistry
+Mathematics
+```
+
+---
+
+### Chapter Names
+
+```text
+Kinematics
+Organic Chemistry
+Matrices
+```
+
+---
+
+### Topic Names
+
+```text
+Projectile Motion
+SN1 Reactions
+Determinants
+```
+
+---
+
+Search should be:
+
+### Case-Insensitive
+
+Example:
+
+```text
+physics
+Physics
+PHYSICS
+```
+
+all return results.
+
+---
+
+### Partial Matching
+
+Example:
+
+```text
+photo
+```
+
+matches:
+
+```text
+Photoelectric Effect
+Photosynthesis
+```
+
+---
+
+### Trim Whitespace
+
+Example:
+
+```text
+  physics
+```
+
+works correctly.
+
+---
+
+# 5. Hierarchy-Aware Results
+
+Every result must display full context.
+
+Example:
+
+Searching:
+
+```text
+Current Electricity
+```
+
+should return:
+
+```text
+Physics
+→ Electricity
+→ Current Electricity
+```
+
+NOT:
+
+```text
+Current Electricity
+```
+
+alone.
+
+Users must always know where the result belongs.
+
+---
+
+# 6. Expand & Highlight Matching Results
+
+When a result is found:
+
+Automatically:
+
+* Expand parent Subject
+* Expand parent Chapter
+
+so the matching Topic becomes visible.
+
+Optionally highlight:
+
+```text
+Current Electricity
+```
+
+inside the hierarchy.
+
+---
+
+# 7. Navigation Behavior
+
+Clicking a result should:
+
+### Subject Result
+
+Open Subject.
+
+---
+
+### Chapter Result
+
+Navigate directly to Chapter.
+
+---
+
+### Topic Result
+
+Navigate directly to Topic.
+
+---
+
+Ensure:
+
+No extra manual navigation required.
+
+---
+
+# 8. Mobile-First Design Requirements
+
+The implementation must prioritize mobile devices.
+
+Ensure:
+
+### Search Bar
+
+* Full width
+* Touch-friendly
+* Sticky if appropriate
+
+---
+
+### Results
+
+* Readable on small screens
+* Proper spacing
+* No truncation issues
+
+---
+
+### Hierarchy
+
+Must remain understandable.
+
+Example:
+
+```text
+Physics
+→ Electricity
+→ Current Electricity
+```
+
+instead of large nested blocks.
+
+---
+
+Prevent:
+
+* Horizontal scrolling
+* Overflow
+* Cramped text
+
+---
+
+# 9. Desktop Optimization
+
+Desktop should support:
+
+* Wide layouts
+* Fast navigation
+* Clear hierarchy display
+
+Ensure:
+
+Search bar does not appear oversized.
+
+Results remain visually organized.
+
+---
+
+# 10. Performance Optimization
+
+Content libraries may become large.
+
+Ensure search remains performant.
+
+Investigate:
+
+### Current Dataset Size
+
+Estimate:
+
+* Subjects
+* Chapters
+* Topics
+
+---
+
+### Search Strategy
+
+Determine whether:
+
+#### Client-Side Search
+
+Suitable for current scale.
+
+or
+
+#### Server-Side Search
+
+Needed for large datasets.
+
+Document decision.
+
+---
+
+# 11. Large Dataset Handling
+
+Test with:
+
+```text
+100+ Subjects
+1000+ Chapters
+5000+ Topics
+```
+
+Verify:
+
+* No UI freezing
+* No lag while typing
+* No excessive re-renders
+
+---
+
+# 12. Search UX Improvements
+
+Add:
+
+### Empty State
+
+Example:
+
+```text
+No matching Subjects, Chapters, or Topics found.
+```
+
+---
+
+### Clear Search Button
+
+Example:
+
+```text
+✕ Clear
+```
+
+---
+
+### Search Placeholder
+
+Example:
+
+```text
+Search Subjects, Chapters, Topics...
+```
+
+---
+
+# 13. Preserve Existing Functionality
+
+Ensure search does NOT break:
+
+* Subject creation
+* Chapter creation
+* Topic creation
+* Bulk import
+* Edit actions
+* Delete actions
+* Access control
+* Mobile layouts
+* Existing filters
+
+---
+
+# 14. Access Control Validation
+
+Ensure search respects current permissions.
+
+Users should only see content they already have access to.
+
+Verify:
+
+### Admin
+
+Can search accessible content only.
+
+### Super Admin
+
+Can search according to existing visibility rules.
+
+No permission bypass should occur.
+
+---
+
+# 15. Responsive Validation
+
+Test:
+
+## Mobile
+
+* Android
+* iPhone
+* PWA mode
+
+---
+
+## Tablet
+
+* Portrait
+* Landscape
+
+---
+
+## Desktop
+
+* Chrome
+* Firefox
+* Edge
+
+Verify:
+
+* Search remains usable
+* No overflow
+* No layout shifts
+
+---
+
+# 16. Accessibility Requirements
+
+Ensure:
+
+* Keyboard navigation works
+* Search field focus states visible
+* Screen readers identify search input
+* Touch targets remain accessible
+
+---
+
+# 17. Backend / API / Database Review
+
+Investigate whether search can use existing data.
+
+Determine:
+
+### Existing Data Already Loaded?
+
+If YES:
+
+```text
+SQL Changes Required: NO
+```
+
+---
+
+### Search Requires New Queries?
+
+Document:
+
+* API changes
+* Indexing changes
+
+---
+
+# 18. SQL & Supabase Guidance
+
+Before implementation answer:
+
+### Question 1
+
+Can search operate entirely on existing loaded hierarchy data?
+
+YES / NO
+
+---
+
+### Question 2
+
+Does search require new database queries?
+
+YES / NO
+
+---
+
+### Question 3
+
+Are additional indexes recommended?
+
+YES / NO
+
+---
+
+## Scenario A — Client-Side Search
+
+Most likely.
+
+Required:
+
+```text
+Supabase SQL Changes: NO
+```
+
+No SQL required.
+
+---
+
+## Scenario B — Server-Side Search
+
+If hierarchy is very large.
+
+Provide:
+
+* SQL indexes
+* Migration SQL
+* Rollback SQL
+* Performance analysis
+
+before implementation.
+
+---
+
+# 19. Testing & Validation
+
+Test:
+
+### Subject Search
+
+Returns correct Subjects.
+
+---
+
+### Chapter Search
+
+Returns correct Chapters with Subject context.
+
+---
+
+### Topic Search
+
+Returns correct Topics with Subject and Chapter context.
+
+---
+
+### Partial Matches
+
+Work correctly.
+
+---
+
+### Case-Insensitive Search
+
+Works correctly.
+
+---
+
+### Mobile Responsiveness
+
+Works correctly.
+
+---
+
+### Desktop Responsiveness
+
+Works correctly.
+
+---
+
+### Large Dataset Performance
+
+Remains smooth.
+
+---
+
+Verify:
+
+* Results update instantly.
+* Hierarchy context always visible.
+* No console/runtime errors occur.
+
+---
+
+# 20. Final Implementation Report
+
+Provide:
+
+### Files Modified
+
+### Search Architecture
+
+### Mobile UX Improvements
+
+### Desktop UX Improvements
+
+### Performance Optimizations
+
+### API Changes
+
+### Database Changes
+
+### SQL Changes (if any)
+
+### Remaining Limitations
+
+---
+
+# 21. Checkpoint Requirement
+
+After implementation and validation:
+
+Create checkpoint immediately.
+
+### Checkpoint Name
+
+**"Admin Content Hierarchy Global Search & Mobile-First Navigation"**
+
+---
+
+Checkpoint verification must confirm:
+
+* Subject search works.
+* Chapter search works.
+* Topic search works.
+* Real-time updates work.
+* Hierarchy context displays correctly.
+* Mobile-first UX implemented.
+* Desktop UX optimized.
+* Access control remains intact.
+* Large datasets remain performant.
+* No console/runtime errors remain.
+
+---
+
+# Acceptance Criteria
+
+* [ ] Live search bar exists on the Admin Subjects page.
+* [ ] Search works across Subjects, Chapters, and Topics.
+* [ ] Results update in real time while typing.
+* [ ] Searches are case-insensitive.
+* [ ] Partial matches are supported.
+* [ ] Full Subject → Chapter → Topic hierarchy is displayed for every result.
+* [ ] Matching hierarchy expands automatically.
+* [ ] Users can navigate directly to matching items.
+* [ ] Mobile-first responsive design is implemented.
+* [ ] Desktop experience remains optimized.
+* [ ] No overflow, clipping, or layout issues occur.
+* [ ] Existing Content Editor functionality remains unaffected.
+* [ ] Access control rules remain enforced.
+* [ ] No console/runtime errors occur.
+* [ ] Checkpoint created after successful implementation and testing.
+
+---
+
+## Guidance for You (Supabase SQL Editor)
+
+**Do not run SQL immediately.**
+
+In most implementations, this feature can be built using the hierarchy data already loaded into the Content Editor.
+
+Therefore:
+
+```text
+Likely SQL Required: NO
+Likely RLS Changes Required: NO
+Likely Schema Changes Required: NO
+```
+
+Only consider SQL indexes if:
+
+* Search becomes server-side.
+* Dataset becomes extremely large.
+* Performance testing shows slow query execution.
+
+The implementer must first determine whether the search will be client-side or server-side and document that decision in the final implementation report.

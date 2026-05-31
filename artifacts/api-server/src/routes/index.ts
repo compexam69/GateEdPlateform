@@ -16,11 +16,13 @@ import pushRouter from "./push";
 import authEmailRouter from "./auth-email";
 import userRouter from "./user";
 import questionsRouter from "./questions";
+import searchRouter from "./search";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(questionsRouter);
+router.use(searchRouter);
 router.use(dashboardRouter);
 router.use(subjectsRouter);
 router.use(chaptersRouter);
