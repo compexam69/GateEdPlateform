@@ -1685,8 +1685,9 @@ function ChapterRow({ chapter, expanded, onToggle, onDelete, onAddTopic, onEditT
     try {
       await onDelete();
       setConfirmDelete(false);
-    } catch {
-      toast({ title: "Unable to delete Chapter. Please try again.", variant: "destructive" });
+    } catch (err: unknown) {
+      const apiMsg = (err as { data?: { error?: string } })?.data?.error;
+      toast({ title: apiMsg ?? "Unable to delete Chapter. Please try again.", variant: "destructive" });
       setIsDeleting(false);
     }
   }
@@ -1809,8 +1810,9 @@ function SortableTopicRow({ topic, onEditTopic, onDeleteTopic }: {
     try {
       await onDeleteTopic(topic.id);
       setConfirmDelete(false);
-    } catch {
-      toast({ title: "Unable to delete Topic. Please try again.", variant: "destructive" });
+    } catch (err: unknown) {
+      const apiMsg = (err as { data?: { error?: string } })?.data?.error;
+      toast({ title: apiMsg ?? "Unable to delete Topic. Please try again.", variant: "destructive" });
       setIsDeleting(false);
     }
   }

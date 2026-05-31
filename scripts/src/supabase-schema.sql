@@ -968,3 +968,22 @@ create policy "notifications_delete" on notifications
 -- SECTION 25 ROLLBACK (keep commented unless needed):
 -- ============================================================
 -- drop policy if exists "notifications_delete" on notifications;
+
+-- ============================================================
+-- SECTION 26: Topic Deletion — Data Integrity Notes
+-- ============================================================
+-- The following tables reference topic IDs WITHOUT a foreign key constraint.
+-- They are cleaned up in the Express DELETE /topics/:topicId handler using
+-- the service-role client (not via SQL CASCADE) to avoid requiring schema changes.
+--
+-- 1. study_tasks.target_id — plain uuid, no FK
+--    Cleanup: DELETE FROM study_tasks WHERE target_type = 'platform_subtopic' AND target_id = <topicId>
+--
+-- 2. content_access_grants.content_id — plain uuid, no FK
+--    Cleanup: DELETE FROM content_access_grants WHERE content_type = 'topic' AND content_id = <topicId>
+--
+-- Tables WITH proper ON DELETE CASCADE (handled automatically by Postgres):
+--   lectures              → topic_id references topics(id) ON DELETE CASCADE
+--   quizzes               → topic_id references topics(id) ON DELETE CASCADE
+--   user_topic_progress   → topic_id references topics(id) ON DELETE CASCADE
+-- ============================================================

@@ -12,11 +12,12 @@ async function logTopicVisibility(
   next: { allowed_roles: string[]; is_creator_only: boolean },
 ) {
   await supabase.from("audit_logs").insert({
-    user_id: actorId,
+    actor_id: actorId,
     action: "topic_visibility_updated",
-    resource_type: "topic",
-    resource_id: topicId,
-    metadata: { prev_allowed_roles: prev.allowed_roles, new_allowed_roles: next.allowed_roles, prev_is_creator_only: prev.is_creator_only, new_is_creator_only: next.is_creator_only },
+    target_type: "topic",
+    target_id: topicId,
+    old_value: { allowed_roles: prev.allowed_roles, is_creator_only: prev.is_creator_only },
+    new_value: { allowed_roles: next.allowed_roles, is_creator_only: next.is_creator_only },
   });
 }
 
@@ -196,11 +197,35 @@ router.patch("/topics/:topicId", requireAdmin, async (req: AuthRequest, res) => 
 // ── DELETE /topics/:topicId ───────────────────────────────────────────────────
 router.delete("/topics/:topicId", requireAdmin, async (req: AuthRequest, res) => {
   const topicId = req.params["topicId"] as string;
+
+  // Clean up orphaned study_tasks rows (no FK constraint — must be handled manually)
+  await supabase
+    .from("study_tasks")
+    .delete()
+    .eq("target_type", "platform_subtopic")
+    .eq("target_id", topicId);
+
+  // Clean up orphaned content_access_grants rows (no FK constraint — must be handled manually)
+  await supabase
+    .from("content_access_grants")
+    .delete()
+    .eq("content_type", "topic")
+    .eq("content_id", topicId);
+
   const { error } = await supabase
     .from("topics")
     .delete()
     .eq("id", topicId);
   if (error) { res.status(500).json({ error: error.message }); return; }
+
+  // Audit log
+  await supabase.from("audit_logs").insert({
+    actor_id: req.user!.id,
+    action: "topic_deleted",
+    target_type: "topic",
+    target_id: topicId,
+  });
+
   res.json({ message: "Deleted" });
 });
 
