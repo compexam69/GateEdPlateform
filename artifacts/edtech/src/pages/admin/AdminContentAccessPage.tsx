@@ -232,48 +232,48 @@ export default function AdminContentAccessPage() {
 
         {/* ── Visibility Overview ─────────────────────────────────────────── */}
         <section className="space-y-4">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-base font-semibold flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+            <h2 className="text-base font-semibold flex items-center gap-2 shrink-0">
               <Eye className="w-4 h-4 text-primary" />
               Visibility Overview
             </h2>
-            {/* Tab toggle */}
-            <div className="ml-auto flex gap-1 rounded-lg border border-border p-0.5 bg-muted/30">
+            {/* Tab toggle — full-width on mobile so all tabs fit, auto-width on sm+ */}
+            <div className="sm:ml-auto flex gap-1 rounded-lg border border-border p-0.5 bg-muted/30 w-full sm:w-auto">
               <button
                 onClick={() => setActiveTab("subjects")}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-2 sm:px-3 py-1.5 sm:py-1 rounded-md text-xs font-medium transition-colors min-w-0 ${
                   activeTab === "subjects"
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <Layers className="w-3 h-3" />
-                Subjects
-                <Badge variant="secondary" className="text-xs ml-0.5 font-normal">{subjects.length}</Badge>
+                <Layers className="w-3 h-3 shrink-0" />
+                <span className="truncate">Subjects</span>
+                <Badge variant="secondary" className="text-xs ml-0.5 font-normal shrink-0">{subjects.length}</Badge>
               </button>
               <button
                 onClick={() => setActiveTab("quizzes")}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-2 sm:px-3 py-1.5 sm:py-1 rounded-md text-xs font-medium transition-colors min-w-0 ${
                   activeTab === "quizzes"
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <HelpCircle className="w-3 h-3" />
-                Exams
-                <Badge variant="secondary" className="text-xs ml-0.5 font-normal">{quizzes.length}</Badge>
+                <HelpCircle className="w-3 h-3 shrink-0" />
+                <span className="truncate">Exams</span>
+                <Badge variant="secondary" className="text-xs ml-0.5 font-normal shrink-0">{quizzes.length}</Badge>
               </button>
               <button
                 onClick={() => setActiveTab("topics")}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-2 sm:px-3 py-1.5 sm:py-1 rounded-md text-xs font-medium transition-colors min-w-0 ${
                   activeTab === "topics"
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <BookOpen className="w-3 h-3" />
-                Lectures
-                <Badge variant="secondary" className="text-xs ml-0.5 font-normal">{topics.length}</Badge>
+                <BookOpen className="w-3 h-3 shrink-0" />
+                <span className="truncate">Lectures</span>
+                <Badge variant="secondary" className="text-xs ml-0.5 font-normal shrink-0">{topics.length}</Badge>
               </button>
             </div>
           </div>

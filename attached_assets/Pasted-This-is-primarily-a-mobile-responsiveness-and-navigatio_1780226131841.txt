@@ -1,0 +1,583 @@
+This is primarily a **mobile responsiveness and navigation container issue**, but the root cause could be one of several UI implementation problems:
+
+* Tab container width not adapting to mobile screens.
+* Flexbox row overflow.
+* Fixed-width tab buttons.
+* Missing horizontal scrolling strategy.
+* Improper wrapping behavior.
+* Insufficient container padding/margins.
+* Visibility Overview layout not designed mobile-first.
+* Dynamic tab count exceeding available width.
+
+The updated prompt should require a **full responsive layout audit** rather than simply shrinking the "Lectures" tab.
+
+---
+
+# 🟢 Checkpoint X: Content Access Control Visibility Overview Mobile Tab Overflow Fix
+
+## Goal
+
+Fix the mobile responsiveness issue in:
+
+```text
+Admin Dashboard
+→ Content Access Control
+→ Visibility Overview
+```
+
+where the **Lectures** tab extends outside the container/frame and is not fully visible or accessible on mobile devices.
+
+The tab navigation system must be redesigned to ensure:
+
+* All tabs remain visible and accessible.
+* No tabs extend beyond the container.
+* No content is clipped or hidden.
+* Mobile users can easily switch between tabs.
+* Responsive behavior remains consistent across all screen sizes.
+* Desktop and tablet experiences remain unaffected or improved.
+
+The implementation must be production-ready and follow a mobile-first design approach.
+
+---
+
+# Context Analysis
+
+## Current Problem
+
+Current mobile behavior:
+
+```text
+┌──────────────────────┐
+| Subjects | Chapters |
+| Topics | Lectur...  |
+└──────────────────────┘
+```
+
+or
+
+```text
+┌──────────────────────┐
+| Subjects | Chapters |
+| Topics |
+└──────────────────────┘
+
+Lectures tab partially hidden
+```
+
+Observed issues:
+
+* Lectures tab extends beyond available width.
+* Users cannot clearly see or access all tabs.
+* Navigation appears broken.
+* Mobile UX is degraded.
+
+---
+
+# Instructions
+
+## 1. Analyze Existing Visibility Overview Layout
+
+Review:
+
+* Visibility Overview component
+* Tab navigation component
+* Parent container structure
+* Flexbox/grid implementation
+* Tailwind/CSS classes
+* Breakpoint handling
+* Mobile responsiveness logic
+* Width constraints
+* Overflow settings
+
+Identify:
+
+* Exact cause of overflow.
+* Whether issue originates from:
+
+  * Tab component
+  * Parent container
+  * Global layout styles
+  * Responsive breakpoints
+
+Document findings before implementing fixes.
+
+---
+
+# 2. Audit Current Tab System
+
+Review all tabs currently displayed.
+
+Example:
+
+```text
+Subjects
+Chapters
+Topics
+Lectures
+```
+
+Verify:
+
+* Number of tabs
+* Width of each tab
+* Dynamic sizing behavior
+* Responsive behavior
+
+Determine whether current design scales correctly when additional tabs are added in the future.
+
+---
+
+# 3. Implement Mobile-First Responsive Tab Navigation
+
+Refactor the tab navigation system.
+
+The solution must ensure:
+
+### All Tabs Remain Accessible
+
+No tab should:
+
+* Extend outside container
+* Become partially hidden
+* Become inaccessible
+
+---
+
+### Proper Alignment
+
+Tabs should remain:
+
+* Evenly aligned
+* Consistently spaced
+* Visually balanced
+
+---
+
+### Responsive Width Handling
+
+Avoid:
+
+```text
+Fixed width tabs
+```
+
+Prefer:
+
+```text
+Adaptive width tabs
+```
+
+or
+
+```text
+Responsive tab sizing
+```
+
+depending on implementation.
+
+---
+
+# 4. Prevent Overflow Issues
+
+Ensure:
+
+### No Horizontal Container Breakage
+
+Prevent:
+
+* Overflow outside card/container
+* Clipped tabs
+* Broken borders
+* Layout shifting
+
+---
+
+### No Hidden Navigation
+
+Users must never lose access to a tab because of screen size limitations.
+
+---
+
+# 5. Evaluate Best Mobile Navigation Strategy
+
+Analyze which approach provides the best UX.
+
+Possible options:
+
+### Option A
+
+Responsive tab resizing.
+
+---
+
+### Option B
+
+Scrollable horizontal tab bar.
+
+---
+
+### Option C
+
+Wrapped multi-line tabs.
+
+---
+
+### Option D
+
+Segmented mobile navigation.
+
+---
+
+Do NOT automatically choose one.
+
+Evaluate:
+
+* Readability
+* Accessibility
+* Scalability
+* Future maintainability
+
+Document the chosen approach and why it was selected.
+
+---
+
+# 6. Preserve Desktop Layout
+
+Ensure desktop behavior remains:
+
+* Clean
+* Professional
+* Consistent
+
+Avoid:
+
+* Mobile-specific fixes breaking desktop layouts.
+* Excessive spacing changes.
+
+---
+
+# 7. Tablet Optimization
+
+Validate:
+
+### Portrait Tablet
+
+### Landscape Tablet
+
+Ensure navigation scales naturally between:
+
+```text
+Mobile
+→ Tablet
+→ Desktop
+```
+
+without layout jumps.
+
+---
+
+# 8. Improve Touch Accessibility
+
+Ensure tabs remain:
+
+### Easy to Tap
+
+Maintain sufficient:
+
+* Height
+* Padding
+* Spacing
+
+Prevent:
+
+* Tiny tap targets
+* Accidental tab switching
+
+---
+
+# 9. Visual Consistency
+
+Maintain existing design system:
+
+* Colors
+* Typography
+* Active states
+* Hover states
+* Selected indicators
+
+The fix should feel native to the existing dashboard.
+
+---
+
+# 10. Future Scalability
+
+Ensure implementation remains stable if:
+
+```text
+Additional tabs are added later.
+```
+
+Examples:
+
+```text
+Resources
+Assignments
+Tests
+Notes
+```
+
+The navigation should not break when more tabs are introduced.
+
+---
+
+# 11. Preserve Existing Functionality
+
+Ensure implementation does NOT break:
+
+* Visibility Overview logic
+* Access Control logic
+* Analytics
+* Role-based permissions
+* Filtering
+* Tab switching behavior
+* Data loading
+
+Only the UI/navigation should be modified unless necessary.
+
+---
+
+# 12. Accessibility Validation
+
+Verify:
+
+### Keyboard Navigation
+
+Works correctly.
+
+---
+
+### Focus States
+
+Visible.
+
+---
+
+### Screen Readers
+
+Properly identify tab controls.
+
+---
+
+# 13. Responsive Validation
+
+Test:
+
+## Small Mobile
+
+Examples:
+
+* 320px width
+* 360px width
+
+---
+
+## Standard Mobile
+
+Examples:
+
+* Android
+* iPhone
+
+---
+
+## Tablet
+
+Portrait and landscape.
+
+---
+
+## Desktop
+
+Chrome
+Firefox
+Edge
+
+Verify:
+
+* All tabs visible.
+* All tabs accessible.
+* No overflow.
+* No clipping.
+
+---
+
+# 14. Performance Validation
+
+Ensure fix does not:
+
+* Trigger excessive re-renders.
+* Cause layout instability.
+* Introduce scrolling lag.
+
+---
+
+# 15. Error Prevention
+
+Verify:
+
+* No overlapping tabs.
+* No hidden tabs.
+* No clipped labels.
+* No horizontal page scrolling.
+* No layout shifts.
+
+---
+
+# 16. Backend / API / Database Review
+
+This issue appears UI-only.
+
+Review whether:
+
+* API changes required.
+* Database changes required.
+* Permission changes required.
+
+---
+
+# 17. SQL & Supabase Guidance
+
+Expected implementation:
+
+```text
+SQL Changes Required: NO
+Database Changes Required: NO
+RLS Changes Required: NO
+Supabase Changes Required: NO
+```
+
+This should be a frontend responsiveness fix.
+
+If any SQL changes are proposed, explain why they are necessary.
+
+---
+
+# 18. Testing & Validation
+
+Test:
+
+### Mobile
+
+* Portrait
+* Landscape
+
+### Tablet
+
+* Portrait
+* Landscape
+
+### Desktop
+
+* Multiple resolutions
+
+Verify:
+
+* Lectures tab visible.
+* All tabs accessible.
+* Responsive behavior stable.
+* No runtime errors.
+
+---
+
+# 19. Final Implementation Report
+
+Provide:
+
+### Files Modified
+
+### Root Cause Found
+
+### Responsive Strategy Chosen
+
+### Tab Navigation Improvements
+
+### Mobile Improvements
+
+### Tablet Improvements
+
+### Desktop Validation Results
+
+### Accessibility Validation
+
+### Remaining Limitations
+
+---
+
+# 20. Checkpoint Requirement
+
+After implementation and testing:
+
+Create checkpoint immediately.
+
+### Checkpoint Name
+
+**"Content Access Control Visibility Overview Mobile Tab Responsiveness Fix"**
+
+---
+
+Checkpoint verification must confirm:
+
+* Lectures tab fully visible on mobile.
+* No tab extends outside the container.
+* Responsive navigation works correctly.
+* Tablet layouts validated.
+* Desktop layouts remain stable.
+* Accessibility validated.
+* No console/runtime errors exist.
+
+---
+
+# Acceptance Criteria
+
+* [ ] Lectures tab remains fully visible on mobile devices.
+* [ ] No tabs extend outside the Visibility Overview container.
+* [ ] Tab navigation remains fully accessible on all screen sizes.
+* [ ] No overflow or clipping occurs.
+* [ ] Mobile-first responsive design is implemented.
+* [ ] Tablet responsiveness is validated.
+* [ ] Desktop experience remains intact.
+* [ ] Touch accessibility remains excellent.
+* [ ] Existing Content Access Control functionality remains unaffected.
+* [ ] No console/runtime errors occur.
+* [ ] No horizontal page scrolling occurs.
+* [ ] Checkpoint created after successful implementation and testing.
+
+---
+
+## Guidance for You
+
+### Supabase SQL Editor
+
+Do **NOT** run any SQL.
+
+This is almost certainly a:
+
+```text
+Frontend Responsive Layout Issue
+```
+
+Expected outcome:
+
+```text
+SQL Required: NO
+Schema Changes Required: NO
+RLS Changes Required: NO
+Database Changes Required: NO
+```
+
+After implementation, verify using:
+
+1. Mobile emulator (320px–430px widths).
+2. Real mobile device testing if possible.
+3. Landscape and portrait orientations.
+4. Confirmation that all tabs remain visible and selectable without clipping or overflow.
