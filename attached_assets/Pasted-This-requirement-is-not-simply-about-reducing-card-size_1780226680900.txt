@@ -1,0 +1,586 @@
+This requirement is **not simply about reducing card sizes**. The actual problem is that the Profile Module was likely designed desktop-first, causing poor information density on mobile devices. As a result:
+
+* Important profile information is pushed below the fold.
+* Large cards consume excessive vertical space.
+* Excessive margins/padding create unnecessary scrolling.
+* Mobile users must scroll through multiple sections to access common actions.
+* The profile page feels inefficient despite containing relatively little information.
+
+The updated prompt should require a **complete mobile-first profile UX audit** rather than isolated styling adjustments.
+
+---
+
+# 🟢 Checkpoint X: Profile Module Mobile-First Layout Optimization & Scrolling Reduction
+
+## Goal
+
+Redesign and optimize the **Profile Module** using a mobile-first approach so that the most important profile information, settings, and actions are visible with minimal scrolling on mobile devices.
+
+The implementation must:
+
+* Reduce excessive scrolling on mobile.
+* Improve information density without harming readability.
+* Reduce unnecessary spacing and oversized containers.
+* Optimize card and section layouts.
+* Keep important profile actions easily accessible.
+* Preserve desktop usability and visual quality.
+* Maintain responsiveness across mobile, tablet, desktop, and PWA environments.
+
+The final result should feel significantly more efficient and user-friendly on mobile devices while maintaining the existing functionality.
+
+---
+
+# Context Analysis
+
+## Current Problem
+
+Current desktop experience:
+
+```text
+✓ Clean
+✓ Spacious
+✓ Easy to read
+```
+
+Current mobile experience:
+
+```text
+✗ Large vertical cards
+✗ Excessive padding
+✗ Too much whitespace
+✗ Important actions below the fold
+✗ Excessive scrolling required
+```
+
+Users must scroll through multiple sections to access information that should be visible immediately.
+
+---
+
+# Instructions
+
+## 1. Analyze Existing Profile Module
+
+Review:
+
+* Profile page layout
+* Card/container structure
+* Header section
+* User information section
+* Statistics section
+* Notification preferences section (if still present)
+* Profile image section
+* Settings/actions section
+* Mobile breakpoints
+* Desktop breakpoints
+* PWA rendering
+
+Document:
+
+* Which sections consume the most vertical space.
+* Which spacing values create unnecessary scrolling.
+* Which elements should receive higher visual priority.
+
+---
+
+# 2. Perform Mobile-First UX Audit
+
+Identify:
+
+### Critical Information
+
+Examples:
+
+```text
+Profile Photo
+Name
+Email
+Role
+Mobile Number
+```
+
+Determine what should be visible immediately when opening the Profile Module.
+
+---
+
+### Frequently Used Actions
+
+Examples:
+
+```text
+Edit Profile
+Change Photo
+Settings
+Notifications
+```
+
+Determine which actions should be accessible without excessive scrolling.
+
+---
+
+# 3. Optimize Mobile Layout Structure
+
+Refactor layout hierarchy for mobile screens.
+
+Goals:
+
+### Reduce Vertical Space Consumption
+
+Review:
+
+* Margins
+* Padding
+* Gaps
+* Section spacing
+
+Remove unnecessary whitespace.
+
+---
+
+### Improve Information Density
+
+Display information more efficiently while preserving readability.
+
+Avoid:
+
+```text
+Large empty containers
+```
+
+Prefer:
+
+```text
+Compact but readable layouts
+```
+
+---
+
+# 4. Refactor Profile Cards
+
+Review all profile cards and content boxes.
+
+Optimize:
+
+### Card Heights
+
+Reduce excessive height.
+
+---
+
+### Internal Padding
+
+Remove unnecessary spacing.
+
+---
+
+### Content Alignment
+
+Improve information presentation.
+
+Prevent:
+
+* Large blank areas
+* Uneven spacing
+* Stretched layouts
+
+---
+
+# 5. Reorganize Content Priority
+
+Ensure mobile users see the most important information first.
+
+Recommended hierarchy:
+
+```text
+Profile Header
+↓
+User Information
+↓
+Quick Actions
+↓
+Secondary Settings
+↓
+Less Frequently Used Sections
+```
+
+Do not force users to scroll through low-priority content before reaching common actions.
+
+---
+
+# 6. Evaluate Section Collapsing (If Needed)
+
+Analyze whether certain sections should become:
+
+### Expandable/Collapsible
+
+Examples:
+
+```text
+Account Details
+▼
+
+Notification Settings
+▶
+
+Activity History
+▶
+```
+
+Only implement if it improves UX.
+
+Document reasoning.
+
+---
+
+# 7. Optimize Profile Header
+
+Review:
+
+* Profile image
+* User name
+* User role
+* Action buttons
+
+Ensure header remains compact on mobile.
+
+Prevent:
+
+```text
+Large profile banner consuming half the screen.
+```
+
+---
+
+# 8. Optimize Action Buttons
+
+Review:
+
+* Edit actions
+* Settings actions
+* Navigation actions
+
+Ensure:
+
+* Touch-friendly sizing
+* Efficient spacing
+* Mobile accessibility
+
+Avoid oversized buttons creating unnecessary scrolling.
+
+---
+
+# 9. Desktop Preservation
+
+Desktop currently performs well.
+
+Ensure optimization does NOT:
+
+* Compress desktop layouts excessively.
+* Reduce readability.
+* Break visual balance.
+
+Desktop experience should remain stable or improve.
+
+---
+
+# 10. Tablet Optimization
+
+Validate:
+
+### Portrait Tablet
+
+### Landscape Tablet
+
+Ensure smooth scaling between:
+
+```text
+Mobile
+→ Tablet
+→ Desktop
+```
+
+without abrupt layout changes.
+
+---
+
+# 11. Accessibility Validation
+
+Ensure:
+
+### Touch Targets
+
+Remain accessible.
+
+### Keyboard Navigation
+
+Works correctly.
+
+### Focus States
+
+Remain visible.
+
+### Screen Readers
+
+Continue identifying profile elements correctly.
+
+---
+
+# 12. Preserve Existing Functionality
+
+Ensure optimization does NOT break:
+
+* Profile editing
+* Image upload
+* Profile image viewer
+* Settings navigation
+* Notifications
+* Account permissions
+* Role-based access
+* Existing validation
+* Audit logging
+
+Only layout/UX should change unless necessary.
+
+---
+
+# 13. Performance Validation
+
+Ensure changes do not introduce:
+
+* Unnecessary re-renders
+* Layout instability
+* Performance regressions
+* Memory issues
+
+---
+
+# 14. Responsive Validation
+
+Test:
+
+## Small Mobile
+
+Examples:
+
+```text
+320px
+360px
+375px
+```
+
+---
+
+## Standard Mobile
+
+Android & iPhone.
+
+---
+
+## Tablets
+
+Portrait and landscape.
+
+---
+
+## Desktop
+
+Chrome
+Firefox
+Edge
+
+Verify:
+
+* Reduced scrolling.
+* Improved information visibility.
+* No clipping.
+* No overflow.
+
+---
+
+# 15. Mobile UX Benchmark
+
+Measure:
+
+### Before Optimization
+
+How many screen heights are required to view the profile?
+
+---
+
+### After Optimization
+
+How many screen heights are required?
+
+Document improvement.
+
+Goal:
+
+Significantly reduce required scrolling.
+
+---
+
+# 16. Error Prevention
+
+Verify:
+
+* No horizontal scrolling.
+* No clipped text.
+* No overlapping elements.
+* No broken cards.
+* No responsive regressions.
+
+---
+
+# 17. Backend / Database Review
+
+This feature is primarily UI/UX related.
+
+Determine whether:
+
+* API changes required.
+* Database changes required.
+* Permission changes required.
+
+Document findings.
+
+---
+
+# 18. SQL & Supabase Guidance
+
+Expected implementation:
+
+```text
+SQL Changes Required: NO
+Database Changes Required: NO
+RLS Changes Required: NO
+Supabase Changes Required: NO
+```
+
+This should be a frontend responsiveness optimization.
+
+If any SQL changes are proposed, explain why.
+
+---
+
+# 19. Testing & Validation
+
+Test:
+
+### Mobile
+
+* Portrait
+* Landscape
+
+### Tablet
+
+* Portrait
+* Landscape
+
+### Desktop
+
+* Multiple resolutions
+
+Verify:
+
+* Less scrolling required.
+* Important information visible sooner.
+* Actions remain accessible.
+* No layout issues.
+* No runtime errors.
+
+---
+
+# 20. Final Implementation Report
+
+Provide:
+
+### Files Modified
+
+### Mobile Layout Changes
+
+### Card Optimizations
+
+### Spacing Reductions
+
+### Content Reorganization
+
+### Accessibility Improvements
+
+### Tablet Validation Results
+
+### Desktop Validation Results
+
+### Remaining Limitations
+
+---
+
+# 21. Checkpoint Requirement
+
+After implementation and testing:
+
+Create checkpoint immediately.
+
+### Checkpoint Name
+
+**"Profile Module Mobile-First Layout Optimization & Scroll Reduction"**
+
+---
+
+Checkpoint verification must confirm:
+
+* Mobile scrolling significantly reduced.
+* Important profile information visible sooner.
+* Cards optimized for mobile.
+* Desktop layout preserved.
+* Tablet responsiveness validated.
+* Accessibility validated.
+* No console/runtime errors remain.
+
+---
+
+# Acceptance Criteria
+
+* [ ] Profile Module follows a mobile-first layout strategy.
+* [ ] Excessive scrolling on mobile is significantly reduced.
+* [ ] Important profile information is visible without unnecessary scrolling.
+* [ ] Card heights and spacing are optimized.
+* [ ] Content boxes are more space-efficient.
+* [ ] Mobile responsiveness works correctly across devices.
+* [ ] Tablet responsiveness is validated.
+* [ ] Desktop experience remains visually appealing.
+* [ ] No overflow or clipping occurs.
+* [ ] Existing profile functionality remains unaffected.
+* [ ] No console/runtime errors occur.
+* [ ] Checkpoint created after successful implementation and testing.
+
+---
+
+## Guidance for You
+
+### Supabase SQL Editor
+
+Do **NOT** run any SQL.
+
+This is expected to be:
+
+```text
+Frontend Layout & UX Optimization Only
+```
+
+Expected outcome:
+
+```text
+SQL Required: NO
+Schema Changes Required: NO
+RLS Changes Required: NO
+Database Changes Required: NO
+```
+
+### Post-Implementation Verification
+
+After the developer completes the work, request:
+
+1. Before vs After mobile screenshots.
+2. Number of visible sections within the first mobile viewport.
+3. Confirmation that commonly used actions are accessible without excessive scrolling.
+4. Confirmation that desktop layouts were tested and remain unaffected.
+5. Checkpoint creation confirmation with modified files list and testing results.
