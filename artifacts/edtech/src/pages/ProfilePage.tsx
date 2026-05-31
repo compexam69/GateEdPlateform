@@ -1,7 +1,7 @@
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LogOut, User, Eye, EyeOff, CheckCircle, Shield, Pencil, Phone, Mail, Download, ImagePlus, Trash2, X, ZoomIn, ChevronDown } from "lucide-react";
@@ -9,7 +9,6 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { PhotoCropModal } from "@/components/PhotoCropModal";
 
 import { apiFetch, getApiBase } from "@/lib/api";
@@ -46,8 +45,6 @@ export default function ProfilePage() {
   const [changingPwd, setChangingPwd] = useState(false);
   const [passwordExpanded, setPasswordExpanded] = useState(false);
 
-  // storedAvatarPath is still needed here for handleRemovePhoto's storage
-  // deletion check — the hook uses it internally for syncing.
   const storedAvatarPath: string | null = user?.user_metadata?.avatar_url || null;
   const { photoUrl, setPhotoUrl, bumpVersion, buildUrl } = useAvatarUrl(user);
 
@@ -61,7 +58,6 @@ export default function ProfilePage() {
   const [viewerImgLoaded, setViewerImgLoaded] = useState(false);
   const [viewerImgError, setViewerImgError] = useState(false);
 
-  // Refs for imperative gesture handling (no state = no re-renders during drag)
   const viewerRef = useRef<HTMLDivElement>(null);
   const imgContainerRef = useRef<HTMLDivElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
@@ -73,15 +69,11 @@ export default function ProfilePage() {
     startTime: 0,
     delta: 0,
     dragging: false,
-    // Direction lock: determined after 10px dead zone
     locked: false,
     lockAxis: null as "v" | "h" | null,
   });
-  // Tracks whether a meaningful drag occurred so that the tap-to-close onClick is
-  // NOT triggered after a snap-back swipe.
   const wasDraggingRef = useRef(false);
 
-  // Apply drag visuals directly to DOM nodes — zero React re-renders
   const applyGestureVisuals = useCallback((delta: number) => {
     if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(() => {
@@ -99,7 +91,6 @@ export default function ProfilePage() {
     });
   }, []);
 
-  // Snap back with smooth spring animation
   const resetGestureVisuals = useCallback(() => {
     if (rafRef.current !== null) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
     const viewer = viewerRef.current;
@@ -115,21 +106,18 @@ export default function ProfilePage() {
     if (hint) { hint.style.transition = "opacity 0.3s ease"; hint.style.opacity = "1"; }
   }, []);
 
-  // Imperative touch listeners: passive:false on touchmove so we CAN call
-  // preventDefault(), suppressing pull-to-refresh AND overscroll bounce.
   useEffect(() => {
     if (!photoViewerOpen) return;
     const el = viewerRef.current;
     if (!el) return;
 
-    // Lock body scroll / pull-to-refresh while viewer is open
     const prevOverscroll = document.body.style.overscrollBehavior;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overscrollBehavior = "none";
     document.body.style.overflow = "hidden";
 
     function onTouchStart(e: TouchEvent) {
-      if (e.touches.length !== 1) return; // ignore multi-touch
+      if (e.touches.length !== 1) return;
       gestureRef.current = {
         startY: e.touches[0].clientY,
         startX: e.touches[0].clientX,
@@ -148,24 +136,15 @@ export default function ProfilePage() {
       const dy = e.touches[0].clientY - g.startY;
       const dx = Math.abs(e.touches[0].clientX - g.startX);
 
-      // ── Direction-lock dead zone (10 px) ──────────────────────────────
-      // Don't decide axis until the finger has moved at least 10 px in any
-      // direction. This means tiny / incidental touches never get captured.
       if (!g.locked) {
         const dist = Math.hypot(dy, dx);
-        if (dist < 10) return; // still inside dead zone — pass through freely
+        if (dist < 10) return;
         g.locked = true;
-        // Vertical if downward movement dominates, otherwise horizontal.
         g.lockAxis = dy > 0 && dy >= dx ? "v" : "h";
       }
 
-      // ── Horizontal or upward gesture ─────────────────────────────────
-      // Let the browser handle it natively — hardware-accelerated, no lag.
       if (g.lockAxis !== "v") return;
 
-      // ── Confirmed downward-vertical swipe ────────────────────────────
-      // Now safe to block pull-to-refresh / overscroll.
-      // Works because listener is registered with passive:false.
       e.preventDefault();
       g.dragging = true;
       g.delta = dy;
@@ -178,12 +157,10 @@ export default function ProfilePage() {
       if (!g.dragging) return;
 
       const elapsed = Date.now() - g.startTime;
-      // px/ms — fast flick even with small distance should dismiss
       const velocity = elapsed > 0 ? g.delta / elapsed : 0;
       const shouldClose = g.delta > 80 || (g.delta > 35 && velocity > 0.4);
 
       if (shouldClose) {
-        // Fly out then unmount
         const img = imgContainerRef.current;
         const viewer = viewerRef.current;
         if (img && viewer) {
@@ -233,13 +210,8 @@ export default function ProfilePage() {
     return () => document.removeEventListener("keydown", onKey);
   }, [photoViewerOpen]);
 
-  // Avatar URL syncing and DB fallback are now handled by useAvatarUrl.
-
-  // role is read from the profiles table via useAuth (authoritative, not JWT metadata)
   const effectiveRole = role ?? "student";
   const isAdmin = effectiveRole === "admin" || effectiveRole === "super_admin";
-  // Only super_admin may edit their own protected fields (name, email, mobile)
-  // Admins and students have immutable protected fields on their own profile
   const canEditOwnProfile = effectiveRole === "super_admin";
 
   async function handleSaveName() {
@@ -286,7 +258,6 @@ export default function ProfilePage() {
     }
     setChangingEmail(true);
     try {
-      // Re-authenticate first
       const { error: reAuthErr } = await supabase.auth.signInWithPassword({ email: user!.email!, password: emailConfirmPwd });
       if (reAuthErr) {
         toast({ title: "Wrong password", description: "Your current password is incorrect.", variant: "destructive" });
@@ -332,29 +303,22 @@ export default function ProfilePage() {
       setCropSrc("");
     }
     setUploadingPhoto(true);
-    // Show blob URL immediately for zero-latency visual feedback
     const blobUrl = URL.createObjectURL(blob);
     setPhotoUrl(blobUrl);
     try {
-      // Upload directly to Supabase Storage — handles CORS natively, no proxy needed.
-      // "avatars" is a public bucket; upsert:true overwrites any previous photo.
       const storagePath = `${user!.id}/photo.jpg`;
       const { error: uploadErr } = await supabase.storage
         .from("avatars")
         .upload(storagePath, blob, { contentType: "image/jpeg", upsert: true });
       if (uploadErr) throw new Error(uploadErr.message);
 
-      // Persist the Supabase Storage path in the profile table and JWT metadata
       await supabase.from("profiles").update({ avatar_url: storagePath }).eq("id", user!.id);
       await supabase.auth.updateUser({ data: { avatar_url: storagePath } });
-      // Transition from the temporary blob URL to the permanent Storage URL.
-      // Bump the cache-buster so the browser doesn't serve the old cached photo.
       bumpVersion();
       URL.revokeObjectURL(blobUrl);
       setPhotoUrl(buildUrl(storagePath));
       toast({ title: "Photo updated!" });
     } catch (err: unknown) {
-      // On failure, revert to the previous URL (or null)
       setPhotoUrl(buildUrl(storedAvatarPath));
       URL.revokeObjectURL(blobUrl);
       toast({ title: "Upload failed", description: (err as Error).message, variant: "destructive" });
@@ -367,12 +331,10 @@ export default function ProfilePage() {
     setPhotoUrl(null);
     bumpVersion();
     try {
-      // Remove from Supabase Storage bucket
       if (storedAvatarPath && !storedAvatarPath.startsWith("users/")) {
         await supabase.storage.from("avatars").remove([storedAvatarPath]);
       }
-    } catch { /* best-effort — profile clear still proceeds */ }
-    // Clear in profiles table and JWT metadata
+    } catch { /* best-effort */ }
     await supabase.from("profiles").update({ avatar_url: null }).eq("id", user!.id);
     await supabase.auth.updateUser({ data: { avatar_url: null } });
     toast({ title: "Photo removed" });
@@ -407,54 +369,63 @@ export default function ProfilePage() {
   }
 
   const maskedMobile = user?.user_metadata?.mobile_number || "";
-
   const roleLabel = role === "super_admin" ? "Super Admin" : role === "admin" ? "Admin" : "Student";
   const isEmailVerified = !!(user?.email_confirmed_at);
 
   return (
     <AppLayout>
-      <div className="max-w-xl sm:max-w-2xl mx-auto space-y-3 sm:space-y-5">
-        <h1 className="text-xl sm:text-3xl font-bold tracking-tight">Profile Settings</h1>
+      {/* ── Page container — balanced vertical rhythm for mobile & desktop ── */}
+      <div className="max-w-xl sm:max-w-2xl mx-auto space-y-4 sm:space-y-6">
+        {/* Page heading — comfortable on both mobile and desktop */}
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Profile Settings</h1>
 
+        {/* ── Profile Header Card ── */}
         <Card className="bg-card">
           <CardContent className="p-4 sm:p-6">
-            <div className="flex flex-row items-start gap-3 sm:gap-5">
+            <div className="flex flex-row items-start gap-4 sm:gap-6">
+
+              {/* Avatar column */}
               <div className="relative shrink-0">
-                {/* Avatar circle — smaller on mobile */}
-                <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-full bg-muted flex items-center justify-center ring-2 ring-border overflow-hidden">
-                  {photoUrl ? <img src={photoUrl} alt="Profile" className="w-full h-full object-cover" /> : <User className="w-7 h-7 sm:w-10 sm:h-10 text-muted-foreground" />}
+                {/*
+                  Avatar circle:
+                  Mobile  — 72px (w-18): compact yet clearly visible
+                  Desktop — 88px (w-22): appropriately prominent
+                */}
+                <div className="w-[72px] h-[72px] sm:w-[88px] sm:h-[88px] rounded-full bg-muted flex items-center justify-center ring-2 ring-border overflow-hidden">
+                  {photoUrl
+                    ? <img src={photoUrl} alt="Profile" className="w-full h-full object-cover" />
+                    : <User className="w-9 h-9 sm:w-11 sm:h-11 text-muted-foreground" />}
                 </div>
 
-                {/* Pencil / Edit button */}
+                {/*
+                  Edit button on avatar:
+                  Mobile  — 32px (w-8 h-8): meets minimum comfortable tap target
+                  Desktop — 34px (w-[34px] h-[34px]): slightly larger, visually balanced
+                  The larger size also makes the pencil icon easier to see.
+                */}
                 <button
                   onClick={() => { if (!uploadingPhoto) setPhotoMenuOpen(v => !v); }}
                   disabled={uploadingPhoto}
-                  className="absolute bottom-0 right-0 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-primary flex items-center justify-center shadow-md hover:bg-primary/90 transition-colors disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  className="absolute bottom-0 right-0 w-8 h-8 sm:w-[34px] sm:h-[34px] rounded-full bg-primary flex items-center justify-center shadow-md hover:bg-primary/90 transition-colors disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   title="Edit photo"
                   aria-haspopup="menu"
                   aria-expanded={photoMenuOpen}
                 >
-                  <Pencil className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white" />
+                  <Pencil className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
                 </button>
 
-                {/* Action popup */}
+                {/* Action popup — unchanged logic, improved menu item sizing */}
                 {photoMenuOpen && (
                   <>
-                    {/* Transparent backdrop — closes popup on outside click */}
                     <div
                       className="fixed inset-0 z-40"
                       aria-hidden="true"
                       onClick={() => setPhotoMenuOpen(false)}
                     />
-                    {/* Menu panel — left-0 anchors left edge to avatar left, preventing
-                        the off-screen clipping that occurred with the old left-1/2 centering
-                        after the profile card changed from flex-col (centered avatar) to
-                        flex-row (left-anchored avatar). max-w clamps to viewport on 320px. */}
                     <div
                       role="menu"
-                      className="absolute left-0 top-[calc(100%+10px)] z-50 min-w-[188px] max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-card shadow-2xl overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150"
+                      className="absolute left-0 top-[calc(100%+10px)] z-50 min-w-[196px] max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-card shadow-2xl overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150"
                     >
-                      {/* View Photo — only shown when a photo exists */}
                       {photoUrl && (
                         <>
                           <button
@@ -465,7 +436,7 @@ export default function ProfilePage() {
                               setViewerImgError(false);
                               setPhotoViewerOpen(true);
                             }}
-                            className="flex w-full items-center gap-3 px-4 py-3 text-sm text-left hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:bg-muted/60"
+                            className="flex w-full items-center gap-3 px-4 py-3.5 text-sm text-left hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:bg-muted/60"
                           >
                             <ZoomIn className="w-4 h-4 text-primary shrink-0" />
                             <span>View Photo</span>
@@ -474,24 +445,22 @@ export default function ProfilePage() {
                         </>
                       )}
 
-                      {/* Upload / Update Photo */}
                       <button
                         role="menuitem"
                         onClick={() => { setPhotoMenuOpen(false); fileInputRef.current?.click(); }}
-                        className="flex w-full items-center gap-3 px-4 py-3 text-sm text-left hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:bg-muted/60"
+                        className="flex w-full items-center gap-3 px-4 py-3.5 text-sm text-left hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:bg-muted/60"
                       >
                         <ImagePlus className="w-4 h-4 text-primary shrink-0" />
                         <span>{photoUrl ? "Update Photo" : "Upload Photo"}</span>
                       </button>
 
-                      {/* Delete Photo — only shown when a photo exists */}
                       {photoUrl && (
                         <>
                           <div className="h-px bg-border mx-3" />
                           <button
                             role="menuitem"
                             onClick={() => { setPhotoMenuOpen(false); handleRemovePhoto(); }}
-                            className="flex w-full items-center gap-3 px-4 py-3 text-sm text-left text-destructive hover:bg-destructive/10 transition-colors focus-visible:outline-none focus-visible:bg-destructive/10"
+                            className="flex w-full items-center gap-3 px-4 py-3.5 text-sm text-left text-destructive hover:bg-destructive/10 transition-colors focus-visible:outline-none focus-visible:bg-destructive/10"
                           >
                             <Trash2 className="w-4 h-4 shrink-0" />
                             <span>Delete Photo</span>
@@ -499,12 +468,11 @@ export default function ProfilePage() {
                         </>
                       )}
 
-                      {/* Edit Details — Super Admin only */}
                       {canEditOwnProfile && (
                         <>
                           <div className="h-px bg-border mx-3 mt-1" />
-                          <div className="px-4 pt-2.5 pb-1">
-                            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 select-none">Edit Details</p>
+                          <div className="px-4 pt-3 pb-1">
+                            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60 select-none">Edit Details</p>
                           </div>
                           <button
                             role="menuitem"
@@ -513,7 +481,7 @@ export default function ProfilePage() {
                               setNewName(user?.user_metadata?.full_name || "");
                               setEditingName(true);
                             }}
-                            className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-left hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:bg-muted/60"
+                            className="flex w-full items-center gap-3 px-4 py-3 text-sm text-left hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:bg-muted/60"
                           >
                             <User className="w-4 h-4 text-primary shrink-0" />
                             <span>Edit Name</span>
@@ -525,7 +493,7 @@ export default function ProfilePage() {
                               setEditingEmail(true);
                               setEmailChangeSuccess(false);
                             }}
-                            className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-left hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:bg-muted/60"
+                            className="flex w-full items-center gap-3 px-4 py-3 text-sm text-left hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:bg-muted/60"
                           >
                             <Mail className="w-4 h-4 text-primary shrink-0" />
                             <span>Edit Email</span>
@@ -537,22 +505,20 @@ export default function ProfilePage() {
                               setNewMobile(user?.user_metadata?.mobile_number || "+91 ");
                               setEditingMobile(true);
                             }}
-                            className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-left hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:bg-muted/60"
+                            className="flex w-full items-center gap-3 px-4 py-3 text-sm text-left hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:bg-muted/60"
                           >
                             <Phone className="w-4 h-4 text-primary shrink-0" />
                             <span>Edit Mobile</span>
                           </button>
-                          <div className="pb-1" />
+                          <div className="pb-1.5" />
                         </>
                       )}
                     </div>
                   </>
                 )}
 
-                {/* Hidden file input — unchanged */}
                 <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleFileSelect} />
 
-                {/* Upload spinner overlay */}
                 {uploadingPhoto && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full">
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -560,73 +526,124 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              <div className="flex-1 min-w-0 w-full text-left space-y-1.5 sm:space-y-2">
+              {/* Info column — comfortable spacing between each row */}
+              <div className="flex-1 min-w-0 w-full text-left space-y-2 sm:space-y-2.5">
+
+                {/* Name row */}
                 {editingName && canEditOwnProfile ? (
-                  <div className="flex gap-2 items-center">
-                    <Input value={newName} onChange={e => setNewName(e.target.value)} className="max-w-xs h-8 text-sm" autoFocus />
-                    <Button size="sm" onClick={handleSaveName} disabled={savingName}>{savingName ? "Saving..." : "Save"}</Button>
-                    <Button size="sm" variant="ghost" onClick={() => setEditingName(false)}>Cancel</Button>
+                  <div className="flex flex-wrap gap-2 items-center">
+                    <Input
+                      value={newName}
+                      onChange={e => setNewName(e.target.value)}
+                      className="max-w-xs h-10 text-sm"
+                      autoFocus
+                    />
+                    <Button size="sm" className="h-10 px-4 text-sm" onClick={handleSaveName} disabled={savingName}>
+                      {savingName ? "Saving..." : "Save"}
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-10 px-4 text-sm" onClick={() => setEditingName(false)}>
+                      Cancel
+                    </Button>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 min-w-0">
-                    <h2 className="text-base sm:text-xl font-bold truncate min-w-0 leading-tight">{user?.user_metadata?.full_name || "Student"}</h2>
+                    {/*
+                      Name — primary identity, needs to be prominent
+                      Mobile: text-lg (18px) — clearly readable
+                      Desktop: text-xl (20px) — appropriately prominent
+                    */}
+                    <h2 className="text-lg sm:text-xl font-bold truncate min-w-0 leading-tight">
+                      {user?.user_metadata?.full_name || "Student"}
+                    </h2>
                   </div>
                 )}
 
-                <div className="space-y-1">
-                  {/* Email field */}
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <p className="text-muted-foreground text-xs sm:text-sm truncate min-w-0 flex-1">{user?.email}</p>
+                {/* Email + Mobile block */}
+                <div className="space-y-1.5">
+                  {/* Email row */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                      {/*
+                        Email — secondary information
+                        Mobile: text-sm (14px) — readable without zooming
+                        Desktop: text-sm (14px) — comfortable reading distance
+                        Up from text-xs (12px) which was too small on mobile
+                      */}
+                      <p className="text-muted-foreground text-sm truncate min-w-0 flex-1">{user?.email}</p>
                       {isEmailVerified
-                        ? <Badge variant="secondary" className="bg-success/10 text-success text-[10px] sm:text-xs gap-1 shrink-0 px-1.5 py-0"><CheckCircle className="w-2.5 h-2.5 sm:w-3 sm:h-3" />Verified</Badge>
-                        : <Badge variant="destructive" className="text-[10px] sm:text-xs shrink-0 px-1.5 py-0">Unverified</Badge>}
+                        ? (
+                          <Badge
+                            variant="secondary"
+                            className="bg-success/10 text-success text-xs gap-1 shrink-0 px-2 py-0.5"
+                          >
+                            <CheckCircle className="w-3 h-3" />Verified
+                          </Badge>
+                        )
+                        : (
+                          <Badge variant="destructive" className="text-xs shrink-0 px-2 py-0.5">
+                            Unverified
+                          </Badge>
+                        )}
                     </div>
 
                     {emailChangeSuccess && (
-                      <div className="flex items-start gap-2 rounded-md bg-success/10 border border-success/20 px-3 py-2 text-xs text-success">
+                      <div className="flex items-start gap-2 rounded-md bg-success/10 border border-success/20 px-3 py-2.5 text-xs text-success">
                         <CheckCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                         <span>Verification email sent to your new address. Click the link to confirm the change.</span>
                       </div>
                     )}
 
                     {canEditOwnProfile && editingEmail && (
-                      <div className="mt-2 space-y-2 rounded-lg border border-border bg-muted/30 p-3">
+                      <div className="mt-2 space-y-3 rounded-lg border border-border bg-muted/30 p-4">
                         <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                          <Mail className="w-3.5 h-3.5" />
+                          <Mail className="w-3.5 h-3.5 shrink-0" />
                           A verification link will be sent to the new address. Your current email stays active until confirmed.
                         </p>
                         <div className="space-y-1.5">
-                          <Label className="text-xs">New Email Address</Label>
+                          <Label className="text-sm">New Email Address</Label>
                           <Input
                             type="email"
                             value={newEmail}
                             onChange={e => setNewEmail(e.target.value)}
                             placeholder="new@example.com"
-                            className="h-8 text-sm"
+                            className="h-10 text-sm"
                             autoFocus
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <Label className="text-xs">Current Password (to confirm)</Label>
+                          <Label className="text-sm">Current Password (to confirm)</Label>
                           <div className="relative">
                             <Input
                               type={showEmailPwd ? "text" : "password"}
                               value={emailConfirmPwd}
                               onChange={e => setEmailConfirmPwd(e.target.value)}
                               placeholder="Your current password"
-                              className="h-8 text-sm pr-8"
+                              className="h-10 text-sm pr-10"
                             />
-                            <button type="button" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowEmailPwd(v => !v)}>
-                              {showEmailPwd ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            <button
+                              type="button"
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                              onClick={() => setShowEmailPwd(v => !v)}
+                            >
+                              {showEmailPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                             </button>
                           </div>
                         </div>
                         <div className="flex gap-2">
-                          <Button size="sm" className="h-7 text-xs" onClick={handleChangeEmail} disabled={changingEmail || !newEmail || !emailConfirmPwd}>
+                          <Button
+                            size="sm"
+                            className="h-10 px-4 text-sm"
+                            onClick={handleChangeEmail}
+                            disabled={changingEmail || !newEmail || !emailConfirmPwd}
+                          >
                             {changingEmail ? "Sending..." : "Send Verification"}
                           </Button>
-                          <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setEditingEmail(false); setNewEmail(""); setEmailConfirmPwd(""); }}>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-10 px-4 text-sm"
+                            onClick={() => { setEditingEmail(false); setNewEmail(""); setEmailConfirmPwd(""); }}
+                          >
                             Cancel
                           </Button>
                         </div>
@@ -634,69 +651,126 @@ export default function ProfilePage() {
                     )}
                   </div>
 
-                  {/* Mobile field */}
+                  {/* Mobile number row */}
                   {editingMobile && canEditOwnProfile ? (
-                    <div className="flex gap-2 items-center">
+                    <div className="flex flex-wrap gap-2 items-center">
                       <div className="relative">
-                        <Phone className="w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                        <Input value={newMobile} onChange={e => setNewMobile(e.target.value)} placeholder="+91 9876543210"
-                          className="pl-7 max-w-[180px] text-sm h-8" autoFocus />
+                        <Phone className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          value={newMobile}
+                          onChange={e => setNewMobile(e.target.value)}
+                          placeholder="+91 9876543210"
+                          className="pl-8 max-w-[200px] text-sm h-10"
+                          autoFocus
+                        />
                       </div>
-                      <Button size="sm" onClick={handleSaveMobile} disabled={savingMobile}>{savingMobile ? "Saving..." : "Save"}</Button>
-                      <Button size="sm" variant="ghost" onClick={() => setEditingMobile(false)}>Cancel</Button>
+                      <Button size="sm" className="h-10 px-4 text-sm" onClick={handleSaveMobile} disabled={savingMobile}>
+                        {savingMobile ? "Saving..." : "Save"}
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-10 px-4 text-sm" onClick={() => setEditingMobile(false)}>
+                        Cancel
+                      </Button>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <Phone className="w-3 h-3 text-muted-foreground/60 shrink-0" />
-                      <p className="text-muted-foreground text-xs sm:text-sm truncate min-w-0">{maskedMobile || <span className="italic">No mobile number</span>}</p>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Phone className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
+                      {/*
+                        Phone — secondary information, same rule as email
+                        Mobile: text-sm (14px) up from text-xs (12px)
+                      */}
+                      <p className="text-muted-foreground text-sm truncate min-w-0">
+                        {maskedMobile || <span className="italic">No mobile number</span>}
+                      </p>
                     </div>
                   )}
                 </div>
 
+                {/* Role badge row */}
                 <div className="flex items-center gap-1.5 pt-0.5">
-                  {isAdmin && <Shield className="w-3 h-3 text-primary" />}
-                  <Badge variant="outline" className={`text-[10px] sm:text-xs px-1.5 py-0 ${isAdmin ? "border-primary text-primary" : ""}`}>{roleLabel}</Badge>
+                  {isAdmin && <Shield className="w-3.5 h-3.5 text-primary" />}
+                  {/*
+                    Role badge — needs legible text
+                    text-xs (12px) up from text-[10px] which was unreadable
+                    px-2 py-0.5 up from px-1.5 py-0 for better visual weight
+                  */}
+                  <Badge
+                    variant="outline"
+                    className={`text-xs px-2 py-0.5 ${isAdmin ? "border-primary text-primary" : ""}`}
+                  >
+                    {roleLabel}
+                  </Badge>
                 </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
+        {/* ── Change Password Card (collapsible) ── */}
         <Card>
           <CardContent className="p-0">
-            {/* Collapsible header — tap to expand/collapse */}
+            {/*
+              Collapse toggle:
+              Mobile  — py-4: comfortable tap target (≥48px total with text)
+              Desktop — py-4: consistent vertical rhythm
+            */}
             <button
               type="button"
               onClick={() => setPasswordExpanded(v => !v)}
-              className="w-full flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-[inherit]"
+              className="w-full flex items-center justify-between px-4 sm:px-6 py-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-[inherit]"
               aria-expanded={passwordExpanded}
             >
-              <span className="text-sm font-semibold text-foreground">Change Password</span>
+              <span className="text-sm sm:text-base font-semibold text-foreground">Change Password</span>
               <ChevronDown
                 className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${passwordExpanded ? "rotate-180" : ""}`}
               />
             </button>
 
-            {/* Collapsible body */}
             {passwordExpanded && (
-              <div className="px-4 sm:px-6 pb-4 sm:pb-6 space-y-3 border-t border-border pt-3">
+              <div className="px-4 sm:px-6 pb-5 sm:pb-6 space-y-4 border-t border-border pt-4">
                 {[
                   { label: "Current Password", value: currentPwd, set: setCurrentPwd, show: showCurrent, toggle: () => setShowCurrent(v => !v), placeholder: "Your current password", auto: "current-password" },
                   { label: "New Password", value: newPwd, set: setNewPwd, show: showNew, toggle: () => setShowNew(v => !v), placeholder: "Min 8 chars, mixed case, number, special", auto: "new-password" },
                   { label: "Confirm New Password", value: confirmPwd, set: setConfirmPwd, show: showConfirm, toggle: () => setShowConfirm(v => !v), placeholder: "Repeat new password", auto: "new-password" },
                 ].map(field => (
-                  <div key={field.label} className="space-y-1">
-                    <Label className="text-xs">{field.label}</Label>
+                  <div key={field.label} className="space-y-1.5">
+                    {/*
+                      Labels at text-sm (14px) — up from text-xs (12px)
+                      Improves form readability on all screen sizes
+                    */}
+                    <Label className="text-sm">{field.label}</Label>
                     <div className="relative">
-                      <Input type={field.show ? "text" : "password"} value={field.value} onChange={e => field.set(e.target.value)}
-                        placeholder={field.placeholder} autoComplete={field.auto} className="h-9 text-sm pr-9" />
-                      <button type="button" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={field.toggle}>
-                        {field.show ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      {/*
+                        Inputs at h-11 (44px) on mobile — meets touch target minimum
+                        On desktop h-10 (40px) is visually balanced
+                      */}
+                      <Input
+                        type={field.show ? "text" : "password"}
+                        value={field.value}
+                        onChange={e => field.set(e.target.value)}
+                        placeholder={field.placeholder}
+                        autoComplete={field.auto}
+                        className="h-11 sm:h-10 text-sm pr-10"
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        onClick={field.toggle}
+                      >
+                        {field.show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
                   </div>
                 ))}
-                <Button size="sm" className="h-8 text-sm" onClick={handleChangePassword} disabled={changingPwd || !currentPwd || !newPwd || !confirmPwd}>
+                {/*
+                  Submit button:
+                  Mobile  — h-11 (44px): meets touch target minimum
+                  Desktop — h-10 (40px): visually balanced with inputs
+                */}
+                <Button
+                  className="h-11 sm:h-10 text-sm w-full sm:w-auto px-6"
+                  onClick={handleChangePassword}
+                  disabled={changingPwd || !currentPwd || !newPwd || !confirmPwd}
+                >
                   {changingPwd ? "Updating..." : "Update Password"}
                 </Button>
               </div>
@@ -704,14 +778,23 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
+        {/* ── Account Actions Card ── */}
         <Card>
           <CardContent className="p-4 sm:p-6">
-            <p className="text-sm font-semibold text-foreground mb-3">Account</p>
-            <div className="flex flex-col sm:flex-row gap-2">
+            {/*
+              Section label at text-sm (14px) — already correct, kept as-is
+            */}
+            <p className="text-sm font-semibold text-foreground mb-3 sm:mb-4">Account</p>
+            <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3">
+              {/*
+                Account action buttons:
+                Mobile  — h-11 (44px): meets touch target minimum, full width for easy tapping
+                Desktop — h-10 (40px): visually balanced, side-by-side layout
+                Icon size up from w-3.5 h-3.5 (14px) to w-4 h-4 (16px) for clarity
+              */}
               <Button
                 variant="outline"
-                size="sm"
-                className="justify-start h-8 text-sm flex-1"
+                className="justify-center sm:justify-start h-11 sm:h-10 text-sm flex-1"
                 onClick={async () => {
                   try {
                     const res = await fetch(`${getApiBase()}/user/export`, {
@@ -730,10 +813,14 @@ export default function ProfilePage() {
                   }
                 }}
               >
-                <Download className="w-3.5 h-3.5 mr-1.5" /> Download My Data
+                <Download className="w-4 h-4 mr-2" /> Download My Data
               </Button>
-              <Button variant="outline" size="sm" className="justify-start h-8 text-sm flex-1 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30" onClick={() => signOut()}>
-                <LogOut className="w-3.5 h-3.5 mr-1.5" /> Sign Out
+              <Button
+                variant="outline"
+                className="justify-center sm:justify-start h-11 sm:h-10 text-sm flex-1 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+                onClick={() => signOut()}
+              >
+                <LogOut className="w-4 h-4 mr-2" /> Sign Out
               </Button>
             </div>
           </CardContent>
@@ -748,22 +835,13 @@ export default function ProfilePage() {
         onError={(msg) => toast({ title: "Image processing failed", description: msg, variant: "destructive" })}
       />
 
-      {/* ── Full-screen photo viewer ── */}
+      {/* ── Full-screen photo viewer — unchanged logic ── */}
       {photoViewerOpen && photoUrl && (
         <div
           ref={viewerRef}
           className="fixed inset-0 z-[70] flex items-center justify-center bg-black/85 backdrop-blur-sm animate-in fade-in-0 duration-200"
-          style={{
-            // pan-x pinch-zoom: let the browser handle horizontal panning and
-            // pinch-zoom natively (hardware-accelerated, zero JS latency).
-            // We still intercept vertical swipes via passive:false touchmove
-            // listeners, but only AFTER the 10px direction-lock dead zone
-            // confirms it's a downward-vertical gesture. This keeps normal
-            // touch response instant and smooth on all mobile browsers.
-            touchAction: "pan-x pinch-zoom",
-          }}
+          style={{ touchAction: "pan-x pinch-zoom" }}
           onClick={() => {
-            // Ignore the click that fires after a cancelled drag (snap-back)
             if (wasDraggingRef.current) { wasDraggingRef.current = false; return; }
             setPhotoViewerOpen(false);
           }}
@@ -771,30 +849,26 @@ export default function ProfilePage() {
           aria-modal="true"
           aria-label="Profile photo viewer"
         >
-          {/* Close button — opacity driven imperatively during swipe */}
           <button
             ref={closeBtnRef}
-            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+            className="absolute top-4 right-4 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
             onClick={(e) => { e.stopPropagation(); setPhotoViewerOpen(false); }}
             aria-label="Close viewer"
           >
             <X className="w-5 h-5 text-white" />
           </button>
 
-          {/* Image container — transform driven imperatively during swipe */}
           <div
             ref={imgContainerRef}
             className="relative flex items-center justify-center p-6"
             onClick={e => e.stopPropagation()}
           >
-            {/* Loading spinner */}
             {!viewerImgLoaded && !viewerImgError && (
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="w-10 h-10 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               </div>
             )}
 
-            {/* Error fallback */}
             {viewerImgError && (
               <div className="flex flex-col items-center gap-3 text-white/60">
                 <User className="w-16 h-16" />
@@ -802,7 +876,6 @@ export default function ProfilePage() {
               </div>
             )}
 
-            {/* The photo */}
             <img
               src={photoUrl}
               alt="Profile photo"
@@ -817,7 +890,6 @@ export default function ProfilePage() {
             />
           </div>
 
-          {/* Hint text — opacity driven imperatively during swipe */}
           {viewerImgLoaded && !viewerImgError && (
             <p
               ref={hintRef}
