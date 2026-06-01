@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
 import { createNotification } from "./notifications";
 import { sendPushToUser } from "../lib/push";
+import { capText, isValidUuid, MAX } from "../lib/sanitize";
 
 const router = Router();
 
@@ -18,8 +19,30 @@ router.get("/tasks", requireAuth, async (req: AuthRequest, res) => {
 });
 
 router.post("/tasks", requireAuth, async (req: AuthRequest, res) => {
-  const { title, description, target_type = "free_text", target_id, priority = 0, due_date } = req.body;
+  const title = capText(req.body["title"], MAX.TITLE);
   if (!title) { res.status(400).json({ error: "title required" }); return; }
+
+  const description = capText(req.body["description"], MAX.DESCRIPTION);
+  const target_type = req.body["target_type"] ?? "free_text";
+  const VALID_TARGET_TYPES = ["free_text", "platform_subtopic", "personal_topic"];
+  if (!VALID_TARGET_TYPES.includes(String(target_type))) {
+    res.status(400).json({ error: `target_type must be one of: ${VALID_TARGET_TYPES.join(", ")}` });
+    return;
+  }
+
+  const target_id = req.body["target_id"] ?? null;
+  if (target_id && !isValidUuid(String(target_id))) {
+    res.status(400).json({ error: "Invalid target_id" });
+    return;
+  }
+
+  const rawPriority = Number(req.body["priority"] ?? 0);
+  const priority = Number.isFinite(rawPriority) ? Math.max(0, Math.min(5, Math.floor(rawPriority))) : 0;
+
+  const rawDueDate = req.body["due_date"];
+  const due_date = rawDueDate && !isNaN(Date.parse(String(rawDueDate)))
+    ? new Date(String(rawDueDate)).toISOString()
+    : null;
 
   const { data: existing } = await supabase
     .from("study_tasks")
@@ -46,17 +69,19 @@ router.post("/tasks", requireAuth, async (req: AuthRequest, res) => {
 const VALID_TASK_STATUSES = ["pending", "in_progress", "completed", "skipped"] as const;
 
 router.patch("/tasks/:taskId", requireAuth, async (req: AuthRequest, res) => {
+  const taskId = req.params["taskId"] as string;
+  if (!isValidUuid(taskId)) { res.status(400).json({ error: "Invalid task ID" }); return; }
+
   const updates: Record<string, unknown> = {};
   if (req.body.title !== undefined) {
-    if (typeof req.body.title !== "string" || !req.body.title.trim()) {
+    const title = capText(req.body.title, MAX.TITLE);
+    if (!title) {
       res.status(400).json({ error: "title must be a non-empty string" }); return;
     }
-    updates["title"] = req.body.title.trim();
+    updates["title"] = title;
   }
   if (req.body.description !== undefined) {
-    updates["description"] = typeof req.body.description === "string"
-      ? req.body.description.replace(/\0/g, "").slice(0, 2000) || null
-      : null;
+    updates["description"] = capText(req.body.description, MAX.DESCRIPTION);
   }
   if (req.body.status) {
     if (!VALID_TASK_STATUSES.includes(req.body.status as typeof VALID_TASK_STATUSES[number])) {
@@ -67,29 +92,41 @@ router.patch("/tasks/:taskId", requireAuth, async (req: AuthRequest, res) => {
   }
   if (req.body.priority !== undefined) {
     const p = Number(req.body.priority);
-    if (isNaN(p) || p < 0 || p > 5) {
+    if (!Number.isFinite(p) || p < 0 || p > 5) {
       res.status(400).json({ error: "priority must be a number between 0 and 5" }); return;
     }
-    updates["priority"] = p;
+    updates["priority"] = Math.floor(p);
   }
-  if (req.body.order_index !== undefined) updates["order_index"] = req.body.order_index;
+  if (req.body.order_index !== undefined) {
+    const idx = Math.floor(Number(req.body.order_index));
+    if (Number.isFinite(idx)) updates["order_index"] = idx;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    res.status(400).json({ error: "No valid fields to update" });
+    return;
+  }
 
   const { data, error } = await supabase
     .from("study_tasks")
     .update(updates)
-    .eq("id", req.params["taskId"])
+    .eq("id", taskId)
     .eq("user_id", req.user!.id)
     .select()
     .single();
   if (error) { res.status(500).json({ error: error.message }); return; }
+  if (!data) { res.status(404).json({ error: "Task not found" }); return; }
   res.json(data);
 });
 
 router.delete("/tasks/:taskId", requireAuth, async (req: AuthRequest, res) => {
+  const taskId = req.params["taskId"] as string;
+  if (!isValidUuid(taskId)) { res.status(400).json({ error: "Invalid task ID" }); return; }
+
   const { error } = await supabase
     .from("study_tasks")
     .delete()
-    .eq("id", req.params["taskId"])
+    .eq("id", taskId)
     .eq("user_id", req.user!.id);
   if (error) { res.status(500).json({ error: error.message }); return; }
   res.json({ message: "Deleted" });
@@ -99,8 +136,11 @@ router.post("/tasks/reorder", requireAuth, async (req: AuthRequest, res) => {
   const { tasks } = req.body as { tasks: Array<{ id: string; order_index: number }> };
   if (!Array.isArray(tasks)) { res.status(400).json({ error: "tasks array required" }); return; }
 
-  const updates = tasks.map(t =>
-    supabase.from("study_tasks").update({ order_index: t.order_index }).eq("id", t.id).eq("user_id", req.user!.id)
+  const validTasks = tasks.filter(t => isValidUuid(t.id) && Number.isFinite(Number(t.order_index)));
+  if (validTasks.length === 0) { res.json({ message: "No valid tasks to reorder" }); return; }
+
+  const updates = validTasks.map(t =>
+    supabase.from("study_tasks").update({ order_index: Math.floor(Number(t.order_index)) }).eq("id", t.id).eq("user_id", req.user!.id)
   );
   await Promise.all(updates);
   res.json({ message: "Reordered" });
@@ -172,8 +212,8 @@ router.post("/tasks/generate", requireAuth, async (req: AuthRequest, res) => {
       const subject = chapter?.["subjects"] as Record<string, unknown> | null;
       const insertRes1: { data: Record<string, unknown> | null } = await supabase.from("study_tasks").insert({
         user_id: userId,
-        title: `Start: ${topic["title"] as string}`,
-        description: `${subject?.["title"] as string || ""} › ${chapter?.["title"] as string || ""} — Watch the lecture to begin`,
+        title: capText(`Start: ${topic["title"] as string}`, MAX.TITLE) ?? `Start: ${String(topic["id"]).slice(0, 8)}`,
+        description: capText(`${subject?.["title"] as string || ""} › ${chapter?.["title"] as string || ""} — Watch the lecture to begin`, MAX.DESCRIPTION),
         target_type: "platform_subtopic", target_id: topic["id"] as string,
         priority: 1, order_index: newTasks.length, status: "pending", source: "auto",
       }).select().single();
@@ -204,10 +244,10 @@ router.post("/tasks/generate", requireAuth, async (req: AuthRequest, res) => {
     const avg = topic.accuracies.reduce((s, a) => s + a, 0) / Math.max(topic.accuracies.length, 1);
     const insertRes2: { data: Record<string, unknown> | null } = await supabase.from("study_tasks").insert({
       user_id: userId,
-      title: `Revise: ${topic.topicTitle}`,
-      description: `${topic.subjectTitle} › ${topic.chapterTitle} — Avg accuracy: ${Math.round(avg)}%. Redo DPP or Topic Test.`,
+      title: capText(`Revise: ${topic.topicTitle}`, MAX.TITLE) ?? `Revise: ${topic.topicId.slice(0, 8)}`,
+      description: capText(`${topic.subjectTitle} › ${topic.chapterTitle} — Avg accuracy: ${Math.round(avg)}%. Redo DPP or Topic Test.`, MAX.DESCRIPTION),
       target_type: "platform_subtopic", target_id: topic.topicId,
-      priority: Math.round((60 - avg) / 10), order_index: newTasks.length,
+      priority: Math.min(5, Math.round((60 - avg) / 10)), order_index: newTasks.length,
       status: "pending", source: "auto",
     }).select().single();
     if (insertRes2.data) newTasks.push(insertRes2.data);

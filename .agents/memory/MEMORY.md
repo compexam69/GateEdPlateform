@@ -1,2 +1,4 @@
 - [Auth Role Source](auth-role-source.md) — role/is_approved must be read from profiles table, never from user_metadata (trigger only writes to profiles)
 - [B2 Account ID Auth](b2-account-id-auth.md) — use accountId from b2_authorize_account response in all subsequent B2 calls, not B2_ACCOUNT_ID env var
+- [API Route Hardening](api-route-hardening.md) — all input validation patterns used across routes: UUID, capText, sanitizeEnum, mass-assignment whitelist
+- [api-client-react lib build](api-client-react-build.md) — lib uses composite:true; must run `npx tsc -p tsconfig.json` inside lib/api-client-react/ to generate dist/ for frontend typecheck to pass

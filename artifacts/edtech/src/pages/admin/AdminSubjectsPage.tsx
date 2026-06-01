@@ -1212,7 +1212,7 @@ export default function AdminSubjectsPage() {
     mutation: { onSuccess: () => { queryClient.invalidateQueries({ queryKey: [getGetSubjectsUrl()] }); toast({ title: "Subject deleted" }); } },
   });
   const createChapter = useCreateChapter({
-    mutation: { onSuccess: (_data, vars) => { queryClient.invalidateQueries({ queryKey: [getGetChaptersUrl(vars.subjectId)] }); toast({ title: "Chapter created" }); setEditTarget(null); } },
+    mutation: { onSuccess: (_data: unknown, vars: { subjectId: string }) => { queryClient.invalidateQueries({ queryKey: [getGetChaptersUrl(vars.subjectId)] }); toast({ title: "Chapter created" }); setEditTarget(null); } },
   });
   const deleteChapter = useDeleteChapter({
     mutation: { onSuccess: () => { queryClient.invalidateQueries(); toast({ title: "Chapter deleted" }); } },
@@ -1421,7 +1421,7 @@ export default function AdminSubjectsPage() {
                   <div className="sticky top-0 px-3 py-1.5 text-[11px] text-muted-foreground font-medium border-b border-border bg-card/95 backdrop-blur-sm">
                     {searchResults.length} result{searchResults.length !== 1 ? "s" : ""} for "{searchQuery.trim()}"
                   </div>
-                  {searchResults.map((result, i) => (
+                  {searchResults.map((result: SearchResult, i: number) => (
                     <button
                       key={i}
                       className="w-full text-left px-3 py-2.5 hover:bg-muted/50 active:bg-muted transition-colors flex items-start gap-2.5 border-b border-border/50 last:border-b-0"

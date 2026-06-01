@@ -2,6 +2,7 @@ import { Router } from "express";
 import { supabase } from "../lib/supabase";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
 import { sendPushToUser } from "../lib/push";
+import { capText } from "../lib/sanitize";
 
 const router = Router();
 
@@ -17,8 +18,28 @@ router.get("/pomodoro/sessions", requireAuth, async (req: AuthRequest, res) => {
 });
 
 router.post("/pomodoro/sessions", requireAuth, async (req: AuthRequest, res) => {
-  const { duration_seconds, topic_context, start_time, end_time } = req.body;
   const userId = req.user!.id;
+
+  const rawDuration = Number(req.body["duration_seconds"]);
+  if (!Number.isFinite(rawDuration) || rawDuration < 1 || rawDuration > 86400) {
+    res.status(400).json({ error: "duration_seconds must be between 1 and 86400" });
+    return;
+  }
+  const duration_seconds = Math.floor(rawDuration);
+
+  const topic_context = capText(req.body["topic_context"], 500);
+
+  const startTimeRaw = req.body["start_time"];
+  const endTimeRaw = req.body["end_time"];
+
+  // Validate timestamps are ISO strings
+  const start_time = startTimeRaw && !isNaN(Date.parse(String(startTimeRaw)))
+    ? new Date(String(startTimeRaw)).toISOString()
+    : new Date(Date.now() - duration_seconds * 1000).toISOString();
+
+  const end_time = endTimeRaw && !isNaN(Date.parse(String(endTimeRaw)))
+    ? new Date(String(endTimeRaw)).toISOString()
+    : new Date().toISOString();
 
   const { data, error } = await supabase
     .from("pomodoro_sessions")

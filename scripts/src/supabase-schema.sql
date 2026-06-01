@@ -428,6 +428,7 @@ create index if not exists idx_user_notes_content_tsv on user_notes using gin(co
 -- Productivity
 create index if not exists idx_pomodoro_user_time     on pomodoro_sessions(user_id, start_time desc);
 create index if not exists idx_study_tasks_user       on study_tasks(user_id, order_index asc);
+create index if not exists idx_study_tasks_target_id  on study_tasks(target_id) where target_id is not null;
 create index if not exists idx_external_tests_user    on external_tests(user_id, exam_date desc);
 
 -- Notifications
@@ -448,6 +449,9 @@ create index if not exists idx_rate_limits_key_time   on rate_limits(key, create
 create index if not exists idx_audit_logs_actor       on audit_logs(actor_id);
 create index if not exists idx_audit_logs_target      on audit_logs(target_type, target_id);
 create index if not exists idx_audit_logs_created_at  on audit_logs(created_at desc);
+
+-- Content access grants (admin tools query by granted_by to list what an admin shared)
+create index if not exists idx_content_access_grants_granted_by on content_access_grants(granted_by);
 
 -- ── 16. Row Level Security ────────────────────────────────────────────────────
 

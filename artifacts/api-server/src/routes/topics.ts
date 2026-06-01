@@ -1,8 +1,11 @@
 import { Router } from "express";
 import { supabase } from "../lib/supabase";
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth";
+import { isValidUuid, capText, MAX } from "../lib/sanitize";
 
 const router = Router();
+
+const VALID_ROLES = ["student", "admin", "super_admin"];
 
 // ── Shared audit helper (inline to avoid circular imports) ───────────────────
 async function logTopicVisibility(
@@ -32,6 +35,8 @@ async function logTopicVisibility(
 // ─────────────────────────────────────────────────────────────────────────────
 router.get("/chapters/:chapterId/topics", requireAuth, async (req: AuthRequest, res) => {
   const chapterId = req.params["chapterId"];
+  if (!isValidUuid(chapterId)) { res.status(400).json({ error: "Invalid chapter ID" }); return; }
+
   const role = req.user!.role;
   const userId = req.user!.id;
 
@@ -71,14 +76,21 @@ router.get("/chapters/:chapterId/topics", requireAuth, async (req: AuthRequest, 
 
 // ── POST /chapters/:chapterId/topics ─────────────────────────────────────────
 router.post("/chapters/:chapterId/topics", requireAdmin, async (req: AuthRequest, res) => {
-  const { title, description, order_index, telegram_link, allowed_roles, is_creator_only } = req.body;
+  const chapterId = req.params["chapterId"] as string;
+  if (!isValidUuid(chapterId)) { res.status(400).json({ error: "Invalid chapter ID" }); return; }
+
+  const title = capText(req.body["title"], MAX.TITLE);
   if (!title) { res.status(400).json({ error: "title required" }); return; }
 
-  // Validate allowed_roles if provided
-  const VALID_ROLES = ["student", "admin", "super_admin"];
-  const roles: string[] = Array.isArray(allowed_roles)
-    ? allowed_roles.filter((r: unknown) => VALID_ROLES.includes(r as string))
+  const description = capText(req.body["description"], MAX.DESCRIPTION);
+  const telegram_link = capText(req.body["telegram_link"], MAX.URL);
+  const order_index = req.body["order_index"] != null ? Math.floor(Number(req.body["order_index"])) : 0;
+  const is_creator_only = req.body["is_creator_only"] === true;
+
+  const roles: string[] = Array.isArray(req.body["allowed_roles"])
+    ? (req.body["allowed_roles"] as unknown[]).filter((r: unknown) => VALID_ROLES.includes(r as string)) as string[]
     : VALID_ROLES;
+
   if (roles.length === 0) {
     res.status(400).json({ error: "At least one role must be selected in allowed_roles." });
     return;
@@ -87,14 +99,14 @@ router.post("/chapters/:chapterId/topics", requireAdmin, async (req: AuthRequest
   const { data, error } = await supabase
     .from("topics")
     .insert({
-      chapter_id: req.params["chapterId"],
+      chapter_id: chapterId,
       title,
       description,
       order_index,
       telegram_link: telegram_link || null,
       creator_id: req.user!.id,
       allowed_roles: roles,
-      is_creator_only: is_creator_only === true,
+      is_creator_only,
     })
     .select()
     .single();
@@ -114,20 +126,27 @@ router.post("/chapters/:chapterId/topics", requireAdmin, async (req: AuthRequest
 // ── PATCH /topics/:topicId ────────────────────────────────────────────────────
 router.patch("/topics/:topicId", requireAdmin, async (req: AuthRequest, res) => {
   const topicId = req.params["topicId"] as string;
-  const { title, description, order_index, is_active, telegram_link, allowed_roles, is_creator_only } = req.body;
+  if (!isValidUuid(topicId)) { res.status(400).json({ error: "Invalid topic ID" }); return; }
+
   const updates: Record<string, unknown> = {};
-  if (title !== undefined) updates["title"] = title;
-  if (description !== undefined) updates["description"] = description;
-  if (order_index !== undefined) updates["order_index"] = order_index;
-  if (is_active !== undefined) updates["is_active"] = is_active;
-  if (telegram_link !== undefined) updates["telegram_link"] = telegram_link || null;
+  if (req.body["title"] !== undefined) {
+    const title = capText(req.body["title"], MAX.TITLE);
+    if (!title) { res.status(400).json({ error: "title must be a non-empty string" }); return; }
+    updates["title"] = title;
+  }
+  if (req.body["description"] !== undefined) updates["description"] = capText(req.body["description"], MAX.DESCRIPTION);
+  if (req.body["order_index"] !== undefined) {
+    const idx = Math.floor(Number(req.body["order_index"]));
+    if (Number.isFinite(idx)) updates["order_index"] = idx;
+  }
+  if (req.body["is_active"] !== undefined) updates["is_active"] = Boolean(req.body["is_active"]);
+  if (req.body["telegram_link"] !== undefined) updates["telegram_link"] = capText(req.body["telegram_link"], MAX.URL) || null;
 
   // Visibility fields
-  const VALID_ROLES = ["student", "admin", "super_admin"];
   let rolesChanged = false;
-  if (allowed_roles !== undefined) {
-    const roles = (Array.isArray(allowed_roles) ? allowed_roles : [])
-      .filter((r: unknown) => VALID_ROLES.includes(r as string));
+  if (req.body["allowed_roles"] !== undefined) {
+    const roles = (Array.isArray(req.body["allowed_roles"]) ? req.body["allowed_roles"] : [] as unknown[])
+      .filter((r: unknown) => VALID_ROLES.includes(r as string)) as string[];
     if (roles.length === 0) {
       res.status(400).json({ error: "At least one role must be selected in allowed_roles." });
       return;
@@ -135,8 +154,8 @@ router.patch("/topics/:topicId", requireAdmin, async (req: AuthRequest, res) => 
     updates["allowed_roles"] = roles;
     rolesChanged = true;
   }
-  if (is_creator_only !== undefined) {
-    updates["is_creator_only"] = is_creator_only === true;
+  if (req.body["is_creator_only"] !== undefined) {
+    updates["is_creator_only"] = req.body["is_creator_only"] === true;
     rolesChanged = true;
   }
 
@@ -163,6 +182,7 @@ router.patch("/topics/:topicId", requireAdmin, async (req: AuthRequest, res) => 
     .select()
     .single();
   if (error) { res.status(500).json({ error: error.message }); return; }
+  if (!data) { res.status(404).json({ error: "Topic not found" }); return; }
 
   // Audit log for visibility changes
   if (rolesChanged && prevVisibility) {
@@ -173,7 +193,8 @@ router.patch("/topics/:topicId", requireAdmin, async (req: AuthRequest, res) => 
   }
 
   // Keep the lectures row in sync whenever telegram_link changes
-  if (telegram_link !== undefined) {
+  if (req.body["telegram_link"] !== undefined) {
+    const telegramLink = capText(req.body["telegram_link"], MAX.URL) || null;
     const { data: existingLectures } = await supabase
       .from("lectures")
       .select("id")
@@ -182,11 +203,11 @@ router.patch("/topics/:topicId", requireAdmin, async (req: AuthRequest, res) => 
       .limit(1);
 
     if (existingLectures && existingLectures.length > 0) {
-      await supabase.from("lectures").update({ telegram_link: telegram_link || null }).eq("id", existingLectures[0].id);
+      await supabase.from("lectures").update({ telegram_link: telegramLink }).eq("id", existingLectures[0].id);
     } else {
       await supabase.from("lectures").insert({
         topic_id: topicId,
-        telegram_link: telegram_link || null,
+        telegram_link: telegramLink,
       });
     }
   }
@@ -197,6 +218,7 @@ router.patch("/topics/:topicId", requireAdmin, async (req: AuthRequest, res) => 
 // ── DELETE /topics/:topicId ───────────────────────────────────────────────────
 router.delete("/topics/:topicId", requireAdmin, async (req: AuthRequest, res) => {
   const topicId = req.params["topicId"] as string;
+  if (!isValidUuid(topicId)) { res.status(400).json({ error: "Invalid topic ID" }); return; }
 
   // Clean up orphaned study_tasks rows (no FK constraint — must be handled manually)
   await supabase
@@ -236,8 +258,18 @@ router.post("/topics/reorder", requireAdmin, async (req: AuthRequest, res) => {
     res.status(400).json({ error: "topics array required" });
     return;
   }
+
+  // Validate all IDs are UUIDs and order_index values are numbers
+  const validTopics = topics.filter(t => isValidUuid(t.id) && Number.isFinite(Number(t.order_index)));
+  if (validTopics.length === 0) {
+    res.status(400).json({ error: "No valid topics to reorder" });
+    return;
+  }
+
   await Promise.all(
-    topics.map(t => supabase.from("topics").update({ order_index: t.order_index }).eq("id", t.id))
+    validTopics.map(t =>
+      supabase.from("topics").update({ order_index: Math.floor(Number(t.order_index)) }).eq("id", t.id)
+    )
   );
   res.json({ message: "Reordered" });
 });

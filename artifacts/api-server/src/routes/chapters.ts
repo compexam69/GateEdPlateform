@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { supabase } from "../lib/supabase";
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth";
+import { isValidUuid, capText, MAX } from "../lib/sanitize";
 
 const router = Router();
 
@@ -39,6 +40,8 @@ async function canAccessSubject(subjectId: string, userId: string, role: string)
 // ── GET /subjects/:subjectId/chapters ─────────────────────────────────────────
 router.get("/subjects/:subjectId/chapters", requireAuth, async (req: AuthRequest, res) => {
   const subjectId = req.params["subjectId"] as string;
+  if (!isValidUuid(subjectId)) { res.status(400).json({ error: "Invalid subject ID" }); return; }
+
   const role = req.user!.role;
   const userId = req.user!.id;
 
@@ -47,7 +50,7 @@ router.get("/subjects/:subjectId/chapters", requireAuth, async (req: AuthRequest
 
   const { data, error } = await supabase
     .from("chapters")
-    .select("*")
+    .select("id, subject_id, title, description, order_index, is_active, creator_id, created_at, updated_at")
     .eq("subject_id", subjectId)
     .order("order_index");
   if (error) { res.status(500).json({ error: error.message }); return; }
@@ -56,11 +59,19 @@ router.get("/subjects/:subjectId/chapters", requireAuth, async (req: AuthRequest
 
 // ── POST /subjects/:subjectId/chapters ────────────────────────────────────────
 router.post("/subjects/:subjectId/chapters", requireAdmin, async (req: AuthRequest, res) => {
-  const { title, description, order_index, is_active = true } = req.body;
+  const subjectId = req.params["subjectId"] as string;
+  if (!isValidUuid(subjectId)) { res.status(400).json({ error: "Invalid subject ID" }); return; }
+
+  const title = capText(req.body["title"], MAX.TITLE);
   if (!title) { res.status(400).json({ error: "title required" }); return; }
+
+  const description = capText(req.body["description"], MAX.DESCRIPTION);
+  const order_index = req.body["order_index"] != null ? Math.floor(Number(req.body["order_index"])) : 0;
+  const is_active = req.body["is_active"] !== false;
+
   const { data, error } = await supabase
     .from("chapters")
-    .insert({ subject_id: req.params["subjectId"], title, description, order_index, is_active, creator_id: req.user!.id })
+    .insert({ subject_id: subjectId, title, description, order_index, is_active, creator_id: req.user!.id })
     .select()
     .single();
   if (error) { res.status(500).json({ error: error.message }); return; }
@@ -69,20 +80,32 @@ router.post("/subjects/:subjectId/chapters", requireAdmin, async (req: AuthReque
 
 // ── PATCH /chapters/:chapterId ────────────────────────────────────────────────
 router.patch("/chapters/:chapterId", requireAdmin, async (req: AuthRequest, res) => {
-  const { title, description, order_index, is_active } = req.body;
+  const chapterId = req.params["chapterId"] as string;
+  if (!isValidUuid(chapterId)) { res.status(400).json({ error: "Invalid chapter ID" }); return; }
+
   const updates: Record<string, unknown> = {};
-  if (title !== undefined) updates["title"] = title;
-  if (description !== undefined) updates["description"] = description;
-  if (order_index !== undefined) updates["order_index"] = order_index;
-  if (is_active !== undefined) updates["is_active"] = is_active;
+  if (req.body["title"] !== undefined) {
+    const title = capText(req.body["title"], MAX.TITLE);
+    if (!title) { res.status(400).json({ error: "title must be a non-empty string" }); return; }
+    updates["title"] = title;
+  }
+  if (req.body["description"] !== undefined) updates["description"] = capText(req.body["description"], MAX.DESCRIPTION);
+  if (req.body["order_index"] !== undefined) {
+    const idx = Math.floor(Number(req.body["order_index"]));
+    if (Number.isFinite(idx)) updates["order_index"] = idx;
+  }
+  if (req.body["is_active"] !== undefined) updates["is_active"] = Boolean(req.body["is_active"]);
+
   if (Object.keys(updates).length === 0) { res.status(400).json({ error: "No valid fields to update" }); return; }
+
   const { data, error } = await supabase
     .from("chapters")
     .update(updates)
-    .eq("id", req.params["chapterId"])
+    .eq("id", chapterId)
     .select()
     .single();
   if (error) { res.status(500).json({ error: error.message }); return; }
+  if (!data) { res.status(404).json({ error: "Chapter not found" }); return; }
   res.json(data);
 });
 
@@ -93,18 +116,31 @@ router.post("/chapters/reorder", requireAdmin, async (req: AuthRequest, res) => 
     res.status(400).json({ error: "chapters array required" });
     return;
   }
+
+  // Validate all IDs are UUIDs and order_index values are numbers
+  const validChapters = chapters.filter(c => isValidUuid(c.id) && Number.isFinite(Number(c.order_index)));
+  if (validChapters.length === 0) {
+    res.status(400).json({ error: "No valid chapters to reorder" });
+    return;
+  }
+
   await Promise.all(
-    chapters.map(c => supabase.from("chapters").update({ order_index: c.order_index }).eq("id", c.id))
+    validChapters.map(c =>
+      supabase.from("chapters").update({ order_index: Math.floor(Number(c.order_index)) }).eq("id", c.id)
+    )
   );
   res.json({ message: "Reordered" });
 });
 
 // ── DELETE /chapters/:chapterId ───────────────────────────────────────────────
 router.delete("/chapters/:chapterId", requireAdmin, async (req: AuthRequest, res) => {
+  const chapterId = req.params["chapterId"] as string;
+  if (!isValidUuid(chapterId)) { res.status(400).json({ error: "Invalid chapter ID" }); return; }
+
   const { error } = await supabase
     .from("chapters")
     .delete()
-    .eq("id", req.params["chapterId"]);
+    .eq("id", chapterId);
   if (error) { res.status(500).json({ error: error.message }); return; }
   res.json({ message: "Deleted" });
 });

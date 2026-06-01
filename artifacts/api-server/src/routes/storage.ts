@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { getUploadPresignedUrl, getDownloadPresignedUrl, deleteB2File, generateStoragePath } from "../lib/b2";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
 import { logger } from "../lib/logger";
+import { isValidUuid } from "../lib/sanitize";
 
 const router = Router();
 
@@ -58,6 +59,10 @@ router.post(
 
     if (!chapter_id || !filename) {
       res.status(400).json({ error: "chapter_id and filename are required" });
+      return;
+    }
+    if (!isValidUuid(chapter_id)) {
+      res.status(400).json({ error: "Invalid chapter_id" });
       return;
     }
 

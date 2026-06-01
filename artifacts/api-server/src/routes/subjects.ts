@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { supabase } from "../lib/supabase";
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth";
+import { isValidUuid, capText, MAX } from "../lib/sanitize";
 
 const router = Router();
 
@@ -54,7 +55,7 @@ router.get("/subjects", requireAuth, async (req: AuthRequest, res) => {
 
   let query = supabase
     .from("subjects")
-    .select("*")
+    .select("id, title, description, icon_url, order_index, is_active, creator_id, visibility_roles, is_creator_only, created_at, updated_at")
     .eq("is_active", true)
     .order("order_index");
 
@@ -88,11 +89,17 @@ router.get("/subjects", requireAuth, async (req: AuthRequest, res) => {
 
 // ── POST /subjects ────────────────────────────────────────────────────────────
 router.post("/subjects", requireAdmin, async (req: AuthRequest, res) => {
-  const { title, description, order_index, icon_url, is_active = true, visibility_roles, is_creator_only } = req.body;
+  const title = capText(req.body["title"], MAX.TITLE);
   if (!title) { res.status(400).json({ error: "title required" }); return; }
 
-  const roles: string[] = Array.isArray(visibility_roles)
-    ? visibility_roles.filter((r: unknown) => VALID_ROLES.includes(r as string))
+  const description = capText(req.body["description"], MAX.DESCRIPTION);
+  const icon_url = capText(req.body["icon_url"], MAX.URL);
+  const order_index = req.body["order_index"] != null ? Math.floor(Number(req.body["order_index"])) : 0;
+  const is_active = req.body["is_active"] !== false;
+  const is_creator_only = req.body["is_creator_only"] === true;
+
+  const roles: string[] = Array.isArray(req.body["visibility_roles"])
+    ? (req.body["visibility_roles"] as unknown[]).filter((r: unknown) => VALID_ROLES.includes(r as string)) as string[]
     : VALID_ROLES;
 
   if (!is_creator_only && roles.length === 0) {
@@ -110,7 +117,7 @@ router.post("/subjects", requireAdmin, async (req: AuthRequest, res) => {
       is_active,
       creator_id: req.user!.id,
       visibility_roles: is_creator_only ? ["super_admin"] : roles,
-      is_creator_only: is_creator_only === true,
+      is_creator_only,
     })
     .select()
     .single();
@@ -120,13 +127,16 @@ router.post("/subjects", requireAdmin, async (req: AuthRequest, res) => {
 
 // ── GET /subjects/:subjectId ──────────────────────────────────────────────────
 router.get("/subjects/:subjectId", requireAuth, async (req: AuthRequest, res) => {
+  const subjectId = req.params["subjectId"] as string;
+  if (!isValidUuid(subjectId)) { res.status(400).json({ error: "Invalid subject ID" }); return; }
+
   const role = req.user!.role;
   const userId = req.user!.id;
 
   const { data, error } = await supabase
     .from("subjects")
-    .select("*")
-    .eq("id", req.params["subjectId"])
+    .select("id, title, description, icon_url, order_index, is_active, creator_id, visibility_roles, is_creator_only, created_at, updated_at")
+    .eq("id", subjectId)
     .single();
   if (error || !data) { res.status(404).json({ error: "Not found" }); return; }
 
@@ -151,28 +161,36 @@ router.get("/subjects/:subjectId", requireAuth, async (req: AuthRequest, res) =>
 // ── PATCH /subjects/:subjectId ────────────────────────────────────────────────
 router.patch("/subjects/:subjectId", requireAdmin, async (req: AuthRequest, res) => {
   const subjectId = req.params["subjectId"] as string;
-  const { title, description, order_index, icon_url, is_active, visibility_roles, is_creator_only } = req.body;
+  if (!isValidUuid(subjectId)) { res.status(400).json({ error: "Invalid subject ID" }); return; }
+
   const updates: Record<string, unknown> = {};
-  if (title !== undefined) updates["title"] = title;
-  if (description !== undefined) updates["description"] = description;
-  if (order_index !== undefined) updates["order_index"] = order_index;
-  if (icon_url !== undefined) updates["icon_url"] = icon_url;
-  if (is_active !== undefined) updates["is_active"] = is_active;
+  if (req.body["title"] !== undefined) {
+    const title = capText(req.body["title"], MAX.TITLE);
+    if (!title) { res.status(400).json({ error: "title must be a non-empty string" }); return; }
+    updates["title"] = title;
+  }
+  if (req.body["description"] !== undefined) updates["description"] = capText(req.body["description"], MAX.DESCRIPTION);
+  if (req.body["order_index"] !== undefined) {
+    const idx = Math.floor(Number(req.body["order_index"]));
+    if (Number.isFinite(idx)) updates["order_index"] = idx;
+  }
+  if (req.body["icon_url"] !== undefined) updates["icon_url"] = capText(req.body["icon_url"], MAX.URL);
+  if (req.body["is_active"] !== undefined) updates["is_active"] = Boolean(req.body["is_active"]);
 
   let visibilityChanged = false;
-  if (visibility_roles !== undefined || is_creator_only !== undefined) {
-    const roles: string[] = Array.isArray(visibility_roles)
-      ? visibility_roles.filter((r: unknown) => VALID_ROLES.includes(r as string))
+  if (req.body["visibility_roles"] !== undefined || req.body["is_creator_only"] !== undefined) {
+    const roles: string[] = Array.isArray(req.body["visibility_roles"])
+      ? (req.body["visibility_roles"] as unknown[]).filter((r: unknown) => VALID_ROLES.includes(r as string)) as string[]
       : [];
-    const creatorOnly = is_creator_only === true;
-    if (!creatorOnly && visibility_roles !== undefined && roles.length === 0) {
+    const creatorOnly = req.body["is_creator_only"] === true;
+    if (!creatorOnly && req.body["visibility_roles"] !== undefined && roles.length === 0) {
       res.status(400).json({ error: "At least one role must be selected in visibility_roles." });
       return;
     }
-    if (visibility_roles !== undefined) {
+    if (req.body["visibility_roles"] !== undefined) {
       updates["visibility_roles"] = creatorOnly ? ["super_admin"] : roles;
     }
-    if (is_creator_only !== undefined) updates["is_creator_only"] = creatorOnly;
+    if (req.body["is_creator_only"] !== undefined) updates["is_creator_only"] = creatorOnly;
     visibilityChanged = true;
   }
 
@@ -196,6 +214,7 @@ router.patch("/subjects/:subjectId", requireAdmin, async (req: AuthRequest, res)
     .select()
     .single();
   if (error) { res.status(500).json({ error: error.message }); return; }
+  if (!data) { res.status(404).json({ error: "Subject not found" }); return; }
 
   if (visibilityChanged && prevVisibility) {
     await logSubjectVisibility(req.user!.id, subjectId, prevVisibility, {
@@ -214,18 +233,31 @@ router.post("/subjects/reorder", requireAdmin, async (req: AuthRequest, res) => 
     res.status(400).json({ error: "subjects array required" });
     return;
   }
+
+  // Validate all IDs are UUIDs and order_index values are numbers
+  const validSubjects = subjects.filter(s => isValidUuid(s.id) && Number.isFinite(Number(s.order_index)));
+  if (validSubjects.length === 0) {
+    res.status(400).json({ error: "No valid subjects to reorder" });
+    return;
+  }
+
   await Promise.all(
-    subjects.map(s => supabase.from("subjects").update({ order_index: s.order_index }).eq("id", s.id))
+    validSubjects.map(s =>
+      supabase.from("subjects").update({ order_index: Math.floor(Number(s.order_index)) }).eq("id", s.id)
+    )
   );
   res.json({ message: "Reordered" });
 });
 
 // ── DELETE /subjects/:subjectId ───────────────────────────────────────────────
 router.delete("/subjects/:subjectId", requireAdmin, async (req: AuthRequest, res) => {
+  const subjectId = req.params["subjectId"] as string;
+  if (!isValidUuid(subjectId)) { res.status(400).json({ error: "Invalid subject ID" }); return; }
+
   const { error } = await supabase
     .from("subjects")
     .delete()
-    .eq("id", req.params["subjectId"]);
+    .eq("id", subjectId);
   if (error) { res.status(500).json({ error: error.message }); return; }
   res.json({ message: "Deleted" });
 });

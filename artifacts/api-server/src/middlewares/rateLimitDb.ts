@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabase";
+import { logger } from "../lib/logger";
 
 /**
  * Supabase-backed rate limiter for critical auth endpoints.
@@ -10,6 +11,10 @@ import { supabase } from "../lib/supabase";
  *     created_at timestamptz DEFAULT NOW()
  *   );
  *   CREATE INDEX rate_limits_key_created_idx ON rate_limits(key, created_at);
+ *
+ * Fail-open policy: if the DB check fails, the request is allowed through.
+ * This avoids blocking legitimate users during DB outages, at the cost of
+ * temporarily weakening rate limiting. The failure is always logged as a warning.
  */
 export async function checkRateLimitDb(
   key: string,
@@ -26,7 +31,8 @@ export async function checkRateLimitDb(
     .order("created_at", { ascending: true });
 
   if (error) {
-    // If DB check fails, fall through (fail open) to avoid blocking legitimate users
+    // Fail-open: allow request but log the DB failure so operators can investigate
+    logger.warn({ err: error, key }, "rate_limit_db_check_failed — falling back to allow");
     return { allowed: true, retryAfterMs: 0 };
   }
 
@@ -41,7 +47,13 @@ export async function checkRateLimitDb(
     return { allowed: false, retryAfterMs };
   }
 
-  await supabase.from("rate_limits").insert({ key, created_at: new Date().toISOString() });
+  const { error: insertError } = await supabase
+    .from("rate_limits")
+    .insert({ key, created_at: new Date().toISOString() });
+
+  if (insertError) {
+    logger.warn({ err: insertError, key }, "rate_limit_db_insert_failed — allowing request");
+  }
 
   // Best-effort cleanup of old entries (keep DB tidy)
   void supabase

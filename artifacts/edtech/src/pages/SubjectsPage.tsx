@@ -1,5 +1,6 @@
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useGetSubjects, getGetSubjectsQueryKey } from "@workspace/api-client-react";
+import type { Subject } from "@workspace/api-client-react";
 import { Link } from "wouter";
 import { BookOpen, ChevronRight, Lock, Trophy, Zap } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -74,7 +75,7 @@ export default function SubjectsPage() {
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {subjects?.map((subject) => {
+            {subjects?.map((subject: Subject) => {
               const prog = subjectProgress.find(p => p.subject_id === subject.id);
               const isPassed = !!prog?.subject_test_passed;
               return (
