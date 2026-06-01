@@ -413,13 +413,13 @@ export default function ProfilePage() {
 
   return (
     <AppLayout>
-      <div className="max-w-2xl mx-auto space-y-3 sm:space-y-5">
+      <div className="max-w-2xl mx-auto space-y-2 sm:space-y-3">
         <h1 className="text-xl sm:text-3xl font-bold tracking-tight">Profile Settings</h1>
 
         <Card className="bg-card">
-          <CardContent className="p-4 sm:p-6">
+          <CardContent className="p-3 sm:p-5">
             {/* Mobile: column layout (avatar centered above name). Desktop: row layout (avatar left). */}
-            <div className="flex flex-col items-center text-center md:flex-row md:items-start md:text-left gap-4 md:gap-5">
+            <div className="flex flex-col items-center text-center md:flex-row md:items-start md:text-left gap-3 md:gap-4">
               <div className="relative shrink-0">
                 {/* Avatar circle — 80px on all sizes */}
                 <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center ring-2 ring-border overflow-hidden">
@@ -669,7 +669,7 @@ export default function ProfilePage() {
             <button
               type="button"
               onClick={() => setPasswordExpanded(v => !v)}
-              className="w-full flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary md:cursor-default md:pointer-events-none md:focus-visible:ring-0 rounded-[inherit]"
+              className="w-full flex items-center justify-between px-4 sm:px-6 py-2 sm:py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary md:cursor-default md:pointer-events-none md:focus-visible:ring-0 rounded-[inherit]"
               aria-expanded={passwordExpanded}
             >
               <span className="text-sm font-semibold text-foreground">Change Password</span>
@@ -679,7 +679,7 @@ export default function ProfilePage() {
             </button>
 
             {/* Collapsible body — hidden on mobile when collapsed, always visible on desktop */}
-            <div className={`${passwordExpanded ? "" : "hidden"} md:block px-4 sm:px-6 pb-4 sm:pb-6 space-y-3 border-t border-border pt-3`}>
+            <div className={`${passwordExpanded ? "" : "hidden"} md:block px-4 sm:px-6 pb-3 sm:pb-4 space-y-2.5 border-t border-border pt-2.5`}>
                 {[
                   { label: "Current Password", value: currentPwd, set: setCurrentPwd, show: showCurrent, toggle: () => setShowCurrent(v => !v), placeholder: "Your current password", auto: "current-password" },
                   { label: "New Password", value: newPwd, set: setNewPwd, show: showNew, toggle: () => setShowNew(v => !v), placeholder: "Min 8 chars, mixed case, number, special", auto: "new-password" },
@@ -704,13 +704,13 @@ export default function ProfilePage() {
         </Card>
 
         <Card>
-          <CardContent className="p-4 sm:p-6">
-            <p className="text-sm font-semibold text-foreground mb-3">Account</p>
+          <CardContent className="p-3 sm:p-5">
+            <p className="text-sm font-semibold text-foreground mb-2">Account</p>
             <div className="flex flex-col gap-2">
               <Button
                 variant="outline"
                 size="sm"
-                className="w-full justify-start h-10 text-sm"
+                className="w-full justify-start h-9 text-sm"
                 onClick={async () => {
                   try {
                     const res = await fetch(`${getApiBase()}/user/export`, {
@@ -731,7 +731,7 @@ export default function ProfilePage() {
               >
                 <Download className="w-3.5 h-3.5 mr-1.5" /> Download My Data
               </Button>
-              <Button variant="outline" size="sm" className="w-full justify-start h-10 text-sm text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30" onClick={() => signOut()}>
+              <Button variant="outline" size="sm" className="w-full justify-start h-9 text-sm text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30" onClick={() => signOut()}>
                 <LogOut className="w-3.5 h-3.5 mr-1.5" /> Sign Out
               </Button>
             </div>
