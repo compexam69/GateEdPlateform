@@ -53,7 +53,11 @@ router.patch("/tasks/:taskId", requireAuth, async (req: AuthRequest, res) => {
     }
     updates["title"] = req.body.title.trim();
   }
-  if (req.body.description !== undefined) updates["description"] = req.body.description;
+  if (req.body.description !== undefined) {
+    updates["description"] = typeof req.body.description === "string"
+      ? req.body.description.replace(/\0/g, "").slice(0, 2000) || null
+      : null;
+  }
   if (req.body.status) {
     if (!VALID_TASK_STATUSES.includes(req.body.status as typeof VALID_TASK_STATUSES[number])) {
       res.status(400).json({ error: `status must be one of: ${VALID_TASK_STATUSES.join(", ")}` }); return;

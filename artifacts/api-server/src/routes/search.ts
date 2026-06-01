@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { supabase } from "../lib/supabase";
 import { requireAdmin, type AuthRequest } from "../middlewares/auth";
+import { capText, escapeIlike, MAX } from "../lib/sanitize";
 
 const router = Router();
 
@@ -9,7 +10,7 @@ const router = Router();
 // Returns up to `limit` results with full hierarchy context (subject → chapter → topic).
 // Only accessible to admin/super_admin. No SQL changes required — uses existing tables.
 router.get("/search", requireAdmin, async (req: AuthRequest, res) => {
-  const q = ((req.query["q"] as string) ?? "").trim();
+  const q = capText(req.query["q"], MAX.SEARCH_QUERY);
   if (!q || q.length < 2) {
     res.json([]);
     return;
@@ -17,7 +18,8 @@ router.get("/search", requireAdmin, async (req: AuthRequest, res) => {
 
   const limit = Math.min(Number(req.query["limit"] ?? 50), 100);
   const perType = Math.ceil(limit / 3);
-  const pattern = `%${q}%`;
+  // Escape % and _ so user-supplied wildcards don't alter ILIKE semantics
+  const pattern = `%${escapeIlike(q)}%`;
 
   const [subjectsRes, chaptersRes, topicsRes] = await Promise.all([
     supabase

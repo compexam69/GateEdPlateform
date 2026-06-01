@@ -2,6 +2,9 @@ import { Router } from "express";
 import { supabase } from "../lib/supabase";
 import { requireAdmin, type AuthRequest } from "../middlewares/auth";
 import { sendPushToUser } from "../lib/push";
+import { capText, isValidUuid, sanitizeEnum, MAX } from "../lib/sanitize";
+
+const GRANT_CONTENT_TYPES = ["subject", "quiz", "topic"] as const;
 
 const router = Router();
 
@@ -78,6 +81,7 @@ router.get("/admin/users", requireAdmin, async (req: AuthRequest, res) => {
 
 router.post("/admin/users/:userId/approve", requireAdmin, async (req: AuthRequest, res) => {
   const userId = String(req.params["userId"]);
+  if (!isValidUuid(userId)) { res.status(400).json({ error: "Invalid user ID" }); return; }
   const { error } = await supabase
     .from("profiles")
     .update({ is_approved: true, status: "active" })
@@ -119,6 +123,7 @@ router.post("/admin/users/:userId/approve", requireAdmin, async (req: AuthReques
 
 router.post("/admin/users/:userId/reject", requireAdmin, async (req: AuthRequest, res) => {
   const userId = String(req.params["userId"]);
+  if (!isValidUuid(userId)) { res.status(400).json({ error: "Invalid user ID" }); return; }
   const { error } = await supabase
     .from("profiles")
     .update({ is_approved: false, status: "suspended" })
@@ -134,6 +139,7 @@ router.delete("/admin/users/:userId", requireAdmin, async (req: AuthRequest, res
   const actorId = req.user!.id;
   const actorRole = req.user!.role;
   const targetId = String(req.params["userId"]);
+  if (!isValidUuid(targetId)) { res.status(400).json({ error: "Invalid user ID" }); return; }
 
   if (targetId === actorId) {
     res.status(400).json({ error: "You cannot delete your own account." });
@@ -177,6 +183,7 @@ router.delete("/admin/users/:userId", requireAdmin, async (req: AuthRequest, res
 // ── Admin: edit a user's profile fields (name, mobile, email) ────────────────
 router.patch("/admin/users/:userId/profile", requireAdmin, async (req: AuthRequest, res) => {
   const targetUserId = String(req.params["userId"]);
+  if (!isValidUuid(targetUserId)) { res.status(400).json({ error: "Invalid user ID" }); return; }
   const actorId = req.user!.id;
 
   // Fetch actor's role from DB first (authoritative source, not JWT metadata)
@@ -291,6 +298,7 @@ router.patch("/admin/users/:userId/profile", requireAdmin, async (req: AuthReque
 
 router.patch("/admin/users/:userId/role", requireAdmin, async (req: AuthRequest, res) => {
   const targetUserId = String(req.params["userId"]);
+  if (!isValidUuid(targetUserId)) { res.status(400).json({ error: "Invalid user ID" }); return; }
   const actorId = req.user!.id;
   const { role } = req.body as { role?: string };
 
@@ -361,6 +369,10 @@ router.patch("/admin/users/:userId/role", requireAdmin, async (req: AuthRequest,
 router.post("/admin/users/:userId/reset-progress", requireAdmin, async (req: AuthRequest, res) => {
   const { scope, reference_id } = req.body as { scope: string; reference_id?: string };
   const userId = String(req.params["userId"]);
+  if (!isValidUuid(userId)) { res.status(400).json({ error: "Invalid user ID" }); return; }
+  if (reference_id !== undefined && !isValidUuid(reference_id)) {
+    res.status(400).json({ error: "Invalid reference_id — must be a UUID" }); return;
+  }
 
   if (scope === "all") {
     await supabase.from("user_topic_progress").delete().eq("user_id", userId);
@@ -572,6 +584,7 @@ router.patch("/admin/gate-config", requireAdmin, async (req: AuthRequest, res) =
 
 router.get("/admin/users/:userId/detail", requireAdmin, async (req: AuthRequest, res) => {
   const userId = String(req.params["userId"]);
+  if (!isValidUuid(userId)) { res.status(400).json({ error: "Invalid user ID" }); return; }
   const actorRole = req.user!.role;
 
   // Before fetching activity data, check target role to block admin from viewing super_admin detail.
@@ -722,12 +735,20 @@ router.post("/admin/users/create", requireAdmin, async (req: AuthRequest, res) =
     status?: string;
   };
 
-  if (!full_name || !email || !password) {
+  const cleanName  = capText(full_name, MAX.NAME);
+  const cleanEmail = capText(email, MAX.EMAIL);
+  const cleanPhone = mobile_number ? capText(mobile_number, MAX.PHONE) : null;
+
+  if (!cleanName || !cleanEmail || !password) {
     res.status(400).json({ error: "full_name, email, and password are required." });
     return;
   }
   if (password.length < 8) {
     res.status(400).json({ error: "Password must be at least 8 characters." });
+    return;
+  }
+  if (password.length > 128) {
+    res.status(400).json({ error: "Password must not exceed 128 characters." });
     return;
   }
 
@@ -737,12 +758,12 @@ router.post("/admin/users/create", requireAdmin, async (req: AuthRequest, res) =
   const isApproved = userStatus === "active";
 
   const { data, error } = await supabase.auth.admin.createUser({
-    email: email.toLowerCase().trim(),
+    email: cleanEmail.toLowerCase(),
     password,
     email_confirm: true,
     user_metadata: {
-      full_name: full_name.trim(),
-      mobile_number: mobile_number ?? null,
+      full_name: cleanName,
+      mobile_number: cleanPhone ?? null,
       role: userRole,
     },
   });
@@ -759,8 +780,8 @@ router.post("/admin/users/create", requireAdmin, async (req: AuthRequest, res) =
       .eq("id", data.user.id);
 
     await writeAuditLog(req.user!.id, "user_created", "profile", data.user.id, {
-      full_name: full_name.trim(),
-      email: email.toLowerCase().trim(),
+      full_name: cleanName,
+      email: cleanEmail.toLowerCase(),
       role: userRole,
       status: userStatus,
     });
@@ -903,8 +924,8 @@ router.post("/admin/subjects/bulk-import", requireAdmin, async (req: AuthRequest
 
     seenInBatch.add(key);
     rows.push({
-      title: s.title.trim(),
-      description: s.description?.trim() || null,
+      title: s.title.trim().slice(0, MAX.TITLE),
+      description: s.description ? s.description.trim().slice(0, MAX.DESCRIPTION) : null,
       order_index: typeof s.order_index === "number" && !isNaN(s.order_index) ? s.order_index : rows.length + 1,
       is_active: true,
       visibility_roles: ["student", "admin", "super_admin"],
@@ -1012,8 +1033,8 @@ router.post("/admin/chapters/bulk-import", requireAdmin, async (req: AuthRequest
     seenInBatch.add(key);
     rows.push({
       subject_id: subjectId,
-      title: c.chapter_name.trim(),
-      description: c.description?.trim() || null,
+      title: c.chapter_name.trim().slice(0, MAX.TITLE),
+      description: c.description ? c.description.trim().slice(0, MAX.DESCRIPTION) : null,
       order_index: typeof c.display_order === "number" && !isNaN(c.display_order) ? c.display_order : rows.length + 1,
       is_active: true,
     });
@@ -1490,14 +1511,30 @@ router.get("/admin/content/grants", requireAdmin, async (req: AuthRequest, res) 
     res.status(403).json({ error: "Only super admins can view content grants." });
     return;
   }
-  const { content_type, content_id } = req.query as { content_type?: string; content_id?: string };
+  const rawContentType = capText(req.query["content_type"], MAX.CONTENT_TYPE);
+  const rawContentId   = capText(req.query["content_id"],   MAX.CONTENT_ID);
+
+  // Validate content_type against the known enum before passing to .eq()
+  const content_type = rawContentType
+    ? sanitizeEnum(rawContentType, GRANT_CONTENT_TYPES)
+    : null;
+  if (rawContentType && !content_type) {
+    res.status(400).json({ error: `content_type must be one of: ${GRANT_CONTENT_TYPES.join(", ")}` });
+    return;
+  }
+
+  // content_id is always a UUID
+  if (rawContentId && !isValidUuid(rawContentId)) {
+    res.status(400).json({ error: "content_id must be a valid UUID" });
+    return;
+  }
 
   let query = supabase
     .from("content_access_grants")
     .select("id, content_type, content_id, granted_to, granted_by, created_at")
     .order("created_at", { ascending: false });
   if (content_type) query = query.eq("content_type", content_type);
-  if (content_id) query = query.eq("content_id", content_id);
+  if (rawContentId) query = query.eq("content_id", rawContentId);
 
   const { data, error } = await query;
   if (error) { res.status(500).json({ error: error.message }); return; }
@@ -1519,9 +1556,16 @@ router.post("/admin/content/grants", requireAdmin, async (req: AuthRequest, res)
     res.status(400).json({ error: "content_type, content_id, and granted_to are required." });
     return;
   }
-  const VALID_TYPES = ["subject", "quiz", "topic"];
-  if (!VALID_TYPES.includes(content_type)) {
-    res.status(400).json({ error: "content_type must be 'subject', 'quiz', or 'topic'." });
+  if (!sanitizeEnum(content_type, GRANT_CONTENT_TYPES)) {
+    res.status(400).json({ error: `content_type must be one of: ${GRANT_CONTENT_TYPES.join(", ")}` });
+    return;
+  }
+  if (!isValidUuid(content_id)) {
+    res.status(400).json({ error: "content_id must be a valid UUID" });
+    return;
+  }
+  if (!isValidUuid(granted_to)) {
+    res.status(400).json({ error: "granted_to must be a valid UUID" });
     return;
   }
 
@@ -1552,6 +1596,7 @@ router.delete("/admin/content/grants/:grantId", requireAdmin, async (req: AuthRe
     return;
   }
   const { grantId } = req.params as { grantId: string };
+  if (!isValidUuid(grantId)) { res.status(400).json({ error: "Invalid grant ID" }); return; }
   const { data: grant } = await supabase
     .from("content_access_grants")
     .select("content_type, content_id, granted_to")

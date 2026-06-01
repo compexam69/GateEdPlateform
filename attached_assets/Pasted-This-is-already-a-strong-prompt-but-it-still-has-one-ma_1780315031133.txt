@@ -1,0 +1,912 @@
+This is already a strong prompt, but it still has one major weakness:
+
+> It focuses heavily on code auditing, security, cleanup, and stabilization, but it does not force a true production-readiness verification of actual user workflows after fixes are applied.
+
+A developer could technically complete this audit by reviewing code, dependencies, SQL, and security without proving that the application still works correctly from an end-user perspective.
+
+For a production system, you want a **Code Audit + Security Audit + Functional Regression Audit + Production Readiness Validation** combined into one final stabilization checkpoint.
+
+---
+
+# 🟢 Final Stabilization Checkpoint: Full Codebase Audit, Security Hardening, Technical Debt Cleanup & Production Readiness Verification
+
+## Goal
+
+Perform a comprehensive production-grade audit, cleanup, hardening, optimization, and validation of the entire application.
+
+The objective is to identify, document, and safely remediate:
+
+* Dead code
+* Bugs
+* Logic errors
+* Security vulnerabilities
+* Permission issues
+* RLS weaknesses
+* Database inconsistencies
+* Performance bottlenecks
+* Dependency risks
+* Technical debt
+* Orphaned modules
+* Unused APIs
+* Unused database structures
+
+while ensuring:
+
+* No existing functionality breaks
+* No regressions are introduced
+* The application remains fully operational
+* The application is verified as production-ready
+
+---
+
+# Audit Scope
+
+Review the entire application:
+
+## Frontend
+
+Review:
+
+* Components
+* Hooks
+* Services
+* Utilities
+* Pages
+* Layouts
+* Routes
+* Context providers
+* State management
+
+---
+
+## Backend
+
+Review:
+
+* API routes
+* Server functions
+* Edge functions
+* Middleware
+* Validation layers
+
+---
+
+## Database
+
+Review:
+
+* Tables
+* Relationships
+* Indexes
+* Constraints
+* Functions
+* Views
+* Triggers
+* Policies
+
+---
+
+## Authentication
+
+Review:
+
+* Login
+* Logout
+* Password reset
+* Session handling
+* Token refresh
+* Route protection
+
+---
+
+## Authorization
+
+Review:
+
+* Super Admin permissions
+* Admin permissions
+* Student permissions
+* Ownership validation
+* Content access control
+* Subject access control
+* Lecture access control
+* Quiz access control
+
+---
+
+## Application Modules
+
+Audit:
+
+### User Management
+
+### Content Editor
+
+* Subjects
+* Chapters
+* Topics
+* Lectures
+* Bulk imports
+
+### Quiz & Question Editor
+
+### Notes/PDF Module
+
+### Notifications
+
+### Profile Module
+
+### Focus Timer
+
+### Dashboard
+
+### Telegram Integration
+
+### Analytics
+
+### Search Systems
+
+### Access Control Systems
+
+### Import/Export Systems
+
+---
+
+# Phase 1 — Dead Code Audit
+
+Identify:
+
+### Unused Imports
+
+### Unused Variables
+
+### Unused State
+
+### Unused Hooks
+
+### Unused Functions
+
+### Unused Components
+
+### Unused Services
+
+### Deprecated Logic
+
+### Duplicate Implementations
+
+---
+
+For each finding provide:
+
+* File path
+* Type
+* Reason
+* Risk level
+
+Classify:
+
+### Safe To Remove
+
+### Verify Before Removing
+
+### Do Not Remove
+
+---
+
+# Phase 2 — Bug & Logic Audit
+
+Identify:
+
+### Runtime Errors
+
+### Undefined References
+
+### Null Pointer Issues
+
+### Async Problems
+
+### Race Conditions
+
+### State Synchronization Issues
+
+### CRUD Failures
+
+### Validation Problems
+
+### Navigation Bugs
+
+### Import/Export Failures
+
+### Permission Failures
+
+---
+
+For every issue provide:
+
+* Severity
+* Reproduction steps
+* Root cause
+* Recommended fix
+
+---
+
+# Phase 3 — Security Audit
+
+Review:
+
+### Authentication
+
+### Authorization
+
+### RLS
+
+### Storage Policies
+
+### API Security
+
+### Session Security
+
+### File Upload Security
+
+### Role Restrictions
+
+### Content Access Rules
+
+### Exam Access Rules
+
+---
+
+Identify:
+
+### Hardcoded Secrets
+
+### Exposed API Keys
+
+### XSS Risks
+
+### Unsafe HTML Rendering
+
+### Unsafe Local Storage Usage
+
+### Privilege Escalation Paths
+
+### Authorization Gaps
+
+### Broken Access Controls
+
+### Sensitive Data Exposure
+
+---
+
+# Phase 4 — Vulnerability Assessment
+
+Review:
+
+### Input Validation
+
+### SQL Injection Risks
+
+### RLS Bypass Opportunities
+
+### CSRF Risks
+
+### Open Redirects
+
+### Insecure Uploads
+
+### Excessive Permissions
+
+### Authentication Weaknesses
+
+---
+
+Classify:
+
+### Critical
+
+### High
+
+### Medium
+
+### Low
+
+---
+
+# Phase 5 — Database Audit
+
+Review:
+
+## Tables
+
+## Relationships
+
+## Foreign Keys
+
+## Constraints
+
+## Views
+
+## Triggers
+
+## Functions
+
+## Policies
+
+## Indexes
+
+---
+
+Identify:
+
+### Missing Indexes
+
+### Redundant Columns
+
+### Unused Tables
+
+### Unused Views
+
+### Missing Constraints
+
+### Broken Relationships
+
+### Orphaned Records
+
+### Integrity Risks
+
+---
+
+# Phase 6 — SQL & Supabase Audit
+
+Determine whether changes are required.
+
+---
+
+## If SQL Changes Are Required
+
+Provide separately:
+
+### Migration Scripts
+
+### Rollback Scripts
+
+### Index Scripts
+
+### Constraint Scripts
+
+### Policy Updates
+
+### Cleanup Scripts
+
+For every SQL recommendation include:
+
+* Purpose
+* Risk level
+* Impact on existing data
+* Downtime requirement
+* Rollback strategy
+
+---
+
+## If No SQL Changes Are Required
+
+Explicitly state:
+
+```text
+No Supabase SQL Editor changes are required.
+```
+
+Do not recommend SQL changes without evidence.
+
+---
+
+# Phase 7 — RLS & Permission Verification
+
+Audit:
+
+### Subject Access
+
+### Lecture Access
+
+### Exam Access
+
+### Notes Access
+
+### User Management Access
+
+### Admin Permissions
+
+### Super Admin Permissions
+
+### Student Permissions
+
+---
+
+Verify:
+
+* Ownership enforcement
+* Visibility filtering
+* Access isolation
+* Content protection
+
+---
+
+Identify:
+
+### Missing Policies
+
+### Excessive Grants
+
+### Bypass Opportunities
+
+### Incorrect Visibility Logic
+
+---
+
+# Phase 8 — API Audit
+
+Review every endpoint.
+
+Verify:
+
+### Authentication
+
+### Authorization
+
+### Validation
+
+### Error Handling
+
+### Response Safety
+
+---
+
+Identify:
+
+### Unsafe Endpoints
+
+### Overexposed Data
+
+### Missing Validation
+
+### Missing Rate Limits
+
+### Improper Error Responses
+
+---
+
+# Phase 9 — Dependency Audit
+
+Review:
+
+### package.json
+
+### package-lock.json
+
+### Installed Libraries
+
+---
+
+Identify:
+
+### Unused Dependencies
+
+### Deprecated Dependencies
+
+### Vulnerable Dependencies
+
+### Duplicate Libraries
+
+---
+
+Provide:
+
+### Upgrade Recommendations
+
+### Removal Recommendations
+
+### Risk Assessment
+
+---
+
+# Phase 10 — Performance Audit
+
+Review:
+
+### Rendering
+
+### Data Fetching
+
+### Queries
+
+### Imports
+
+### PDF Viewing
+
+### Notifications
+
+### Search
+
+### Analytics
+
+### Dashboard Modules
+
+---
+
+Identify:
+
+### Memory Leaks
+
+### Infinite Re-renders
+
+### N+1 Queries
+
+### Excessive API Calls
+
+### Missing Pagination
+
+### Large Bundle Issues
+
+### Slow Queries
+
+---
+
+Provide:
+
+* Impact
+* Fix recommendation
+* Estimated benefit
+
+---
+
+# Phase 11 — Functional Regression Audit
+
+After cleanup and fixes:
+
+Test all major workflows.
+
+---
+
+## Authentication
+
+* Login
+* Logout
+* Password reset
+
+---
+
+## User Management
+
+* CRUD
+* Bulk import
+* Search
+* Suspend/Reinstate/Delete
+
+---
+
+## Content Editor
+
+* Subjects
+* Chapters
+* Topics
+* Lectures
+* Bulk imports
+
+---
+
+## Quiz System
+
+* Create tests
+* Create questions
+* Bulk import
+* Student attempts
+
+---
+
+## Notes/PDF System
+
+* Upload
+* View
+* Download
+* Inline preview
+
+---
+
+## Notifications
+
+* Create
+* Display
+* Delete
+
+---
+
+## Profile
+
+* Editing
+* Permissions
+* Image management
+
+---
+
+## Focus Timer
+
+* Functionality
+* Responsiveness
+
+---
+
+## Search
+
+* Subjects
+* Chapters
+* Topics
+* Users
+
+---
+
+Verify:
+
+* No regressions
+* No broken workflows
+
+---
+
+# Phase 12 — Responsiveness Audit
+
+Test:
+
+## Mobile
+
+* 320px
+* 360px
+* 375px
+* 390px
+* 430px
+
+---
+
+## Tablet
+
+* 768px
+* 820px
+* 1024px
+
+---
+
+## Desktop
+
+* 1280px
+* 1366px
+* 1440px
+* 1920px
+
+---
+
+Verify:
+
+* No overflow
+* No clipping
+* No inaccessible controls
+
+---
+
+# Phase 13 — PWA Audit
+
+Verify:
+
+### Installed Mode
+
+### Navigation
+
+### Responsive Behavior
+
+### Safe Areas
+
+### Offline Handling
+
+---
+
+# Phase 14 — What YOU Must Do Before Fixes
+
+## A. Create Full Backup
+
+Backup:
+
+* Database
+* Storage
+* Source Code
+* Environment Variables
+
+---
+
+## B. Create Staging Environment
+
+Apply all fixes in staging first.
+
+Do NOT apply directly to production.
+
+---
+
+## C. Export Existing RLS Policies
+
+Backup all current policies before modification.
+
+---
+
+## D. Export Database Schema
+
+Keep a rollback snapshot.
+
+---
+
+# Phase 15 — Final Audit Report
+
+Provide:
+
+## Executive Summary
+
+## Total Findings
+
+## Critical Findings
+
+## Security Findings
+
+## Database Findings
+
+## SQL Recommendations
+
+## Dependency Findings
+
+## Performance Findings
+
+## Dead Code Findings
+
+## Files Modified
+
+## Remaining Risks
+
+---
+
+# Phase 16 — Production Readiness Decision
+
+Provide one of:
+
+### ✅ Production Ready
+
+or
+
+### ⚠ Production Ready with Minor Issues
+
+or
+
+### ❌ Not Production Ready
+
+Include justification and blocking issues.
+
+---
+
+# Checkpoint Requirements
+
+## Checkpoint A
+
+### Dead Code & Dependency Audit Complete
+
+---
+
+## Checkpoint B
+
+### Bug & Logic Audit Complete
+
+---
+
+## Checkpoint C
+
+### Security & Vulnerability Audit Complete
+
+---
+
+## Checkpoint D
+
+### Database, SQL & RLS Audit Complete
+
+---
+
+## Checkpoint E
+
+### Performance Audit Complete
+
+---
+
+## Checkpoint F
+
+### Functional Regression Audit Complete
+
+---
+
+## Checkpoint G
+
+### Responsive & PWA Audit Complete
+
+---
+
+## Checkpoint H
+
+### Final Stabilization & Production Readiness Assessment Complete
+
+---
+
+# Final Commit Requirement
+
+After all fixes, validation, and testing:
+
+Create checkpoint/commit:
+
+```text
+Codebase Audit, Security Hardening, Technical Debt Cleanup & Production Readiness Validation
+```
+
+---
+
+# Acceptance Criteria
+
+* [ ] Dead code identified and classified.
+* [ ] Bugs documented and fixed where safe.
+* [ ] Security vulnerabilities reviewed and remediated.
+* [ ] RLS and permission rules verified.
+* [ ] Database integrity verified.
+* [ ] SQL recommendations documented with rollback plans.
+* [ ] Dependency audit completed.
+* [ ] Performance bottlenecks identified and optimized.
+* [ ] Functional regression testing completed.
+* [ ] Mobile responsiveness verified.
+* [ ] Desktop responsiveness verified.
+* [ ] PWA behavior verified.
+* [ ] No critical security issues remain unresolved.
+* [ ] Production readiness status issued.
+* [ ] Final checkpoint/commit created.
+
+---
+
+## Guidance for You
+
+### Before the Audit
+
+1. Create a full Supabase backup.
+2. Export current RLS policies.
+3. Export the database schema.
+4. Create a staging environment.
+5. Ensure test accounts exist for:
+
+   * Super Admin
+   * Admin
+   * Student
+
+### Supabase SQL Editor
+
+**Do not run SQL preemptively.**
+
+The audit must first determine whether:
+
+* Schema changes are required
+* Indexes are required
+* RLS changes are required
+* Cleanup queries are required
+
+Only run SQL after:
+
+* Findings are documented
+* Rollback scripts are prepared
+* Migration risks are reviewed
+
+### What You Should Expect at the End
+
+You should receive:
+
+* Complete issue inventory
+* Security assessment
+* Database assessment
+* SQL migration package (if required)
+* Rollback scripts (if required)
+* Production readiness verdict
+* Prioritized remediation roadmap
+* Final stabilization checkpoint report
