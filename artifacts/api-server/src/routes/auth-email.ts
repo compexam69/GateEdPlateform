@@ -2,6 +2,7 @@ import { Router } from "express";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
 import { supabase } from "../lib/supabase";
 import { checkRateLimitDb } from "../middlewares/rateLimitDb";
+import { logger } from "../lib/logger";
 
 const router = Router();
 
@@ -61,15 +62,41 @@ router.post("/auth/register", async (req, res) => {
     return;
   }
 
+  // Server-side password strength check (mirrors client validation)
+  if (
+    password.length < 8 ||
+    !/[A-Z]/.test(password) ||
+    !/[a-z]/.test(password) ||
+    !/[0-9]/.test(password) ||
+    !/[^A-Za-z0-9]/.test(password)
+  ) {
+    res.status(400).json({
+      error: "Password must be at least 8 characters and contain uppercase, lowercase, number, and special character.",
+    });
+    return;
+  }
+  if (password.length > 128) {
+    res.status(400).json({ error: "Password must not exceed 128 characters." });
+    return;
+  }
+
+  // Validate mobile_number format if provided
+  if (mobile_number !== undefined && mobile_number.trim() !== "") {
+    if (!/^\+?\d{7,15}$/.test(mobile_number.trim())) {
+      res.status(400).json({ error: "mobile_number must be a valid phone number (7–15 digits, optional leading +)." });
+      return;
+    }
+  }
+
   const normalizedEmail = email.toLowerCase().trim();
-  const normalizedName = full_name.trim();
+  const normalizedName = full_name.trim().slice(0, 100);
 
   const { data, error } = await supabase.auth.admin.createUser({
     email: normalizedEmail,
     password,
     user_metadata: {
       full_name: normalizedName,
-      mobile_number: mobile_number ?? null,
+      mobile_number: mobile_number ? mobile_number.trim() : null,
       role: "student",
     },
     // email_confirm: false means the user starts unverified.
@@ -95,12 +122,12 @@ router.post("/auth/register", async (req, res) => {
       email: normalizedEmail,
     });
     if (resendErr) {
-      console.warn("[auth/register] verification email failed:", resendErr.message);
+      logger.warn({ err: resendErr.message }, "[auth/register] verification email failed");
     } else {
       emailSent = true;
     }
   } catch (e) {
-    console.warn("[auth/register] verification email exception:", e);
+    logger.warn({ err: e }, "[auth/register] verification email exception");
   }
 
   // ── 2. In-app welcome notification ────────────────────────────────────────
@@ -120,7 +147,7 @@ router.post("/auth/register", async (req, res) => {
         created_at: new Date().toISOString(),
       });
     } catch (e) {
-      console.warn("[auth/register] welcome notification insert failed:", e);
+      logger.warn({ err: e }, "[auth/register] welcome notification insert failed");
     }
   }
 

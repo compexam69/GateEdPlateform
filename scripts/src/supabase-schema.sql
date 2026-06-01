@@ -453,6 +453,21 @@ create index if not exists idx_audit_logs_created_at  on audit_logs(created_at d
 -- Content access grants (admin tools query by granted_by to list what an admin shared)
 create index if not exists idx_content_access_grants_granted_by on content_access_grants(granted_by);
 
+-- ── 15b. Additional performance indexes (audit pass) ─────────────────────────
+
+-- profiles: admin user-list filtered by status (pending_approval queue)
+create index if not exists idx_profiles_status on profiles(status);
+
+-- user_attempts: exam history queries need (user_id, status, submitted_at) for
+-- sorted submission history and (quiz_id, accuracy) for percentile calculations
+create index if not exists idx_user_attempts_submitted on user_attempts(user_id, status, submitted_at desc);
+create index if not exists idx_user_attempts_quiz_accuracy on user_attempts(quiz_id, accuracy)
+  where status = 'submitted';
+
+-- user_answers: analytics on question-level correctness (aggregate queries)
+create index if not exists idx_user_answers_correct on user_answers(question_id, is_correct)
+  where is_correct is not null;
+
 -- ── 16. Row Level Security ────────────────────────────────────────────────────
 
 alter table profiles           enable row level security;
@@ -602,11 +617,18 @@ create policy "lecture_clicks_own"   on lecture_clicks for all    using (user_id
 create policy "lecture_clicks_admin" on lecture_clicks for select using (is_admin());
 
 -- ── system_config ─────────────────────────────
-drop policy if exists "system_config_read"         on system_config;
-drop policy if exists "system_config_admin_write"  on system_config;
+drop policy if exists "system_config_read"          on system_config;
+drop policy if exists "system_config_admin_write"   on system_config;
+drop policy if exists "system_config_admin_select"  on system_config;
+drop policy if exists "system_config_admin_insert"  on system_config;
+drop policy if exists "system_config_admin_update"  on system_config;
 
-create policy "system_config_read"        on system_config for select using (auth.role() = 'authenticated');
-create policy "system_config_admin_write" on system_config for all    using (is_admin());
+-- All authenticated users can read config values (e.g. quota limits shown in UI)
+create policy "system_config_read"         on system_config for select using (auth.role() = 'authenticated');
+-- Admins may insert new keys or update existing values, but NOT delete them.
+-- Deleting config keys would break any code that expects them to exist.
+create policy "system_config_admin_insert" on system_config for insert with check (is_admin());
+create policy "system_config_admin_update" on system_config for update using (is_admin()) with check (is_admin());
 
 -- ── audit_logs ────────────────────────────────
 -- Written only by the Express server (service role key). Admins can read.

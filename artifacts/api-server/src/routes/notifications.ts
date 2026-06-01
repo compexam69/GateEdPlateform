@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { supabase } from "../lib/supabase";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
+import { isValidUuid } from "../lib/sanitize";
 
 const router = Router();
 
@@ -25,6 +26,10 @@ router.get("/notifications", requireAuth, async (req: AuthRequest, res) => {
 });
 
 router.patch("/notifications/:notifId/read", requireAuth, async (req: AuthRequest, res) => {
+  if (!isValidUuid(req.params["notifId"])) {
+    res.status(400).json({ error: "Invalid notification ID" });
+    return;
+  }
   const { error } = await supabase
     .from("notifications")
     .update({ is_read: true })
@@ -45,6 +50,10 @@ router.patch("/notifications/read-all", requireAuth, async (req: AuthRequest, re
 });
 
 router.delete("/notifications/:notifId", requireAuth, async (req: AuthRequest, res) => {
+  if (!isValidUuid(req.params["notifId"])) {
+    res.status(400).json({ error: "Invalid notification ID" });
+    return;
+  }
   const { error } = await supabase
     .from("notifications")
     .delete()

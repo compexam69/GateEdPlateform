@@ -27,6 +27,24 @@ router.post("/push/subscribe", requireAuth, async (req: AuthRequest, res) => {
     return;
   }
 
+  // Validate field lengths to prevent DB bloat / injection via oversized strings
+  if (typeof endpoint !== "string" || endpoint.length > 2048) {
+    res.status(400).json({ error: "endpoint must be a string of at most 2048 characters" });
+    return;
+  }
+  if (typeof keys.p256dh !== "string" || keys.p256dh.length > 256) {
+    res.status(400).json({ error: "keys.p256dh must be a string of at most 256 characters" });
+    return;
+  }
+  if (typeof keys.auth !== "string" || keys.auth.length > 64) {
+    res.status(400).json({ error: "keys.auth must be a string of at most 64 characters" });
+    return;
+  }
+  if (user_agent !== undefined && (typeof user_agent !== "string" || user_agent.length > 512)) {
+    res.status(400).json({ error: "user_agent must be a string of at most 512 characters" });
+    return;
+  }
+
   const { error } = await supabase
     .from("push_subscriptions")
     .upsert(
@@ -52,16 +70,22 @@ router.delete("/push/unsubscribe", requireAuth, async (req: AuthRequest, res) =>
   const { endpoint } = req.body as { endpoint?: string };
 
   if (endpoint) {
-    await supabase
+    if (typeof endpoint !== "string" || endpoint.length > 2048) {
+      res.status(400).json({ error: "endpoint must be a string of at most 2048 characters" });
+      return;
+    }
+    const { error } = await supabase
       .from("push_subscriptions")
       .delete()
       .eq("user_id", userId)
       .eq("endpoint", endpoint);
+    if (error) { res.status(500).json({ error: error.message }); return; }
   } else {
-    await supabase
+    const { error } = await supabase
       .from("push_subscriptions")
       .delete()
       .eq("user_id", userId);
+    if (error) { res.status(500).json({ error: error.message }); return; }
   }
 
   res.json({ message: "Unsubscribed" });

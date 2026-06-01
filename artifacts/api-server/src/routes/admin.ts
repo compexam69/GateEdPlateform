@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { requireAdmin, type AuthRequest } from "../middlewares/auth";
 import { sendPushToUser } from "../lib/push";
 import { capText, isValidUuid, sanitizeEnum, MAX } from "../lib/sanitize";
+import { logger } from "../lib/logger";
 
 const GRANT_CONTENT_TYPES = ["subject", "quiz", "topic"] as const;
 
@@ -238,8 +239,16 @@ router.patch("/admin/users/:userId/profile", requireAdmin, async (req: AuthReque
 
   // Build update payload — only include fields that were provided
   const profileUpdates: Record<string, string> = {};
-  if (full_name !== undefined && full_name.trim()) profileUpdates["full_name"] = full_name.trim();
-  if (mobile_number !== undefined) profileUpdates["mobile_number"] = mobile_number.trim();
+  if (full_name !== undefined && full_name.trim()) profileUpdates["full_name"] = full_name.trim().slice(0, 100);
+  if (mobile_number !== undefined) {
+    const trimmed = mobile_number.trim();
+    // Allow empty string (to clear the field) or a valid phone number (7-15 digits, optional leading +)
+    if (trimmed !== "" && !/^\+?\d{7,15}$/.test(trimmed)) {
+      res.status(400).json({ error: "mobile_number must be a valid phone number (7–15 digits, optional leading +)." });
+      return;
+    }
+    profileUpdates["mobile_number"] = trimmed;
+  }
 
   if (Object.keys(profileUpdates).length === 0 && email === undefined) {
     res.status(400).json({ error: "No valid fields provided for update." });
@@ -774,10 +783,19 @@ router.post("/admin/users/create", requireAdmin, async (req: AuthRequest, res) =
   }
 
   if (data.user) {
-    await supabase
+    const { error: profileErr } = await supabase
       .from("profiles")
       .update({ role: userRole, is_approved: isApproved, status: userStatus })
       .eq("id", data.user.id);
+
+    if (profileErr) {
+      // Auth user exists but profile update failed — log for manual remediation.
+      // Do not return 500 here; the auth account was created successfully.
+      logger.warn(
+        { userId: data.user.id, err: profileErr.message },
+        "[admin/users/create] profile update failed after auth user creation"
+      );
+    }
 
     await writeAuditLog(req.user!.id, "user_created", "profile", data.user.id, {
       full_name: cleanName,
@@ -823,6 +841,14 @@ router.post("/admin/users/bulk-import", requireAdmin, async (req: AuthRequest, r
     }
     if (u.password.length < 8) {
       errors.push({ email: u.email, error: "Password must be at least 8 characters." });
+      continue;
+    }
+    if (u.password.length > 128) {
+      errors.push({ email: u.email, error: "Password must not exceed 128 characters." });
+      continue;
+    }
+    if (u.mobile_number && !/^\+?\d{7,15}$/.test(u.mobile_number.trim())) {
+      errors.push({ email: u.email, error: "mobile_number must be a valid phone number (7–15 digits, optional leading +)." });
       continue;
     }
 

@@ -12,11 +12,10 @@ import {
   ResponsiveContainer, Legend,
 } from "recharts";
 import { format } from "date-fns";
-import { Link, useLocation } from "wouter";
+import { Link } from "wouter";
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const [, setLocation] = useLocation();
 
   const { data: summary, isLoading } = useGetDashboardSummary({
     query: { queryKey: ["dashboard-summary"] },

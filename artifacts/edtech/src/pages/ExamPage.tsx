@@ -62,7 +62,11 @@ export default function ExamPage() {
   useEffect(() => { timeLeftRef.current = timeLeft; }, [timeLeft]);
   useEffect(() => { pauseCountRef.current = pauseCount; }, [pauseCount]);
 
-  // Save draft whenever answers change
+  // Save draft whenever answers, navigation, or pause state change.
+  // timeLeft is intentionally excluded from the dependency array — it is read
+  // from timeLeftRef (kept in sync via a separate effect) so we don't trigger
+  // a DB write on every 1-second tick. This reduces IndexedDB churn from
+  // ~3600 writes/hour to only writes that matter (answer/nav changes).
   useEffect(() => {
     if (!quizId || !session || loading) return;
     const d: DraftState = {
@@ -76,12 +80,13 @@ export default function ExamPage() {
         status: qs.status,
       })),
       currentIdx,
-      timeLeft,
+      timeLeft: timeLeftRef.current,
       pauseCount,
       savedAt: Date.now(),
     };
     void saveDraftIdb(d);
-  }, [questionStates, currentIdx, timeLeft, pauseCount, quizId, session, loading]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [questionStates, currentIdx, pauseCount, quizId, session, loading]);
 
   // Check for existing draft on mount (async IndexedDB)
   useEffect(() => {
@@ -245,21 +250,34 @@ export default function ExamPage() {
     }
   }, [showWarning, toast]);
 
-  // Auto-submit on prolonged network disconnect (>10 minutes)
+  // Warn when offline for extended periods. We do NOT auto-submit while offline
+  // because the submit API call requires network and would fail silently, leaving
+  // the student in a broken state. The draft is safely persisted in IndexedDB;
+  // the timer auto-submits when it expires, which also handles the offline case
+  // correctly (the request will be retried once connectivity is restored).
   useEffect(() => {
     if (loading || !session) return;
     let offlineSince: number | null = null;
+    let warnedAt: number | null = null;
 
-    const handleOffline = () => { offlineSince = Date.now(); };
-    const handleOnline = () => { offlineSince = null; };
+    const handleOffline = () => { offlineSince = Date.now(); warnedAt = null; };
+    const handleOnline = () => { offlineSince = null; warnedAt = null; };
 
     window.addEventListener("offline", handleOffline);
     window.addEventListener("online", handleOnline);
 
     const disconnectCheck = setInterval(() => {
-      if (offlineSince && Date.now() - offlineSince > 10 * 60 * 1000) {
-        toast({ title: "Auto-submitted", description: "Exam submitted after 10 minutes offline.", variant: "destructive" });
-        handleSubmit();
+      if (
+        offlineSince &&
+        Date.now() - offlineSince > 10 * 60 * 1000 &&
+        (warnedAt === null || Date.now() - warnedAt > 5 * 60 * 1000)
+      ) {
+        warnedAt = Date.now();
+        toast({
+          title: "Extended offline period",
+          description: "You have been offline for over 10 minutes. Your answers are saved locally and will be submitted when your connection is restored.",
+          variant: "destructive",
+        });
       }
     }, 30_000);
 
@@ -268,7 +286,7 @@ export default function ExamPage() {
       window.removeEventListener("online", handleOnline);
       clearInterval(disconnectCheck);
     };
-  }, [loading, session, handleSubmit, toast]);
+  }, [loading, session, toast]);
 
   // Tab-switch detection
   useEffect(() => {
