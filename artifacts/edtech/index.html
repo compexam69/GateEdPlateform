@@ -18,6 +18,45 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="EdTech" />
+    <!--
+      Content-Security-Policy — covers the React SPA.
+      'unsafe-inline' in style-src is required because Framer Motion applies
+      animation transforms via inline styles at runtime.
+      Supabase realtime uses WSS; Backblaze B2 presigned URLs can come from
+      multiple regional subdomains so *.backblazeb2.com covers them all.
+    -->
+    <!--
+      CSP notes:
+      - frame-ancestors is intentionally absent: it only works in HTTP headers,
+        not meta tags. It is set in Vite server.headers (dev) and Express (API).
+      - The two sha256 hashes in script-src whitelist inline scripts injected by
+        @replit/vite-plugin-runtime-error-modal in development. They are harmless
+        no-ops in production (the scripts won't be present to match).
+      - 'unsafe-inline' in style-src is required for Framer Motion inline styles.
+    -->
+    <meta http-equiv="Content-Security-Policy" content="
+      default-src 'self';
+      script-src 'self'
+        'sha256-L7SfyzTM3npW90hLyjdsYsxVh+bDBqSHkvhPRa2jshQ='
+        'sha256-6zo87Fg0XqbKOP1XEwHCmVJ4yfWii/6FiRQsK0hr2d8=';
+      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+      font-src 'self' https://fonts.gstatic.com data:;
+      img-src 'self' data: blob: https://*.supabase.co https://*.backblazeb2.com;
+      connect-src 'self'
+        https://*.supabase.co
+        wss://*.supabase.co
+        https://*.backblazeb2.com
+        https://api.backblazeb2.com
+        https://*.ingest.sentry.io
+        https://*.sentry.io;
+      worker-src 'self' blob:;
+      manifest-src 'self';
+      form-action 'self';
+      base-uri 'self';
+      object-src 'none';
+    ">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
