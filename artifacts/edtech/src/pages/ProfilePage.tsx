@@ -706,11 +706,11 @@ export default function ProfilePage() {
         <Card>
           <CardContent className="p-4 sm:p-6">
             <p className="text-sm font-semibold text-foreground mb-3">Account</p>
-            <div className="flex flex-row gap-2">
+            <div className="flex flex-col gap-2">
               <Button
                 variant="outline"
                 size="sm"
-                className="justify-start h-8 text-sm flex-1"
+                className="w-full justify-start h-10 text-sm"
                 onClick={async () => {
                   try {
                     const res = await fetch(`${getApiBase()}/user/export`, {
@@ -731,7 +731,7 @@ export default function ProfilePage() {
               >
                 <Download className="w-3.5 h-3.5 mr-1.5" /> Download My Data
               </Button>
-              <Button variant="outline" size="sm" className="justify-start h-8 text-sm flex-1 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30" onClick={() => signOut()}>
+              <Button variant="outline" size="sm" className="w-full justify-start h-10 text-sm text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30" onClick={() => signOut()}>
                 <LogOut className="w-3.5 h-3.5 mr-1.5" /> Sign Out
               </Button>
             </div>

@@ -1,0 +1,414 @@
+# 🟢 Checkpoint X: Profile Settings Account Actions Layout Refactor (Vertical Row-Based Actions)
+
+## Goal
+
+Refactor the **Account** section within the **Profile Settings** module so that the **Download My Data** and **Sign Out** actions are displayed in a vertical row-wise layout rather than a two-column layout.
+
+The updated design must:
+
+* Display each action on its own row.
+* Improve readability and visual hierarchy.
+* Create a more professional settings-page experience.
+* Maintain consistency across mobile, tablet, desktop, and PWA environments.
+* Preserve all existing functionality and permissions.
+* Improve touch usability on smaller screens.
+
+The implementation should focus on UI/UX improvements without altering existing business logic.
+
+---
+
+# Context Analysis
+
+## Current Layout
+
+Current structure resembles:
+
+Download My Data | Sign Out
+
+Problems:
+
+❌ Visually cramped
+
+❌ Less professional appearance
+
+❌ Reduced readability
+
+❌ Poor separation between actions
+
+❌ Less touch-friendly on mobile
+
+---
+
+## Desired Layout
+
+Replace with:
+
+Download My Data
+────────────────────
+
+Sign Out
+────────────────────
+
+Benefits:
+
+✅ Better readability
+
+✅ Clear action separation
+
+✅ More professional settings UI
+
+✅ Improved accessibility
+
+✅ Better mobile usability
+
+---
+
+# Instructions
+
+## 1. Analyze Existing Account Section Layout
+
+Review:
+
+* Profile Settings component
+* Account section structure
+* Card/container layout
+* Grid/flex implementation
+* Responsive breakpoints
+* Button styling
+* Action item rendering
+
+Identify:
+
+* Whether actions use grid columns
+* Whether flex-row styling is applied
+* Which responsive classes affect layout
+
+Document findings before implementation.
+
+---
+
+# 2. Convert Account Actions to Vertical Layout
+
+Refactor:
+
+Download My Data
+
+Sign Out
+
+from:
+
+Two-column layout
+
+to:
+
+Single-column vertical layout
+
+Each action must occupy its own row.
+
+---
+
+# 3. Preserve Existing Functionality
+
+Ensure the layout change does NOT affect:
+
+### Download My Data
+
+* Export functionality
+* File generation
+* Download behavior
+* Permission checks
+
+### Sign Out
+
+* Session termination
+* Authentication state handling
+* Redirect behavior
+* Logout security logic
+
+Only the visual layout should change.
+
+---
+
+# 4. Improve Visual Hierarchy
+
+Ensure:
+
+### Download My Data
+
+Appears as a standard account-management action.
+
+### Sign Out
+
+Remains clearly visible.
+
+If the design system already differentiates destructive actions:
+
+* Preserve existing styling.
+* Do not reduce visibility.
+
+---
+
+# 5. Improve Spacing & Alignment
+
+Ensure:
+
+* Consistent row spacing
+* Proper padding
+* Uniform action height
+* Consistent alignment
+
+Prevent:
+
+❌ Crowded rows
+
+❌ Uneven spacing
+
+❌ Misaligned content
+
+---
+
+# 6. Improve Mobile UX
+
+Verify:
+
+### Mobile (<768px)
+
+Actions remain:
+
+* Full-width
+* Easy to tap
+* Clearly separated
+
+Avoid:
+
+Tiny buttons
+
+Compressed layouts
+
+Touch-target issues
+
+---
+
+# 7. Improve Desktop UX
+
+Verify:
+
+### Desktop (≥768px)
+
+Actions:
+
+* Maintain row-wise structure
+* Feel intentional and professional
+* Avoid excessive empty space
+
+Do not revert to side-by-side layout.
+
+---
+
+# 8. Accessibility Validation
+
+Ensure:
+
+### Keyboard Navigation
+
+Works correctly.
+
+### Focus States
+
+Remain visible.
+
+### Screen Readers
+
+Continue reading actions correctly.
+
+### Touch Targets
+
+Meet accessibility guidelines.
+
+---
+
+# 9. Responsive Validation
+
+Test:
+
+## Mobile
+
+320px
+
+360px
+
+390px
+
+430px
+
+Verify:
+
+* Full-width rows
+* No overlap
+* No clipping
+
+---
+
+## Tablet
+
+768px
+
+820px
+
+1024px
+
+Verify:
+
+* Consistent vertical layout
+
+---
+
+## Desktop
+
+1280px
+
+1366px
+
+1440px
+
+1920px
+
+Verify:
+
+* Professional appearance
+* Proper spacing
+* No oversized gaps
+
+---
+
+# 10. Prevent Layout Regressions
+
+Verify:
+
+* No overflow
+* No clipping
+* No alignment issues
+* No spacing regressions
+* No broken cards
+
+---
+
+# 11. Preserve Existing Styling System
+
+Ensure:
+
+* Existing design tokens remain intact
+* Existing theme support remains intact
+* Dark/light mode behavior remains intact
+
+---
+
+# 12. Backend / Database Review
+
+Determine whether:
+
+* Database changes required
+* API changes required
+* Permission changes required
+
+Document findings.
+
+---
+
+# 13. SQL & Supabase Guidance
+
+Expected implementation:
+
+SQL Changes Required: NO
+
+Database Changes Required: NO
+
+RLS Changes Required: NO
+
+Supabase Changes Required: NO
+
+This should be a frontend layout refinement only.
+
+If any SQL changes are proposed, explain why they are necessary.
+
+---
+
+# 14. Testing & Validation
+
+Verify:
+
+### Download My Data
+
+Still exports correctly.
+
+### Sign Out
+
+Still logs users out correctly.
+
+### Layout
+
+Displays vertically on all screen sizes.
+
+### Responsive Behavior
+
+Remains stable.
+
+### Errors
+
+No console/runtime errors occur.
+
+---
+
+# 15. Final Implementation Report
+
+Provide:
+
+### Files Modified
+
+### Layout Changes
+
+### Styling Changes
+
+### Responsive Improvements
+
+### Accessibility Validation
+
+### Testing Results
+
+### Remaining Limitations
+
+---
+
+# 16. Checkpoint Requirement
+
+After implementation and testing:
+
+Create checkpoint immediately.
+
+### Checkpoint Name
+
+"Profile Settings Account Actions Vertical Layout Refactor"
+
+Checkpoint verification must confirm:
+
+* Download My Data occupies its own row.
+* Sign Out occupies its own row.
+* Existing functionality remains intact.
+* Responsive behavior validated.
+* No layout regressions exist.
+* No console/runtime errors remain.
+
+---
+
+# Acceptance Criteria
+
+* [ ] Download My Data is displayed on its own row.
+* [ ] Sign Out is displayed on its own row.
+* [ ] Two-column layout is removed.
+* [ ] Layout remains professional and consistent.
+* [ ] Mobile touch usability is improved.
+* [ ] Desktop appearance is improved.
+* [ ] Existing functionality remains unaffected.
+* [ ] No clipping, overflow, or alignment issues occur.
+* [ ] No console/runtime errors occur.
+* [ ] Checkpoint created after successful implementation and testing.
