@@ -119,7 +119,6 @@ export default function ProfilePage() {
       gestureRef.current = { startY: e.touches[0].clientY, startX: e.touches[0].clientX, startTime: Date.now(), delta: 0, dragging: false, locked: false, lockAxis: null };
       wasDraggingRef.current = false;
     }
-
     function onTouchMove(e: TouchEvent) {
       if (e.touches.length !== 1) return;
       const g = gestureRef.current;
@@ -138,7 +137,6 @@ export default function ProfilePage() {
       if (dy > 8) wasDraggingRef.current = true;
       applyGestureVisuals(dy);
     }
-
     function onTouchEnd() {
       const g = gestureRef.current;
       if (!g.dragging) return;
@@ -160,7 +158,6 @@ export default function ProfilePage() {
       }
       gestureRef.current = { ...g, dragging: false, delta: 0, locked: false, lockAxis: null };
     }
-
     function onTouchCancel() {
       gestureRef.current.dragging = false;
       gestureRef.current.delta = 0;
@@ -173,7 +170,6 @@ export default function ProfilePage() {
     el.addEventListener("touchmove", onTouchMove, { passive: false });
     el.addEventListener("touchend", onTouchEnd, { passive: true });
     el.addEventListener("touchcancel", onTouchCancel, { passive: true });
-
     return () => {
       el.removeEventListener("touchstart", onTouchStart);
       el.removeEventListener("touchmove", onTouchMove);
@@ -241,15 +237,11 @@ export default function ProfilePage() {
       const { error: reAuthErr } = await supabase.auth.signInWithPassword({ email: user!.email!, password: emailConfirmPwd });
       if (reAuthErr) {
         toast({ title: "Wrong password", description: "Your current password is incorrect.", variant: "destructive" });
-        setChangingEmail(false);
-        return;
+        setChangingEmail(false); return;
       }
       const { error } = await supabase.auth.updateUser({ email: trimmed });
       if (error) throw error;
-      setEmailChangeSuccess(true);
-      setEditingEmail(false);
-      setNewEmail("");
-      setEmailConfirmPwd("");
+      setEmailChangeSuccess(true); setEditingEmail(false); setNewEmail(""); setEmailConfirmPwd("");
     } catch (err: unknown) {
       toast({ title: "Error", description: (err as Error).message, variant: "destructive" });
     } finally { setChangingEmail(false); }
@@ -260,8 +252,7 @@ export default function ProfilePage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
     if (!file) return;
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-      toast({ title: "Invalid file type", description: "Please upload a JPG, PNG, or WEBP image.", variant: "destructive" });
-      return;
+      toast({ title: "Invalid file type", description: "Please upload a JPG, PNG, or WEBP image.", variant: "destructive" }); return;
     }
     if (cropSrc) URL.revokeObjectURL(cropSrc);
     setCropSrc(URL.createObjectURL(file));
@@ -297,8 +288,7 @@ export default function ProfilePage() {
   }
 
   async function handleRemovePhoto() {
-    setPhotoUrl(null);
-    bumpVersion();
+    setPhotoUrl(null); bumpVersion();
     try {
       if (storedAvatarPath && !storedAvatarPath.startsWith("users/")) {
         await supabase.storage.from("avatars").remove([storedAvatarPath]);
@@ -340,61 +330,58 @@ export default function ProfilePage() {
 
   return (
     <AppLayout>
-      <div className="max-w-xl sm:max-w-2xl mx-auto space-y-3 sm:space-y-6">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Profile Settings</h1>
+      {/*
+        ┌─ LAYOUT STRATEGY ────────────────────────────────────────────┐
+        │  Mobile (<768px):  max-w-xl, stacked cards, collapsible pwd  │
+        │  Desktop (≥768px): max-w-3xl, 2-col bottom grid, pwd always  │
+        │                    expanded (no toggle needed)                │
+        │  Profile image is ABOVE name on ALL screen sizes             │
+        └──────────────────────────────────────────────────────────────┘
+      */}
+      <div className="max-w-xl sm:max-w-2xl md:max-w-3xl mx-auto">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-3 sm:mb-5 md:mb-6">Profile Settings</h1>
 
-        {/* ── Profile Header Card ── */}
-        <Card className="bg-card">
-          <CardContent className="p-4 sm:p-6">
+        {/* ── Profile Header Card — full width, image always above name ── */}
+        <Card className="bg-card mb-3 sm:mb-4 md:mb-6">
+          <CardContent className="p-4 sm:p-6 md:p-8">
             {/*
-              ┌─ MOBILE (default) ─────────────────────┐
-              │  flex-col, items-center                  │
-              │  Avatar centered at top                  │
-              │  Name centered below avatar              │
-              │  Info rows full-width, centered          │
-              └─────────────────────────────────────────┘
-              ┌─ DESKTOP (sm:) ─────────────────────────┐
-              │  flex-row, items-start                   │
-              │  Avatar left column                      │
-              │  Info stacked on right                   │
-              └─────────────────────────────────────────┘
+              flex-col items-center on ALL breakpoints:
+              Image is visually above and centered above the name
+              on mobile, tablet, AND desktop.
             */}
-            <div className="flex flex-col items-center sm:flex-row sm:items-start gap-2 sm:gap-6">
+            <div className="flex flex-col items-center gap-2 sm:gap-3">
 
-              {/* ── Avatar column ── */}
+              {/* Avatar + edit button */}
               <div className="relative shrink-0">
                 {/*
-                  Mobile  — 80px (w-20): centered hero, clearly visible
-                  Desktop — 88px: appropriate for side-by-side column
+                  Mobile  — 80px (w-20)
+                  Desktop — 96px (md:w-24): more prominent in the wider card
                 */}
-                <div className="w-20 h-20 sm:w-[88px] sm:h-[88px] rounded-full bg-muted flex items-center justify-center ring-2 ring-border overflow-hidden">
+                <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-muted flex items-center justify-center ring-2 ring-border overflow-hidden">
                   {photoUrl
                     ? <img src={photoUrl} alt="Profile" className="w-full h-full object-cover" />
-                    : <User className="w-10 h-10 sm:w-11 sm:h-11 text-muted-foreground" />}
+                    : <User className="w-10 h-10 md:w-12 md:h-12 text-muted-foreground" />}
                 </div>
 
-                {/* Edit button — 32px on mobile, 34px on desktop, meets touch target */}
+                {/* Edit/photo button — always centered above avatar */}
                 <button
                   onClick={() => { if (!uploadingPhoto) setPhotoMenuOpen(v => !v); }}
                   disabled={uploadingPhoto}
-                  className="absolute bottom-0 right-0 w-8 h-8 sm:w-[34px] sm:h-[34px] rounded-full bg-primary flex items-center justify-center shadow-md hover:bg-primary/90 transition-colors disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  className="absolute bottom-0 right-0 w-8 h-8 md:w-9 md:h-9 rounded-full bg-primary flex items-center justify-center shadow-md hover:bg-primary/90 transition-colors disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   title="Edit photo"
                   aria-haspopup="menu"
                   aria-expanded={photoMenuOpen}
                 >
-                  <Pencil className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
+                  <Pencil className="w-3.5 h-3.5 md:w-4 md:h-4 text-white" />
                 </button>
 
-                {/* Photo action popup
-                    Mobile:  centered below avatar (left-1/2 -translate-x-1/2)
-                    Desktop: left-anchored below avatar (sm:left-0 sm:translate-x-0)
-                    max-w prevents viewport overflow on 320px screens */}
+                {/* Photo action popup — always centered below avatar */}
                 {photoMenuOpen && (
                   <>
                     <div className="fixed inset-0 z-40" aria-hidden="true" onClick={() => setPhotoMenuOpen(false)} />
                     <div
                       role="menu"
-                      className="absolute left-1/2 -translate-x-1/2 sm:left-0 sm:translate-x-0 top-[calc(100%+10px)] z-50 min-w-[196px] max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-card shadow-2xl overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150"
+                      className="absolute left-1/2 -translate-x-1/2 top-[calc(100%+10px)] z-50 min-w-[196px] max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-card shadow-2xl overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150"
                     >
                       {photoUrl && (
                         <>
@@ -409,7 +396,6 @@ export default function ProfilePage() {
                           <div className="h-px bg-border mx-3" />
                         </>
                       )}
-
                       <button
                         role="menuitem"
                         onClick={() => { setPhotoMenuOpen(false); fileInputRef.current?.click(); }}
@@ -418,7 +404,6 @@ export default function ProfilePage() {
                         <ImagePlus className="w-4 h-4 text-primary shrink-0" />
                         <span>{photoUrl ? "Update Photo" : "Upload Photo"}</span>
                       </button>
-
                       {photoUrl && (
                         <>
                           <div className="h-px bg-border mx-3" />
@@ -432,7 +417,6 @@ export default function ProfilePage() {
                           </button>
                         </>
                       )}
-
                       {canEditOwnProfile && (
                         <>
                           <div className="h-px bg-border mx-3 mt-1" />
@@ -444,24 +428,21 @@ export default function ProfilePage() {
                             onClick={() => { setPhotoMenuOpen(false); setNewName(user?.user_metadata?.full_name || ""); setEditingName(true); }}
                             className="flex w-full items-center gap-3 px-4 py-3 text-sm text-left hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:bg-muted/60"
                           >
-                            <User className="w-4 h-4 text-primary shrink-0" />
-                            <span>Edit Name</span>
+                            <User className="w-4 h-4 text-primary shrink-0" /><span>Edit Name</span>
                           </button>
                           <button
                             role="menuitem"
                             onClick={() => { setPhotoMenuOpen(false); setEditingEmail(true); setEmailChangeSuccess(false); }}
                             className="flex w-full items-center gap-3 px-4 py-3 text-sm text-left hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:bg-muted/60"
                           >
-                            <Mail className="w-4 h-4 text-primary shrink-0" />
-                            <span>Edit Email</span>
+                            <Mail className="w-4 h-4 text-primary shrink-0" /><span>Edit Email</span>
                           </button>
                           <button
                             role="menuitem"
                             onClick={() => { setPhotoMenuOpen(false); setNewMobile(user?.user_metadata?.mobile_number || "+91 "); setEditingMobile(true); }}
                             className="flex w-full items-center gap-3 px-4 py-3 text-sm text-left hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:bg-muted/60"
                           >
-                            <Phone className="w-4 h-4 text-primary shrink-0" />
-                            <span>Edit Mobile</span>
+                            <Phone className="w-4 h-4 text-primary shrink-0" /><span>Edit Mobile</span>
                           </button>
                           <div className="pb-1.5" />
                         </>
@@ -479,52 +460,32 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              {/* ── Info column ──
-                  Mobile:  w-full, centered alignment — uses the full card width
-                  Desktop: flex-1, left-aligned — standard side-by-side column */}
-              <div className="w-full sm:flex-1 sm:min-w-0 space-y-1.5 sm:space-y-2.5">
+              {/* Info column — centered on all breakpoints */}
+              <div className="w-full space-y-1.5 sm:space-y-2">
 
-                {/* Name row */}
+                {/* Name */}
                 {editingName && canEditOwnProfile ? (
-                  <div className="flex flex-col sm:flex-row flex-wrap gap-2 items-center sm:items-center">
-                    <Input
-                      value={newName}
-                      onChange={e => setNewName(e.target.value)}
-                      className="w-full sm:max-w-xs h-10 text-sm"
-                      autoFocus
-                    />
+                  <div className="flex flex-col gap-2 items-center">
+                    <Input value={newName} onChange={e => setNewName(e.target.value)} className="w-full max-w-xs h-10 text-sm" autoFocus />
                     <div className="flex gap-2">
-                      <Button size="sm" className="h-10 px-4 text-sm" onClick={handleSaveName} disabled={savingName}>
-                        {savingName ? "Saving..." : "Save"}
-                      </Button>
-                      <Button size="sm" variant="ghost" className="h-10 px-4 text-sm" onClick={() => setEditingName(false)}>
-                        Cancel
-                      </Button>
+                      <Button size="sm" className="h-10 px-4 text-sm" onClick={handleSaveName} disabled={savingName}>{savingName ? "Saving..." : "Save"}</Button>
+                      <Button size="sm" variant="ghost" className="h-10 px-4 text-sm" onClick={() => setEditingName(false)}>Cancel</Button>
                     </div>
                   </div>
                 ) : (
-                  /*
-                    Name — primary identity, full available width
-                    Mobile:  text-xl, centered — no truncation, long Indian names fit
-                    Desktop: text-xl, left-aligned
-                  */
-                  <h2 className="text-xl font-bold leading-tight text-center sm:text-left">
+                  /* Name — centered on all breakpoints, full width available */
+                  <h2 className="text-xl md:text-2xl font-bold leading-tight text-center">
                     {user?.user_metadata?.full_name || "Student"}
                   </h2>
                 )}
 
-                {/* Secondary info block */}
+                {/* Email / Phone / Role — centered rows */}
                 <div className="space-y-1.5">
 
                   {/* Email row */}
                   <div className="space-y-1.5">
-                    <div className="flex items-center gap-2 justify-center sm:justify-start flex-wrap">
-                      {/*
-                        Email: text-sm (14px) on all sizes — readable without zooming
-                        Mobile centered: no truncation risk, full card width available
-                        Mobile previously truncated in a ~255px column, now has full ~310px+
-                      */}
-                      <p className="text-muted-foreground text-sm text-center sm:text-left break-all sm:break-normal sm:truncate sm:min-w-0 sm:flex-1">
+                    <div className="flex items-center gap-2 justify-center flex-wrap">
+                      <p className="text-muted-foreground text-sm text-center break-all">
                         {user?.email}
                       </p>
                       {isEmailVerified
@@ -533,21 +494,19 @@ export default function ProfilePage() {
                             <CheckCircle className="w-3 h-3" />Verified
                           </Badge>
                         ) : (
-                          <Badge variant="destructive" className="text-xs shrink-0 px-2 py-0.5">
-                            Unverified
-                          </Badge>
+                          <Badge variant="destructive" className="text-xs shrink-0 px-2 py-0.5">Unverified</Badge>
                         )}
                     </div>
 
                     {emailChangeSuccess && (
-                      <div className="flex items-start gap-2 rounded-md bg-success/10 border border-success/20 px-3 py-2.5 text-xs text-success">
+                      <div className="flex items-start gap-2 rounded-md bg-success/10 border border-success/20 px-3 py-2.5 text-xs text-success max-w-md mx-auto">
                         <CheckCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                         <span>Verification email sent to your new address. Click the link to confirm the change.</span>
                       </div>
                     )}
 
                     {canEditOwnProfile && editingEmail && (
-                      <div className="mt-2 space-y-3 rounded-lg border border-border bg-muted/30 p-4">
+                      <div className="mt-2 space-y-3 rounded-lg border border-border bg-muted/30 p-4 max-w-md mx-auto">
                         <p className="text-xs text-muted-foreground flex items-center gap-1.5">
                           <Mail className="w-3.5 h-3.5 shrink-0" />
                           A verification link will be sent to the new address. Your current email stays active until confirmed.
@@ -559,13 +518,7 @@ export default function ProfilePage() {
                         <div className="space-y-1.5">
                           <Label className="text-sm">Current Password (to confirm)</Label>
                           <div className="relative">
-                            <Input
-                              type={showEmailPwd ? "text" : "password"}
-                              value={emailConfirmPwd}
-                              onChange={e => setEmailConfirmPwd(e.target.value)}
-                              placeholder="Your current password"
-                              className="h-10 text-sm pr-10"
-                            />
+                            <Input type={showEmailPwd ? "text" : "password"} value={emailConfirmPwd} onChange={e => setEmailConfirmPwd(e.target.value)} placeholder="Your current password" className="h-10 text-sm pr-10" />
                             <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowEmailPwd(v => !v)}>
                               {showEmailPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                             </button>
@@ -583,28 +536,18 @@ export default function ProfilePage() {
                     )}
                   </div>
 
-                  {/* Mobile number row */}
+                  {/* Phone row */}
                   {editingMobile && canEditOwnProfile ? (
-                    <div className="flex flex-wrap gap-2 items-center justify-center sm:justify-start">
+                    <div className="flex flex-wrap gap-2 items-center justify-center">
                       <div className="relative">
                         <Phone className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                          value={newMobile}
-                          onChange={e => setNewMobile(e.target.value)}
-                          placeholder="+91 9876543210"
-                          className="pl-8 w-[200px] text-sm h-10"
-                          autoFocus
-                        />
+                        <Input value={newMobile} onChange={e => setNewMobile(e.target.value)} placeholder="+91 9876543210" className="pl-8 w-[200px] text-sm h-10" autoFocus />
                       </div>
-                      <Button size="sm" className="h-10 px-4 text-sm" onClick={handleSaveMobile} disabled={savingMobile}>
-                        {savingMobile ? "Saving..." : "Save"}
-                      </Button>
-                      <Button size="sm" variant="ghost" className="h-10 px-4 text-sm" onClick={() => setEditingMobile(false)}>
-                        Cancel
-                      </Button>
+                      <Button size="sm" className="h-10 px-4 text-sm" onClick={handleSaveMobile} disabled={savingMobile}>{savingMobile ? "Saving..." : "Save"}</Button>
+                      <Button size="sm" variant="ghost" className="h-10 px-4 text-sm" onClick={() => setEditingMobile(false)}>Cancel</Button>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2 justify-center sm:justify-start min-w-0">
+                    <div className="flex items-center gap-2 justify-center min-w-0">
                       <Phone className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
                       <p className="text-muted-foreground text-sm">
                         {maskedMobile || <span className="italic">No mobile number</span>}
@@ -612,8 +555,8 @@ export default function ProfilePage() {
                     </div>
                   )}
 
-                  {/* Role badge row */}
-                  <div className="flex items-center gap-1.5 justify-center sm:justify-start">
+                  {/* Role badge */}
+                  <div className="flex items-center gap-1.5 justify-center">
                     {isAdmin && <Shield className="w-3.5 h-3.5 text-primary" />}
                     <Badge variant="outline" className={`text-xs px-2 py-0.5 ${isAdmin ? "border-primary text-primary" : ""}`}>
                       {roleLabel}
@@ -625,21 +568,48 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
-        {/* ── Change Password Card (collapsible, preserves scroll savings) ── */}
-        <Card>
-          <CardContent className="p-0">
-            <button
-              type="button"
-              onClick={() => setPasswordExpanded(v => !v)}
-              className="w-full flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-[inherit]"
-              aria-expanded={passwordExpanded}
-            >
-              <span className="text-sm sm:text-base font-semibold text-foreground">Change Password</span>
-              <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${passwordExpanded ? "rotate-180" : ""}`} />
-            </button>
+        {/*
+          ┌─ BOTTOM SECTION ──────────────────────────────────────────────┐
+          │  Mobile (<768px):  stacked vertically, space-y-3              │
+          │  Desktop (≥768px): 2-column grid — Password left, Account right│
+          └───────────────────────────────────────────────────────────────┘
+        */}
+        <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-6 md:items-start">
 
-            {passwordExpanded && (
-              <div className="px-4 sm:px-6 pb-5 sm:pb-6 space-y-4 border-t border-border pt-4">
+          {/* ── Change Password Card ── */}
+          <Card>
+            <CardContent className="p-0">
+
+              {/*
+                Toggle button — MOBILE ONLY (md:hidden)
+                On desktop this button is hidden; content is always expanded
+              */}
+              <button
+                type="button"
+                onClick={() => setPasswordExpanded(v => !v)}
+                className="md:hidden w-full flex items-center justify-between px-4 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-[inherit]"
+                aria-expanded={passwordExpanded}
+              >
+                <span className="text-sm font-semibold text-foreground">Change Password</span>
+                <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${passwordExpanded ? "rotate-180" : ""}`} />
+              </button>
+
+              {/*
+                Section title — DESKTOP ONLY (hidden md:flex)
+                Replaces the toggle button on desktop with a static heading
+              */}
+              <div className="hidden md:flex items-center px-6 pt-5 pb-4">
+                <h3 className="text-base font-semibold text-foreground">Change Password</h3>
+              </div>
+
+              {/*
+                Content:
+                • Mobile: conditionally rendered based on passwordExpanded state
+                  Achieved via: hidden when collapsed, block when expanded
+                • Desktop: always visible via md:block (overrides the hidden)
+                CSS: `${passwordExpanded ? "" : "hidden"} md:block`
+              */}
+              <div className={`${passwordExpanded ? "" : "hidden"} md:block px-4 md:px-6 pb-5 md:pb-6 space-y-4 border-t border-border pt-4`}>
                 {[
                   { label: "Current Password", value: currentPwd, set: setCurrentPwd, show: showCurrent, toggle: () => setShowCurrent(v => !v), placeholder: "Your current password", auto: "current-password" },
                   { label: "New Password", value: newPwd, set: setNewPwd, show: showNew, toggle: () => setShowNew(v => !v), placeholder: "Min 8 chars, mixed case, number, special", auto: "new-password" },
@@ -654,7 +624,7 @@ export default function ProfilePage() {
                         onChange={e => field.set(e.target.value)}
                         placeholder={field.placeholder}
                         autoComplete={field.auto}
-                        className="h-11 sm:h-10 text-sm pr-10"
+                        className="h-11 md:h-10 text-sm pr-10"
                       />
                       <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={field.toggle}>
                         {field.show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -663,55 +633,55 @@ export default function ProfilePage() {
                   </div>
                 ))}
                 <Button
-                  className="h-11 sm:h-10 text-sm w-full sm:w-auto px-6"
+                  className="h-11 md:h-10 text-sm w-full md:w-auto px-6"
                   onClick={handleChangePassword}
                   disabled={changingPwd || !currentPwd || !newPwd || !confirmPwd}
                 >
                   {changingPwd ? "Updating..." : "Update Password"}
                 </Button>
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        {/* ── Account Actions Card ── */}
-        <Card>
-          <CardContent className="p-4 sm:p-6">
-            <p className="text-sm font-semibold text-foreground mb-2 sm:mb-4">Account</p>
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-              <Button
-                variant="outline"
-                className="justify-center sm:justify-start h-10 text-sm flex-1"
-                onClick={async () => {
-                  try {
-                    const res = await fetch(`${getApiBase()}/user/export`, {
-                      headers: { Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token ?? ""}` },
-                    });
-                    if (!res.ok) throw new Error("Export failed");
-                    const blob = await res.blob();
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = `gateed-my-data-${new Date().toISOString().split("T")[0]}.json`;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                  } catch {
-                    toast({ title: "Export failed", description: "Could not download your data. Please try again.", variant: "destructive" });
-                  }
-                }}
-              >
-                <Download className="w-4 h-4 mr-2" /> Download My Data
-              </Button>
-              <Button
-                variant="outline"
-                className="justify-center sm:justify-start h-10 text-sm flex-1 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
-                onClick={() => signOut()}
-              >
-                <LogOut className="w-4 h-4 mr-2" /> Sign Out
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+          {/* ── Account Actions Card ── */}
+          <Card>
+            <CardContent className="p-4 md:p-6">
+              <p className="text-sm font-semibold text-foreground mb-3 md:mb-4">Account</p>
+              <div className="flex flex-col gap-2 md:gap-3">
+                <Button
+                  variant="outline"
+                  className="justify-center h-10 text-sm"
+                  onClick={async () => {
+                    try {
+                      const res = await fetch(`${getApiBase()}/user/export`, {
+                        headers: { Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token ?? ""}` },
+                      });
+                      if (!res.ok) throw new Error("Export failed");
+                      const blob = await res.blob();
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = `gateed-my-data-${new Date().toISOString().split("T")[0]}.json`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    } catch {
+                      toast({ title: "Export failed", description: "Could not download your data. Please try again.", variant: "destructive" });
+                    }
+                  }}
+                >
+                  <Download className="w-4 h-4 mr-2" /> Download My Data
+                </Button>
+                <Button
+                  variant="outline"
+                  className="justify-center h-10 text-sm text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+                  onClick={() => signOut()}
+                >
+                  <LogOut className="w-4 h-4 mr-2" /> Sign Out
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       <PhotoCropModal

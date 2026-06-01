@@ -1,0 +1,580 @@
+This requirement is actually a **responsive layout separation task**, not a simple dropdown change.
+
+After analyzing the requirement, the root issue is:
+
+### Current Situation
+
+✅ Mobile Profile page is well-balanced
+
+✅ Dropdown/collapsible sections help save space on small screens
+
+❌ Desktop Profile page looks underutilized
+
+❌ Large amounts of empty space exist
+
+❌ Users must unnecessarily open dropdowns despite having ample screen space
+
+❌ Desktop layout feels compressed instead of taking advantage of larger viewports
+
+The correct solution is **adaptive rendering by breakpoint**, where desktop and mobile intentionally behave differently.
+
+---
+
+# 🟢 Checkpoint X: Responsive Profile Layout Separation (Desktop Expanded Sections + Mobile Collapsible Sections)
+
+## Goal
+
+Optimize the Profile Module by implementing separate desktop and mobile experiences.
+
+### Desktop Experience
+
+On desktop and large tablet screens:
+
+* Automatically expand all Profile sections.
+* Remove the need for collapsible/dropdown interactions.
+* Display section content directly.
+* Utilize available screen width and height more effectively.
+* Create a balanced and professional desktop layout.
+
+### Mobile Experience
+
+On mobile devices:
+
+* Preserve the current dropdown/collapsible behavior.
+* Maintain the existing mobile-friendly design.
+* Continue optimizing for limited screen space.
+
+The Profile Image must remain positioned above the user's name across all screen sizes.
+
+---
+
+# Context Analysis
+
+## Current Mobile Experience
+
+Current behavior:
+
+```text
+Profile Image
+Name
+
+▼ Change Password
+▼ Account Settings
+▼ Notifications
+▼ Other Sections
+```
+
+Advantages:
+
+```text
+✓ Saves vertical space
+✓ Clean UI
+✓ Mobile friendly
+✓ Easy to navigate
+```
+
+This behavior should remain unchanged on mobile.
+
+---
+
+## Current Desktop Experience
+
+Current behavior:
+
+```text
+Profile Image
+Name
+
+▼ Change Password
+▼ Account Settings
+▼ Notifications
+▼ Other Sections
+```
+
+Problems:
+
+```text
+✗ Large unused screen area
+✗ Excessive clicking
+✗ Poor information density
+✗ Layout appears condensed
+✗ Desktop feels like stretched mobile UI
+```
+
+---
+
+## Desired Desktop Experience
+
+Desktop should automatically display:
+
+```text
+Profile Image
+Name
+
+Change Password
+--------------------------------
+[Content Visible]
+
+Account Settings
+--------------------------------
+[Content Visible]
+
+Notifications
+--------------------------------
+[Content Visible]
+
+Other Sections
+--------------------------------
+[Content Visible]
+```
+
+No unnecessary dropdowns.
+
+---
+
+# Instructions
+
+## 1. Analyze Current Profile Architecture
+
+Review:
+
+* Profile page layout
+* Header section
+* Profile image component
+* Name display
+* Dropdown components
+* Accordion components
+* Responsive breakpoints
+* Desktop rendering logic
+* Mobile rendering logic
+
+Identify:
+
+* Which sections currently use collapsible UI.
+* Which components are reusable.
+* Whether conditional rendering already exists.
+
+Document findings before modification.
+
+---
+
+# 2. Preserve Profile Header Structure
+
+Maintain:
+
+```text
+Profile Image
+↓
+User Name
+```
+
+Do NOT:
+
+* Move image beside name.
+* Move image below name.
+* Convert header into horizontal desktop layout unless explicitly justified.
+
+The image must remain above the name.
+
+---
+
+# 3. Create Responsive Section Behavior
+
+Implement breakpoint-based rendering.
+
+---
+
+## Mobile (<768px)
+
+Keep existing behavior:
+
+```text
+▼ Change Password
+
+▼ Account Settings
+
+▼ Notifications
+
+▼ Other Sections
+```
+
+Users manually expand sections.
+
+---
+
+## Tablet/Desktop (≥768px)
+
+Automatically display content.
+
+Example:
+
+```text
+Change Password
+-------------------
+Visible Content
+
+Account Settings
+-------------------
+Visible Content
+```
+
+No accordion interaction required.
+
+---
+
+# 4. Remove Desktop Dropdown Dependency
+
+On desktop:
+
+Do NOT require:
+
+```text
+Click
+Expand
+Collapse
+```
+
+for commonly used Profile settings.
+
+Display content immediately.
+
+---
+
+# 5. Improve Desktop Information Density
+
+Review:
+
+### Change Password
+
+### Account Settings
+
+### Notification Settings
+
+### Security Settings
+
+### Other Profile Sections
+
+Determine optimal layout.
+
+Potential improvements:
+
+* Two-column layout where appropriate.
+* Side-by-side cards.
+* Responsive grids.
+
+Avoid:
+
+```text
+Single narrow column centered on a 1920px screen.
+```
+
+---
+
+# 6. Utilize Desktop Screen Width
+
+Review desktop layouts at:
+
+```text
+1280px
+1366px
+1440px
+1920px
+```
+
+Ensure:
+
+* Content stretches appropriately.
+* Empty margins are reduced.
+* Cards feel proportionate.
+
+---
+
+# 7. Preserve Mobile UX
+
+Do NOT modify:
+
+* Mobile dropdown behavior.
+* Mobile spacing.
+* Mobile hierarchy.
+
+Current mobile design is already approved.
+
+---
+
+# 8. Improve Desktop Visual Balance
+
+Ensure:
+
+### Section Titles
+
+Remain clear.
+
+### Content Cards
+
+Have appropriate width.
+
+### Empty Space
+
+Is utilized intelligently.
+
+### Alignment
+
+Remains consistent.
+
+---
+
+# 9. Preserve Existing Functionality
+
+Ensure implementation does NOT break:
+
+* Profile editing
+* Profile image upload
+* Profile image viewer
+* Change Password
+* Notification settings
+* Account settings
+* Validation logic
+* Permissions
+* Audit logging
+
+Only presentation behavior should change.
+
+---
+
+# 10. Accessibility Validation
+
+Verify:
+
+### Keyboard Navigation
+
+Works correctly.
+
+### Focus States
+
+Remain visible.
+
+### Screen Readers
+
+Continue functioning.
+
+### Form Labels
+
+Remain accessible.
+
+---
+
+# 11. Responsive Testing
+
+Test:
+
+## Mobile
+
+```text
+320px
+360px
+375px
+390px
+430px
+```
+
+Verify:
+
+* Dropdowns remain intact.
+* Existing mobile UX unchanged.
+
+---
+
+## Tablet
+
+```text
+768px
+820px
+1024px
+```
+
+Verify:
+
+* Expanded desktop behavior activates correctly.
+
+---
+
+## Desktop
+
+```text
+1280px
+1366px
+1440px
+1920px
+```
+
+Verify:
+
+* All sections visible.
+* Layout balanced.
+
+---
+
+# 12. Prevent Layout Issues
+
+Verify:
+
+* No clipping.
+* No overlap.
+* No horizontal scrolling.
+* No oversized cards.
+* No awkward whitespace.
+
+---
+
+# 13. Performance Validation
+
+Ensure:
+
+* No excessive re-renders.
+* No accordion state conflicts.
+* No hydration issues.
+* No rendering regressions.
+
+---
+
+# 14. Backend / Database Review
+
+Determine whether:
+
+* Database changes required.
+* API changes required.
+* Permission changes required.
+
+Document findings.
+
+---
+
+# 15. SQL & Supabase Guidance
+
+Expected implementation:
+
+```text
+SQL Changes Required: NO
+Database Changes Required: NO
+RLS Changes Required: NO
+Supabase Changes Required: NO
+```
+
+This is a responsive UI/layout enhancement only.
+
+If any SQL changes are proposed, explain why they are necessary.
+
+---
+
+# 16. Testing & Validation
+
+Verify:
+
+### Mobile
+
+* Dropdowns remain collapsible.
+
+### Desktop
+
+* Dropdowns automatically expanded.
+
+### Both
+
+* Profile Image remains above Name.
+* Layout remains responsive.
+* No console/runtime errors occur.
+
+---
+
+# 17. Final Implementation Report
+
+Provide:
+
+### Files Modified
+
+### Responsive Logic Changes
+
+### Desktop Layout Enhancements
+
+### Mobile Layout Preservation
+
+### Expanded Section Implementation
+
+### Accessibility Validation
+
+### Performance Validation
+
+### Remaining Limitations
+
+---
+
+# 18. Checkpoint Requirement
+
+After implementation and verification:
+
+Create checkpoint immediately.
+
+### Checkpoint Name
+
+**"Profile Module Responsive Desktop Expansion & Mobile Collapsible Preservation"**
+
+---
+
+Checkpoint verification must confirm:
+
+* Desktop automatically displays Profile sections.
+* Mobile retains dropdown behavior.
+* Profile Image remains above Name.
+* Desktop space utilization improved.
+* No layout regressions introduced.
+* No console/runtime errors remain.
+
+---
+
+# Acceptance Criteria
+
+* [ ] Profile Image remains above the user's name on all screen sizes.
+* [ ] Mobile view retains existing collapsible/dropdown behavior.
+* [ ] Desktop view automatically expands all Profile sections.
+* [ ] Desktop users no longer need to open dropdowns for common settings.
+* [ ] Desktop layout utilizes available screen space effectively.
+* [ ] Mobile layout remains unchanged and well-balanced.
+* [ ] Responsive breakpoint behavior works correctly.
+* [ ] No clipping, overflow, or alignment issues occur.
+* [ ] Existing Profile functionality remains unaffected.
+* [ ] No console/runtime errors occur.
+* [ ] Checkpoint created after successful implementation and testing.
+
+---
+
+## Guidance for You
+
+### Supabase SQL Editor
+
+**Do NOT run any SQL.**
+
+Expected classification:
+
+```text
+Responsive UI / Layout Enhancement
+```
+
+Expected outcome:
+
+```text
+SQL Required: NO
+Database Changes Required: NO
+RLS Changes Required: NO
+Supabase Changes Required: NO
+```
+
+### Post-Implementation Verification
+
+Request:
+
+1. Mobile screenshots (before and after).
+2. Desktop screenshots (before and after).
+3. Confirmation that all Profile sections auto-expand on desktop.
+4. Confirmation that mobile dropdowns still function normally.
+5. Confirmation that the Profile Image remains above the name.
+6. Checkpoint confirmation including modified files and testing results.
