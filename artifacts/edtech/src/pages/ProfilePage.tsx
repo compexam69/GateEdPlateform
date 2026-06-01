@@ -413,28 +413,29 @@ export default function ProfilePage() {
 
   return (
     <AppLayout>
-      <div className="max-w-xl sm:max-w-2xl mx-auto space-y-3 sm:space-y-5">
+      <div className="max-w-2xl mx-auto space-y-3 sm:space-y-5">
         <h1 className="text-xl sm:text-3xl font-bold tracking-tight">Profile Settings</h1>
 
         <Card className="bg-card">
           <CardContent className="p-4 sm:p-6">
-            <div className="flex flex-row items-start gap-3 sm:gap-5">
+            {/* Mobile: column layout (avatar centered above name). Desktop: row layout (avatar left). */}
+            <div className="flex flex-col items-center text-center md:flex-row md:items-start md:text-left gap-4 md:gap-5">
               <div className="relative shrink-0">
-                {/* Avatar circle — smaller on mobile */}
-                <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-full bg-muted flex items-center justify-center ring-2 ring-border overflow-hidden">
-                  {photoUrl ? <img src={photoUrl} alt="Profile" className="w-full h-full object-cover" /> : <User className="w-7 h-7 sm:w-10 sm:h-10 text-muted-foreground" />}
+                {/* Avatar circle — 80px on all sizes */}
+                <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center ring-2 ring-border overflow-hidden">
+                  {photoUrl ? <img src={photoUrl} alt="Profile" className="w-full h-full object-cover" /> : <User className="w-10 h-10 text-muted-foreground" />}
                 </div>
 
                 {/* Pencil / Edit button */}
                 <button
                   onClick={() => { if (!uploadingPhoto) setPhotoMenuOpen(v => !v); }}
                   disabled={uploadingPhoto}
-                  className="absolute bottom-0 right-0 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-primary flex items-center justify-center shadow-md hover:bg-primary/90 transition-colors disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-primary flex items-center justify-center shadow-md hover:bg-primary/90 transition-colors disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   title="Edit photo"
                   aria-haspopup="menu"
                   aria-expanded={photoMenuOpen}
                 >
-                  <Pencil className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white" />
+                  <Pencil className="w-3.5 h-3.5 text-white" />
                 </button>
 
                 {/* Action popup */}
@@ -560,27 +561,32 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              <div className="flex-1 min-w-0 w-full text-left space-y-1.5 sm:space-y-2">
+              {/* Info area: centered on mobile, left-aligned on desktop */}
+              <div className="w-full md:flex-1 min-w-0 space-y-1.5">
                 {editingName && canEditOwnProfile ? (
-                  <div className="flex gap-2 items-center">
+                  <div className="flex gap-2 items-center justify-center md:justify-start flex-wrap">
                     <Input value={newName} onChange={e => setNewName(e.target.value)} className="max-w-xs h-8 text-sm" autoFocus />
                     <Button size="sm" onClick={handleSaveName} disabled={savingName}>{savingName ? "Saving..." : "Save"}</Button>
                     <Button size="sm" variant="ghost" onClick={() => setEditingName(false)}>Cancel</Button>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2 min-w-0">
-                    <h2 className="text-base sm:text-xl font-bold truncate min-w-0 leading-tight">{user?.user_metadata?.full_name || "Student"}</h2>
+                  <div className="flex items-center justify-center md:justify-start gap-2 flex-wrap min-w-0">
+                    <h2 className="text-xl font-bold truncate min-w-0 leading-tight">{user?.user_metadata?.full_name || "Student"}</h2>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {isAdmin && <Shield className="w-3 h-3 text-primary" />}
+                      <Badge variant="outline" className={`text-xs px-1.5 py-0 ${isAdmin ? "border-primary text-primary" : ""}`}>{roleLabel}</Badge>
+                    </div>
                   </div>
                 )}
 
-                <div className="space-y-1">
+                <div className="space-y-1 flex flex-col items-center md:items-start">
                   {/* Email field */}
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <p className="text-muted-foreground text-xs sm:text-sm truncate min-w-0 flex-1">{user?.email}</p>
+                  <div className="space-y-1 w-full">
+                    <div className="flex items-center justify-center md:justify-start gap-1.5 min-w-0 flex-wrap">
+                      <p className="text-muted-foreground text-sm truncate min-w-0">{user?.email}</p>
                       {isEmailVerified
-                        ? <Badge variant="secondary" className="bg-success/10 text-success text-[10px] sm:text-xs gap-1 shrink-0 px-1.5 py-0"><CheckCircle className="w-2.5 h-2.5 sm:w-3 sm:h-3" />Verified</Badge>
-                        : <Badge variant="destructive" className="text-[10px] sm:text-xs shrink-0 px-1.5 py-0">Unverified</Badge>}
+                        ? <Badge variant="secondary" className="bg-success/10 text-success text-xs gap-1 shrink-0 px-1.5 py-0"><CheckCircle className="w-3 h-3" />Verified</Badge>
+                        : <Badge variant="destructive" className="text-xs shrink-0 px-1.5 py-0">Unverified</Badge>}
                     </div>
 
                     {emailChangeSuccess && (
@@ -636,7 +642,7 @@ export default function ProfilePage() {
 
                   {/* Mobile field */}
                   {editingMobile && canEditOwnProfile ? (
-                    <div className="flex gap-2 items-center">
+                    <div className="flex gap-2 items-center justify-center md:justify-start flex-wrap">
                       <div className="relative">
                         <Phone className="w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
                         <Input value={newMobile} onChange={e => setNewMobile(e.target.value)} placeholder="+91 9876543210"
@@ -646,16 +652,11 @@ export default function ProfilePage() {
                       <Button size="sm" variant="ghost" onClick={() => setEditingMobile(false)}>Cancel</Button>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-1.5 min-w-0">
+                    <div className="flex items-center justify-center md:justify-start gap-1.5 min-w-0">
                       <Phone className="w-3 h-3 text-muted-foreground/60 shrink-0" />
-                      <p className="text-muted-foreground text-xs sm:text-sm truncate min-w-0">{maskedMobile || <span className="italic">No mobile number</span>}</p>
+                      <p className="text-muted-foreground text-sm truncate min-w-0">{maskedMobile || <span className="italic">No mobile number</span>}</p>
                     </div>
                   )}
-                </div>
-
-                <div className="flex items-center gap-1.5 pt-0.5">
-                  {isAdmin && <Shield className="w-3 h-3 text-primary" />}
-                  <Badge variant="outline" className={`text-[10px] sm:text-xs px-1.5 py-0 ${isAdmin ? "border-primary text-primary" : ""}`}>{roleLabel}</Badge>
                 </div>
               </div>
             </div>
@@ -705,7 +706,7 @@ export default function ProfilePage() {
         <Card>
           <CardContent className="p-4 sm:p-6">
             <p className="text-sm font-semibold text-foreground mb-3">Account</p>
-            <div className="flex flex-col sm:flex-row gap-2">
+            <div className="flex flex-row gap-2">
               <Button
                 variant="outline"
                 size="sm"
