@@ -333,31 +333,31 @@ export default function ProfilePage() {
       {/*
         ┌─ LAYOUT STRATEGY ────────────────────────────────────────────┐
         │  Mobile (<768px):  max-w-xl, stacked cards, collapsible pwd  │
-        │  Desktop (≥768px): max-w-3xl, 2-col bottom grid, pwd always  │
+        │  Desktop (≥768px): max-w-2xl, single column, pwd always      │
         │                    expanded (no toggle needed)                │
         │  Profile image is ABOVE name on ALL screen sizes             │
         └──────────────────────────────────────────────────────────────┘
       */}
-      <div className="max-w-xl sm:max-w-2xl md:max-w-3xl mx-auto">
+      <div className="max-w-xl sm:max-w-2xl mx-auto">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-3 sm:mb-5 md:mb-6">Profile Settings</h1>
 
         {/* ── Profile Header Card — full width, image always above name ── */}
-        <Card className="bg-card mb-3 sm:mb-4 md:mb-6">
-          <CardContent className="p-4 sm:p-6 md:p-8">
+        <Card className="bg-card mb-3 sm:mb-4 md:mb-5">
+          <CardContent className="p-5 sm:p-8 md:p-10">
             {/*
               flex-col items-center on ALL breakpoints:
               Image is visually above and centered above the name
               on mobile, tablet, AND desktop.
             */}
-            <div className="flex flex-col items-center gap-2 sm:gap-3">
+            <div className="flex flex-col items-center gap-3 sm:gap-4">
 
               {/* Avatar + edit button */}
               <div className="relative shrink-0">
                 {/*
-                  Mobile  — 80px (w-20)
-                  Desktop — 96px (md:w-24): more prominent in the wider card
+                  Mobile  — 88px (w-22)
+                  Desktop — 112px (md:w-28): prominent hero on wide card
                 */}
-                <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-muted flex items-center justify-center ring-2 ring-border overflow-hidden">
+                <div className="w-[88px] h-[88px] md:w-28 md:h-28 rounded-full bg-muted flex items-center justify-center ring-2 ring-border overflow-hidden">
                   {photoUrl
                     ? <img src={photoUrl} alt="Profile" className="w-full h-full object-cover" />
                     : <User className="w-10 h-10 md:w-12 md:h-12 text-muted-foreground" />}
@@ -367,7 +367,7 @@ export default function ProfilePage() {
                 <button
                   onClick={() => { if (!uploadingPhoto) setPhotoMenuOpen(v => !v); }}
                   disabled={uploadingPhoto}
-                  className="absolute bottom-0 right-0 w-8 h-8 md:w-9 md:h-9 rounded-full bg-primary flex items-center justify-center shadow-md hover:bg-primary/90 transition-colors disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  className="absolute bottom-0 right-0 w-8 h-8 md:w-10 md:h-10 rounded-full bg-primary flex items-center justify-center shadow-md hover:bg-primary/90 transition-colors disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   title="Edit photo"
                   aria-haspopup="menu"
                   aria-expanded={photoMenuOpen}
@@ -474,7 +474,7 @@ export default function ProfilePage() {
                   </div>
                 ) : (
                   /* Name — centered on all breakpoints, full width available */
-                  <h2 className="text-xl md:text-2xl font-bold leading-tight text-center">
+                  <h2 className="text-xl md:text-3xl font-bold leading-tight text-center tracking-tight">
                     {user?.user_metadata?.full_name || "Student"}
                   </h2>
                 )}
@@ -570,11 +570,11 @@ export default function ProfilePage() {
 
         {/*
           ┌─ BOTTOM SECTION ──────────────────────────────────────────────┐
-          │  Mobile (<768px):  stacked vertically, space-y-3              │
-          │  Desktop (≥768px): 2-column grid — Password left, Account right│
+          │  Single column on all sizes — avoids height-mismatch between  │
+          │  the tall Password card and the short Account card.           │
           └───────────────────────────────────────────────────────────────┘
         */}
-        <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-2 md:gap-6 md:items-start">
+        <div className="space-y-3 sm:space-y-4 md:space-y-5">
 
           {/* ── Change Password Card ── */}
           <Card>
@@ -610,47 +610,50 @@ export default function ProfilePage() {
                 CSS: `${passwordExpanded ? "" : "hidden"} md:block`
               */}
               <div className={`${passwordExpanded ? "" : "hidden"} md:block px-4 md:px-6 pb-5 md:pb-6 space-y-4 border-t border-border pt-4`}>
-                {[
-                  { label: "Current Password", value: currentPwd, set: setCurrentPwd, show: showCurrent, toggle: () => setShowCurrent(v => !v), placeholder: "Your current password", auto: "current-password" },
-                  { label: "New Password", value: newPwd, set: setNewPwd, show: showNew, toggle: () => setShowNew(v => !v), placeholder: "Min 8 chars, mixed case, number, special", auto: "new-password" },
-                  { label: "Confirm New Password", value: confirmPwd, set: setConfirmPwd, show: showConfirm, toggle: () => setShowConfirm(v => !v), placeholder: "Repeat new password", auto: "new-password" },
-                ].map(field => (
-                  <div key={field.label} className="space-y-1.5">
-                    <Label className="text-sm">{field.label}</Label>
-                    <div className="relative">
-                      <Input
-                        type={field.show ? "text" : "password"}
-                        value={field.value}
-                        onChange={e => field.set(e.target.value)}
-                        placeholder={field.placeholder}
-                        autoComplete={field.auto}
-                        className="h-11 md:h-10 text-sm pr-10"
-                      />
-                      <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={field.toggle}>
-                        {field.show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
+                {/* Constrain fields to max-w-sm on desktop — inputs spanning 672px look awkward */}
+                <div className="space-y-4 md:max-w-sm">
+                  {[
+                    { label: "Current Password", value: currentPwd, set: setCurrentPwd, show: showCurrent, toggle: () => setShowCurrent(v => !v), placeholder: "Your current password", auto: "current-password" },
+                    { label: "New Password", value: newPwd, set: setNewPwd, show: showNew, toggle: () => setShowNew(v => !v), placeholder: "Min 8 chars, mixed case, number, special", auto: "new-password" },
+                    { label: "Confirm New Password", value: confirmPwd, set: setConfirmPwd, show: showConfirm, toggle: () => setShowConfirm(v => !v), placeholder: "Repeat new password", auto: "new-password" },
+                  ].map(field => (
+                    <div key={field.label} className="space-y-1.5">
+                      <Label className="text-sm">{field.label}</Label>
+                      <div className="relative">
+                        <Input
+                          type={field.show ? "text" : "password"}
+                          value={field.value}
+                          onChange={e => field.set(e.target.value)}
+                          placeholder={field.placeholder}
+                          autoComplete={field.auto}
+                          className="h-11 md:h-10 text-sm pr-10"
+                        />
+                        <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={field.toggle}>
+                          {field.show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
-                <Button
-                  className="h-11 md:h-10 text-sm w-full md:w-auto px-6"
-                  onClick={handleChangePassword}
-                  disabled={changingPwd || !currentPwd || !newPwd || !confirmPwd}
-                >
-                  {changingPwd ? "Updating..." : "Update Password"}
-                </Button>
+                  ))}
+                  <Button
+                    className="h-11 md:h-10 text-sm w-full md:w-auto px-6"
+                    onClick={handleChangePassword}
+                    disabled={changingPwd || !currentPwd || !newPwd || !confirmPwd}
+                  >
+                    {changingPwd ? "Updating..." : "Update Password"}
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
 
           {/* ── Account Actions Card ── */}
           <Card>
-            <CardContent className="p-4 md:p-6">
-              <p className="text-sm font-semibold text-foreground mb-3 md:mb-4">Account</p>
-              <div className="flex flex-col gap-2 md:gap-3">
+            <CardContent className="p-4 sm:p-6">
+              <p className="text-sm font-semibold text-foreground mb-3 sm:mb-4">Account</p>
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                 <Button
                   variant="outline"
-                  className="justify-center h-10 text-sm"
+                  className="justify-center h-10 text-sm sm:flex-1"
                   onClick={async () => {
                     try {
                       const res = await fetch(`${getApiBase()}/user/export`, {
@@ -673,7 +676,7 @@ export default function ProfilePage() {
                 </Button>
                 <Button
                   variant="outline"
-                  className="justify-center h-10 text-sm text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+                  className="justify-center h-10 text-sm sm:flex-1 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
                   onClick={() => signOut()}
                 >
                   <LogOut className="w-4 h-4 mr-2" /> Sign Out
