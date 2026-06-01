@@ -1,0 +1,743 @@
+This requirement is much larger than a normal bug-fix request. It is essentially a **full production-readiness audit, QA validation, security review, permission audit, database audit, responsiveness audit, and deployment-readiness assessment** of the entire application.
+
+A good implementation prompt must prevent a superficial review where only a few pages are checked. It should force a systematic audit, evidence-based testing, issue classification, root-cause analysis, and a final go/no-go production decision.
+
+---
+
+# 🟢 Final Pre-Production Audit: Full Application Verification & Production Readiness Assessment
+
+## Goal
+
+Perform a complete end-to-end audit of the entire application to determine whether it is truly production-ready.
+
+The audit must verify:
+
+* Functionality
+* Stability
+* Security
+* Permissions
+* Database integrity
+* API reliability
+* Mobile responsiveness
+* Desktop responsiveness
+* PWA behavior
+* Performance
+* Error handling
+* UX consistency
+
+The objective is to identify every known issue, regression, broken workflow, hidden bug, permission problem, database issue, responsiveness problem, security risk, and deployment blocker before production release.
+
+This is not a feature implementation task.
+
+This is a comprehensive verification and quality assurance checkpoint.
+
+---
+
+# Scope of Audit
+
+Audit the entire project including but not limited to:
+
+## Authentication
+
+Review:
+
+* Login
+* Logout
+* Session persistence
+* Password reset
+* Email verification
+* Protected routes
+* Token refresh
+* Session expiration
+
+Verify:
+
+* No unauthorized access is possible.
+* Role restrictions are enforced.
+* Authentication state remains stable.
+
+---
+
+## User Roles & Permissions
+
+Test all roles:
+
+### Super Admin
+
+### Admin
+
+### Student
+
+### Any additional roles
+
+Verify:
+
+* Proper access boundaries.
+* No privilege escalation.
+* No hidden access leaks.
+* No unauthorized CRUD operations.
+
+Review:
+
+* Dashboard access
+* Content access
+* User management
+* Quiz management
+* Notes access
+* Profile permissions
+* Notification permissions
+
+---
+
+## Admin Dashboard
+
+Audit every module:
+
+### User Management
+
+Verify:
+
+* Create User
+* Edit User
+* Suspend User
+* Reinstate User
+* Delete User
+* Bulk Import
+* Search
+* Filtering
+
+---
+
+### Content Editor
+
+Verify:
+
+* Subject creation
+* Chapter creation
+* Topic creation
+* Lecture creation
+* Lecture editing
+* Lecture deletion
+* Bulk Subject Import
+* Bulk Chapter Import
+* Bulk Topic Import
+* Full Hierarchy Import
+* CSV Template Downloads
+* Lecture URL handling
+* Access Control Rules
+
+---
+
+### Quiz & Question Editor
+
+Verify:
+
+* Test creation
+* Question creation
+* Bulk imports
+* CSV templates
+* Optional video solutions
+* Optional QR logic
+* Student rendering
+
+---
+
+### Notes/PDF Module
+
+Verify:
+
+* Upload
+* Edit
+* Delete
+* PDF preview
+* PDF download permissions
+* Mobile viewing
+* Desktop viewing
+
+---
+
+### Content Access Control
+
+Verify:
+
+* Visibility rules
+* Access restrictions
+* Role assignments
+* Visibility Overview tabs
+* Lecture access permissions
+
+---
+
+## Student Experience
+
+Verify:
+
+### Subject Navigation
+
+### Chapter Navigation
+
+### Topic Navigation
+
+### Lecture Access
+
+### Notes Access
+
+### Tests
+
+### Results
+
+### Focus Timer
+
+### Notifications
+
+### Profile
+
+### Settings
+
+### Search
+
+Ensure all student workflows function correctly.
+
+---
+
+## CRUD Audit
+
+For every module verify:
+
+### Create
+
+### Read
+
+### Update
+
+### Delete
+
+Confirm:
+
+* Database updates occur correctly.
+* UI reflects changes correctly.
+* Success messages are accurate.
+* Error messages are accurate.
+
+---
+
+## Database Audit
+
+Review:
+
+### Tables
+
+### Relationships
+
+### Foreign Keys
+
+### Constraints
+
+### Indexes
+
+### Triggers
+
+### RLS Policies
+
+Verify:
+
+* No broken relationships.
+* No orphaned records.
+* No integrity violations.
+* No unnecessary duplication.
+
+---
+
+## Supabase Audit
+
+Review:
+
+### Authentication
+
+### Storage
+
+### Database
+
+### Edge Functions (if used)
+
+### RLS
+
+### Storage Policies
+
+Verify:
+
+* Security rules are correct.
+* Data isolation works correctly.
+* No unintended public access exists.
+
+---
+
+## Search Audit
+
+Review all search systems.
+
+Verify:
+
+### User Search
+
+### Subject Search
+
+### Chapter Search
+
+### Topic Search
+
+### Notification Search (if applicable)
+
+Test:
+
+* Partial matches
+* Exact matches
+* Empty searches
+* Large datasets
+
+---
+
+## Notification System Audit
+
+Verify:
+
+* Notification creation
+* Notification display
+* Notification deletion
+* Notification preferences
+* Read/unread behavior
+
+Confirm:
+
+* Notifications appear correctly.
+* Deleted notifications are removed correctly.
+
+---
+
+## Import / Export Audit
+
+Verify:
+
+### User Import
+
+### Subject Import
+
+### Chapter Import
+
+### Topic Import
+
+### Question Import
+
+### CSV Template Downloads
+
+Test:
+
+* Valid files
+* Invalid files
+* Duplicate records
+* Missing fields
+* Large imports
+
+---
+
+## API Audit
+
+Review:
+
+### All API Calls
+
+Verify:
+
+* Proper error handling.
+* Retry behavior.
+* Authentication enforcement.
+* Correct response validation.
+
+---
+
+## Mobile Responsiveness Audit
+
+Test:
+
+### 320px
+
+### 360px
+
+### 375px
+
+### 390px
+
+### 430px
+
+Verify:
+
+* No overflow.
+* No clipped content.
+* No inaccessible actions.
+* Proper touch targets.
+
+---
+
+## Tablet Audit
+
+Test:
+
+### 768px
+
+### 820px
+
+### 1024px
+
+---
+
+## Desktop Audit
+
+Test:
+
+### 1280px
+
+### 1366px
+
+### 1440px
+
+### 1920px
+
+Verify:
+
+* Layout balance.
+* Proper spacing.
+* No desktop regressions.
+
+---
+
+## PWA Audit
+
+Verify:
+
+### Installed Mode
+
+### Offline Handling
+
+### Navigation
+
+### Responsive Behavior
+
+### Safe Area Handling
+
+---
+
+## Security Audit
+
+Review:
+
+### XSS Risks
+
+### Injection Risks
+
+### Role Escalation
+
+### Access Leaks
+
+### Sensitive Data Exposure
+
+### Unsafe Client Logic
+
+### Broken Authorization
+
+---
+
+## Performance Audit
+
+Review:
+
+### Large Lists
+
+### Imports
+
+### Dashboard Rendering
+
+### PDF Viewing
+
+### Search
+
+### Notifications
+
+### User Management
+
+Identify:
+
+* Slow queries
+* Excessive renders
+* Memory leaks
+* Unnecessary API calls
+
+---
+
+# Error Detection Requirements
+
+Identify:
+
+## Critical
+
+Examples:
+
+* Security vulnerabilities
+* Data corruption
+* Unauthorized access
+* Broken authentication
+
+---
+
+## High
+
+Examples:
+
+* CRUD failures
+* Data loss risks
+* Broken workflows
+
+---
+
+## Medium
+
+Examples:
+
+* Responsive issues
+* UX inconsistencies
+* Missing validation
+
+---
+
+## Low
+
+Examples:
+
+* Cosmetic issues
+* Minor spacing problems
+
+---
+
+# Required Deliverables
+
+Provide:
+
+## 1. Full Issue List
+
+For each issue:
+
+* Title
+* Description
+* Reproduction steps
+* Root cause
+* Severity
+
+---
+
+## 2. Recommended Fix
+
+For every issue:
+
+* Frontend fix
+* Backend fix
+* Database fix (if applicable)
+
+---
+
+## 3. SQL Review
+
+Determine whether SQL changes are required.
+
+If required:
+
+Provide:
+
+* Exact SQL script
+* Purpose
+* Risks
+* Rollback instructions
+
+---
+
+## 4. Console Error Report
+
+Provide:
+
+* Warnings
+* Errors
+* Runtime exceptions
+
+---
+
+## 5. Security Findings Report
+
+Provide:
+
+* Risk level
+* Impact
+* Recommended mitigation
+
+---
+
+## 6. Production Readiness Report
+
+Choose one:
+
+### ✅ Production Ready
+
+OR
+
+### ⚠ Production Ready with Minor Issues
+
+OR
+
+### ❌ Not Production Ready
+
+Justify decision.
+
+---
+
+## 7. Module Verification Matrix
+
+For every module:
+
+| Module | Tested | Passed | Failed | Notes |
+| ------ | ------ | ------ | ------ | ----- |
+
+Include:
+
+* User Management
+* Content Editor
+* Quiz Editor
+* Notes
+* Notifications
+* Profile
+* Access Control
+* Authentication
+* Search
+* Imports
+* Exports
+
+---
+
+# Checkpoint Requirements
+
+Create audit checkpoints.
+
+---
+
+## Checkpoint A
+
+### Authentication & Permissions Audit Complete
+
+Verify:
+
+* Roles tested
+* Access rules validated
+
+---
+
+## Checkpoint B
+
+### CRUD & Database Audit Complete
+
+Verify:
+
+* All CRUD operations tested
+* Database integrity verified
+
+---
+
+## Checkpoint C
+
+### UI/UX & Responsiveness Audit Complete
+
+Verify:
+
+* Mobile
+* Tablet
+* Desktop
+* PWA
+
+---
+
+## Checkpoint D
+
+### Security & Performance Audit Complete
+
+Verify:
+
+* Security review completed
+* Performance review completed
+
+---
+
+## Checkpoint E
+
+### Final Production Readiness Assessment Complete
+
+Verify:
+
+* All findings documented
+* Final status assigned
+
+---
+
+# Acceptance Criteria
+
+* [ ] Every module audited.
+* [ ] Every user role tested.
+* [ ] CRUD operations validated.
+* [ ] Permissions verified.
+* [ ] Search functionality verified.
+* [ ] Import/export workflows verified.
+* [ ] Notifications verified.
+* [ ] Mobile responsiveness audited.
+* [ ] Desktop responsiveness audited.
+* [ ] PWA audited.
+* [ ] Security reviewed.
+* [ ] Performance reviewed.
+* [ ] Database integrity verified.
+* [ ] SQL changes documented if required.
+* [ ] Severity assigned to all issues.
+* [ ] Production readiness decision provided.
+* [ ] All audit checkpoints completed.
+
+---
+
+# Guidance for You (Project Owner)
+
+### Before Running This Audit
+
+Prepare:
+
+* Super Admin test account
+* Admin test account
+* Student test account
+* Sample content
+* Sample quizzes
+* Sample PDFs
+* Sample notifications
+
+This allows complete testing coverage.
+
+### Supabase SQL Editor
+
+**Do NOT run any SQL before the audit.**
+
+First determine:
+
+```text
+Are SQL changes actually required?
+```
+
+Only after findings are identified should any SQL migration scripts be proposed and reviewed.
+
+### Expected Outcome
+
+At the end of this process you should receive:
+
+1. A complete defect report.
+2. A production readiness score/status.
+3. Any required SQL scripts.
+4. A prioritized bug-fix roadmap.
+5. A final go/no-go recommendation for deployment.
