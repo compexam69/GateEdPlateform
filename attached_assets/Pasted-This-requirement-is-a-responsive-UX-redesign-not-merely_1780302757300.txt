@@ -1,0 +1,506 @@
+This requirement is a **responsive UX redesign**, not merely a dropdown visibility change.
+
+After analyzing the prompt, the real issue is:
+
+### Current Situation
+
+✅ Mobile view is well-balanced because dropdowns/collapsible sections save space.
+
+❌ Desktop view feels inefficient because users must repeatedly expand sections despite having plenty of available screen space.
+
+❌ The desktop layout behaves like a stretched mobile layout rather than a true desktop experience.
+
+❌ Large amounts of unused space exist while important information remains hidden behind dropdowns.
+
+### Desired Outcome
+
+Use **device-specific rendering**:
+
+* **Mobile:** Keep dropdowns/collapsible sections.
+* **Desktop:** Remove dropdown dependency and display content directly.
+* **Tablet/Desktop:** Utilize available space effectively.
+* **Both:** Maintain visual consistency, readability, and existing functionality.
+
+---
+
+# 🟢 Checkpoint X: Desktop-Specific Removal of Dropdowns While Preserving Mobile Collapsible UI
+
+## Goal
+
+Optimize the module by removing dropdown/collapsible section behavior on desktop screens while preserving the existing dropdown experience on mobile devices.
+
+The implementation must:
+
+* Keep the current mobile experience unchanged.
+* Remove unnecessary dropdown interactions on desktop.
+* Automatically display section content on larger screens.
+* Improve desktop space utilization.
+* Create a more professional and desktop-friendly layout.
+* Preserve all existing functionality, permissions, validations, and workflows.
+
+This should be implemented using responsive design principles rather than creating separate pages.
+
+---
+
+# Context Analysis
+
+## Current Mobile Experience
+
+Current behavior:
+
+```text
+▼ Section A
+▼ Section B
+▼ Section C
+```
+
+Advantages:
+
+```text
+✓ Saves vertical space
+✓ Easy navigation
+✓ Mobile-friendly
+✓ Prevents long scrolling
+```
+
+This behavior should remain unchanged.
+
+---
+
+## Current Desktop Experience
+
+Current behavior:
+
+```text
+▼ Section A
+▼ Section B
+▼ Section C
+```
+
+Problems:
+
+```text
+✗ Excessive clicking
+✗ Hidden information
+✗ Poor use of screen space
+✗ Feels like a mobile layout stretched onto desktop
+✗ Unbalanced UI
+```
+
+---
+
+## Desired Desktop Experience
+
+Desktop should display:
+
+```text
+Section A
+------------------------
+Visible Content
+
+Section B
+------------------------
+Visible Content
+
+Section C
+------------------------
+Visible Content
+```
+
+No expand/collapse interaction required.
+
+---
+
+# Instructions
+
+## 1. Analyze Existing Layout Structure
+
+Review:
+
+* Page/component structure
+* Dropdown/accordion implementation
+* Responsive breakpoints
+* Desktop rendering logic
+* Mobile rendering logic
+* Shared UI components
+
+Identify:
+
+* Which sections currently use dropdowns.
+* Which content is hidden inside accordions.
+* Whether breakpoint-based rendering already exists.
+
+Document findings before implementation.
+
+---
+
+# 2. Implement Responsive Behavior
+
+### Mobile (<768px)
+
+Keep existing dropdown behavior.
+
+Example:
+
+```text
+▼ Change Password
+▼ Account Settings
+▼ Notifications
+```
+
+Users manually expand sections.
+
+---
+
+### Tablet/Desktop (≥768px)
+
+Automatically display content.
+
+Example:
+
+```text
+Change Password
+-------------------
+Visible Content
+
+Account Settings
+-------------------
+Visible Content
+
+Notifications
+-------------------
+Visible Content
+```
+
+No dropdown interaction should be required.
+
+---
+
+# 3. Remove Desktop Dropdown Dependency
+
+On desktop:
+
+* Remove accordion toggling behavior.
+* Remove expand/collapse icons if unnecessary.
+* Display content immediately.
+* Ensure users can access information without extra clicks.
+
+---
+
+# 4. Improve Desktop Space Utilization
+
+Review:
+
+* Card layouts
+* Section widths
+* Margins
+* Padding
+* Grid structures
+
+Optimize for:
+
+```text
+1280px
+1366px
+1440px
+1920px
+```
+
+Avoid:
+
+```text
+Large empty whitespace
+Narrow centered columns
+Oversized margins
+```
+
+---
+
+# 5. Preserve Mobile Experience
+
+Do NOT modify:
+
+* Mobile dropdowns
+* Mobile spacing
+* Mobile hierarchy
+* Mobile navigation flow
+
+The current mobile experience is already approved.
+
+---
+
+# 6. Improve Desktop Layout Balance
+
+Where appropriate:
+
+* Use responsive grids.
+* Use multi-column layouts.
+* Group related settings together.
+* Improve information density.
+
+Ensure:
+
+```text
+Readable
+Balanced
+Professional
+Desktop-friendly
+```
+
+---
+
+# 7. Preserve Existing Functionality
+
+Ensure implementation does NOT break:
+
+* Editing workflows
+* Forms
+* Validation logic
+* Save/update actions
+* Profile image functionality
+* Permissions
+* Notifications
+* Account settings
+* Audit logging
+
+Only presentation behavior should change.
+
+---
+
+# 8. Accessibility Validation
+
+Verify:
+
+### Keyboard Navigation
+
+Works correctly.
+
+### Focus States
+
+Remain visible.
+
+### Screen Readers
+
+Continue functioning.
+
+### Form Labels
+
+Remain accessible.
+
+---
+
+# 9. Responsive Testing
+
+Test:
+
+## Mobile
+
+```text
+320px
+360px
+375px
+390px
+430px
+```
+
+Verify:
+
+* Dropdowns remain functional.
+* Existing UX unchanged.
+
+---
+
+## Tablet
+
+```text
+768px
+820px
+1024px
+```
+
+Verify:
+
+* Expanded desktop behavior activates.
+
+---
+
+## Desktop
+
+```text
+1280px
+1366px
+1440px
+1920px
+```
+
+Verify:
+
+* Content visible without dropdowns.
+* Layout feels balanced.
+
+---
+
+# 10. Prevent Layout Regressions
+
+Verify:
+
+* No clipping.
+* No overlap.
+* No horizontal scrolling.
+* No oversized whitespace.
+* No broken cards.
+
+---
+
+# 11. Performance Validation
+
+Ensure:
+
+* No unnecessary re-renders.
+* No accordion state conflicts.
+* No rendering regressions.
+* No hydration issues.
+
+---
+
+# 12. Backend / Database Review
+
+Determine whether:
+
+* Database changes are required.
+* API changes are required.
+* Permission changes are required.
+
+Document findings.
+
+---
+
+# 13. SQL & Supabase Guidance
+
+Expected implementation:
+
+```text
+SQL Changes Required: NO
+Database Changes Required: NO
+RLS Changes Required: NO
+Supabase Changes Required: NO
+```
+
+This should be a frontend responsive layout enhancement only.
+
+If any SQL changes are proposed, explain why they are necessary.
+
+---
+
+# 14. Testing & Validation
+
+Verify:
+
+### Mobile
+
+* Dropdowns remain collapsible.
+
+### Desktop
+
+* Dropdowns removed.
+* Content automatically visible.
+
+### Both
+
+* Responsive behavior works correctly.
+* Existing functionality remains intact.
+* No console/runtime errors occur.
+
+---
+
+# 15. Final Implementation Report
+
+Provide:
+
+### Files Modified
+
+### Responsive Logic Changes
+
+### Desktop Layout Improvements
+
+### Mobile Layout Preservation
+
+### Removed Dropdown Dependencies
+
+### Accessibility Validation
+
+### Performance Validation
+
+### Remaining Limitations
+
+---
+
+# 16. Checkpoint Requirement
+
+After implementation and testing:
+
+Create checkpoint immediately.
+
+### Checkpoint Name
+
+**"Desktop Expanded Layout & Mobile Dropdown Preservation"**
+
+---
+
+Checkpoint verification must confirm:
+
+* Desktop no longer depends on dropdowns.
+* Mobile dropdown behavior remains unchanged.
+* Desktop space utilization improved.
+* Existing functionality preserved.
+* No responsive regressions introduced.
+* No console/runtime errors remain.
+
+---
+
+# Acceptance Criteria
+
+* [ ] Mobile view retains existing dropdown/collapsible behavior.
+* [ ] Desktop view removes unnecessary dropdown interactions.
+* [ ] Desktop automatically displays section content.
+* [ ] Desktop layout utilizes available screen space effectively.
+* [ ] Mobile layout remains visually unchanged.
+* [ ] Responsive breakpoint behavior works correctly.
+* [ ] No clipping, overflow, or alignment issues occur.
+* [ ] Existing functionality remains unaffected.
+* [ ] No console/runtime errors occur.
+* [ ] Checkpoint created after successful implementation and testing.
+
+---
+
+## Guidance for You
+
+### Supabase SQL Editor
+
+**No SQL changes should be required.**
+
+Expected classification:
+
+```text
+Frontend Responsive UX Enhancement
+```
+
+Expected outcome:
+
+```text
+SQL Required: NO
+Database Changes Required: NO
+RLS Changes Required: NO
+Supabase Changes Required: NO
+```
+
+### Post-Implementation Verification
+
+Request:
+
+1. Mobile screenshots before and after implementation.
+2. Desktop screenshots before and after implementation.
+3. Confirmation that dropdowns remain on mobile.
+4. Confirmation that dropdowns are removed/auto-expanded on desktop.
+5. Responsive testing results across breakpoints.
+6. Checkpoint confirmation including modified files, testing results, and validation outcomes.

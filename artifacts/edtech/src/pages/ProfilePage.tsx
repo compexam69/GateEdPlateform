@@ -664,22 +664,21 @@ export default function ProfilePage() {
 
         <Card>
           <CardContent className="p-0">
-            {/* Collapsible header — tap to expand/collapse */}
+            {/* Collapsible header — tap to expand/collapse on mobile; static label on desktop */}
             <button
               type="button"
               onClick={() => setPasswordExpanded(v => !v)}
-              className="w-full flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-[inherit]"
+              className="w-full flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary md:cursor-default md:pointer-events-none md:focus-visible:ring-0 rounded-[inherit]"
               aria-expanded={passwordExpanded}
             >
               <span className="text-sm font-semibold text-foreground">Change Password</span>
               <ChevronDown
-                className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${passwordExpanded ? "rotate-180" : ""}`}
+                className={`md:hidden w-4 h-4 text-muted-foreground transition-transform duration-200 ${passwordExpanded ? "rotate-180" : ""}`}
               />
             </button>
 
-            {/* Collapsible body */}
-            {passwordExpanded && (
-              <div className="px-4 sm:px-6 pb-4 sm:pb-6 space-y-3 border-t border-border pt-3">
+            {/* Collapsible body — hidden on mobile when collapsed, always visible on desktop */}
+            <div className={`${passwordExpanded ? "" : "hidden"} md:block px-4 sm:px-6 pb-4 sm:pb-6 space-y-3 border-t border-border pt-3`}>
                 {[
                   { label: "Current Password", value: currentPwd, set: setCurrentPwd, show: showCurrent, toggle: () => setShowCurrent(v => !v), placeholder: "Your current password", auto: "current-password" },
                   { label: "New Password", value: newPwd, set: setNewPwd, show: showNew, toggle: () => setShowNew(v => !v), placeholder: "Min 8 chars, mixed case, number, special", auto: "new-password" },
@@ -699,8 +698,7 @@ export default function ProfilePage() {
                 <Button size="sm" className="h-8 text-sm" onClick={handleChangePassword} disabled={changingPwd || !currentPwd || !newPwd || !confirmPwd}>
                   {changingPwd ? "Updating..." : "Update Password"}
                 </Button>
-              </div>
-            )}
+            </div>
           </CardContent>
         </Card>
 

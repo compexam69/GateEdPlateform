@@ -1221,11 +1221,22 @@ export default function AdminSubjectsPage() {
     mutation: { onSuccess: () => { queryClient.invalidateQueries(); toast({ title: "Topic deleted" }); } },
   });
 
+  // Auto-expand all subjects on desktop (≥768px) when subjects first load
+  useEffect(() => {
+    if (typeof window === "undefined" || window.innerWidth < 768 || displaySubjects.length === 0) return;
+    setExpandedSubjects(new Set(displaySubjects.map(s => s.id)));
+  }, [displaySubjects]);
+
   function toggleSubject(id: string) {
+    if (typeof window !== "undefined" && window.innerWidth >= 768) return;
     setExpandedSubjects(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   }
   function toggleChapter(id: string) {
+    if (typeof window !== "undefined" && window.innerWidth >= 768) return;
     setExpandedChapters(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  }
+  function expandChapters(ids: string[]) {
+    setExpandedChapters(prev => { const n = new Set(prev); ids.forEach(id => n.add(id)); return n; });
   }
 
 
@@ -1468,6 +1479,7 @@ export default function AdminSubjectsPage() {
                     expandedChapters={expandedChapters}
                     onToggle={() => toggleSubject(subject.id)}
                     onToggleChapter={toggleChapter}
+                    onExpandChapters={expandChapters}
                     onEdit={() => setEditTarget({
                       type: "subject",
                       id: subject.id,
@@ -1652,6 +1664,7 @@ type SubjectRowProps = {
   expandedChapters: Set<string>;
   onToggle: () => void;
   onToggleChapter: (id: string) => void;
+  onExpandChapters: (ids: string[]) => void;
   onEdit: () => void;
   onDelete: () => void;
   onAddChapter: () => void;
@@ -1677,7 +1690,7 @@ function SortableSubjectRow(props: SubjectRowProps) {
 }
 
 function SubjectRow({
-  subject, expanded, expandedChapters, onToggle, onToggleChapter, onEdit, onDelete,
+  subject, expanded, expandedChapters, onToggle, onToggleChapter, onExpandChapters, onEdit, onDelete,
   onAddChapter, onDeleteChapter, onAddTopic, onEditTopic, onDeleteTopic,
   dragListeners, dragAttributes, isDragging,
 }: SubjectRowProps) {
@@ -1686,6 +1699,13 @@ function SubjectRow({
     queryFn: () => getChapters(subject.id),
     enabled: expanded,
   });
+
+  // Auto-expand chapters on desktop when they load
+  useEffect(() => {
+    if (typeof window === "undefined" || window.innerWidth < 768 || !expanded) return;
+    const ids = (chaptersRaw as Chapter[] | undefined)?.map(c => c.id) ?? [];
+    if (ids.length > 0) onExpandChapters(ids);
+  }, [chaptersRaw, expanded]);
 
   const [chapterOrder, setChapterOrder] = useState<string[] | null>(null);
   const prevChapterCount = useRef(0);
@@ -1729,7 +1749,7 @@ function SubjectRow({
   return (
     <Card id={`subject-${subject.id}`} className={`bg-card transition-shadow ${isDragging ? "shadow-2xl ring-1 ring-primary/30" : ""}`}>
       <CardContent className="p-0">
-        <div className="flex items-center gap-2 p-4 cursor-pointer" onClick={onToggle}>
+        <div className="flex items-center gap-2 p-4 cursor-pointer md:cursor-default" onClick={() => { if (typeof window === "undefined" || window.innerWidth < 768) onToggle(); }}>
           <button
             {...(dragAttributes as React.HTMLAttributes<HTMLButtonElement>)}
             {...(dragListeners as React.HTMLAttributes<HTMLButtonElement>)}
@@ -1740,7 +1760,9 @@ function SubjectRow({
           >
             <GripVertical className="w-4 h-4 text-muted-foreground/40" />
           </button>
-          {expanded ? <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" /> : <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />}
+          {expanded
+            ? <ChevronDown className="md:hidden w-4 h-4 text-muted-foreground shrink-0" />
+            : <ChevronRight className="md:hidden w-4 h-4 text-muted-foreground shrink-0" />}
           <BookOpen className="w-5 h-5 text-primary shrink-0" />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap min-w-0">
@@ -1874,7 +1896,7 @@ function ChapterRow({ chapter, expanded, onToggle, onDelete, onAddTopic, onEditT
 
   return (
     <div id={`chapter-${chapter.id}`} className="border border-border rounded-md bg-card">
-      <div className="flex items-center gap-2 p-3 cursor-pointer" onClick={onToggle}>
+      <div className="flex items-center gap-2 p-3 cursor-pointer md:cursor-default" onClick={() => { if (typeof window === "undefined" || window.innerWidth < 768) onToggle(); }}>
         <button
           {...(dragAttributes as React.HTMLAttributes<HTMLButtonElement>)}
           {...(dragListeners as React.HTMLAttributes<HTMLButtonElement>)}
@@ -1885,7 +1907,9 @@ function ChapterRow({ chapter, expanded, onToggle, onDelete, onAddTopic, onEditT
         >
           <GripVertical className="w-3.5 h-3.5 text-muted-foreground/40" />
         </button>
-        {expanded ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
+        {expanded
+          ? <ChevronDown className="md:hidden w-3.5 h-3.5 text-muted-foreground shrink-0" />
+          : <ChevronRight className="md:hidden w-3.5 h-3.5 text-muted-foreground shrink-0" />}
         <span className="font-medium text-sm flex-1 min-w-0 truncate">{chapter.title}</span>
         <div className="flex gap-1 shrink-0" onClick={e => e.stopPropagation()}>
           <Button
