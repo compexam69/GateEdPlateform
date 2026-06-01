@@ -1,7 +1,7 @@
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LogOut, User, Eye, EyeOff, CheckCircle, Shield, Pencil, Phone, Mail, Download, ImagePlus, Trash2, X, ZoomIn, ChevronDown } from "lucide-react";
@@ -9,7 +9,9 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { PhotoCropModal } from "@/components/PhotoCropModal";
+
 import { apiFetch, getApiBase } from "@/lib/api";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
 
@@ -44,6 +46,8 @@ export default function ProfilePage() {
   const [changingPwd, setChangingPwd] = useState(false);
   const [passwordExpanded, setPasswordExpanded] = useState(false);
 
+  // storedAvatarPath is still needed here for handleRemovePhoto's storage
+  // deletion check — the hook uses it internally for syncing.
   const storedAvatarPath: string | null = user?.user_metadata?.avatar_url || null;
   const { photoUrl, setPhotoUrl, bumpVersion, buildUrl } = useAvatarUrl(user);
 
@@ -57,6 +61,7 @@ export default function ProfilePage() {
   const [viewerImgLoaded, setViewerImgLoaded] = useState(false);
   const [viewerImgError, setViewerImgError] = useState(false);
 
+  // Refs for imperative gesture handling (no state = no re-renders during drag)
   const viewerRef = useRef<HTMLDivElement>(null);
   const imgContainerRef = useRef<HTMLDivElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
@@ -68,11 +73,15 @@ export default function ProfilePage() {
     startTime: 0,
     delta: 0,
     dragging: false,
+    // Direction lock: determined after 10px dead zone
     locked: false,
     lockAxis: null as "v" | "h" | null,
   });
+  // Tracks whether a meaningful drag occurred so that the tap-to-close onClick is
+  // NOT triggered after a snap-back swipe.
   const wasDraggingRef = useRef(false);
 
+  // Apply drag visuals directly to DOM nodes — zero React re-renders
   const applyGestureVisuals = useCallback((delta: number) => {
     if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(() => {
@@ -90,6 +99,7 @@ export default function ProfilePage() {
     });
   }, []);
 
+  // Snap back with smooth spring animation
   const resetGestureVisuals = useCallback(() => {
     if (rafRef.current !== null) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
     const viewer = viewerRef.current;
@@ -105,45 +115,75 @@ export default function ProfilePage() {
     if (hint) { hint.style.transition = "opacity 0.3s ease"; hint.style.opacity = "1"; }
   }, []);
 
+  // Imperative touch listeners: passive:false on touchmove so we CAN call
+  // preventDefault(), suppressing pull-to-refresh AND overscroll bounce.
   useEffect(() => {
     if (!photoViewerOpen) return;
     const el = viewerRef.current;
     if (!el) return;
+
+    // Lock body scroll / pull-to-refresh while viewer is open
     const prevOverscroll = document.body.style.overscrollBehavior;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overscrollBehavior = "none";
     document.body.style.overflow = "hidden";
 
     function onTouchStart(e: TouchEvent) {
-      if (e.touches.length !== 1) return;
-      gestureRef.current = { startY: e.touches[0].clientY, startX: e.touches[0].clientX, startTime: Date.now(), delta: 0, dragging: false, locked: false, lockAxis: null };
+      if (e.touches.length !== 1) return; // ignore multi-touch
+      gestureRef.current = {
+        startY: e.touches[0].clientY,
+        startX: e.touches[0].clientX,
+        startTime: Date.now(),
+        delta: 0,
+        dragging: false,
+        locked: false,
+        lockAxis: null,
+      };
       wasDraggingRef.current = false;
     }
+
     function onTouchMove(e: TouchEvent) {
       if (e.touches.length !== 1) return;
       const g = gestureRef.current;
       const dy = e.touches[0].clientY - g.startY;
       const dx = Math.abs(e.touches[0].clientX - g.startX);
+
+      // ── Direction-lock dead zone (10 px) ──────────────────────────────
+      // Don't decide axis until the finger has moved at least 10 px in any
+      // direction. This means tiny / incidental touches never get captured.
       if (!g.locked) {
         const dist = Math.hypot(dy, dx);
-        if (dist < 10) return;
+        if (dist < 10) return; // still inside dead zone — pass through freely
         g.locked = true;
+        // Vertical if downward movement dominates, otherwise horizontal.
         g.lockAxis = dy > 0 && dy >= dx ? "v" : "h";
       }
+
+      // ── Horizontal or upward gesture ─────────────────────────────────
+      // Let the browser handle it natively — hardware-accelerated, no lag.
       if (g.lockAxis !== "v") return;
+
+      // ── Confirmed downward-vertical swipe ────────────────────────────
+      // Now safe to block pull-to-refresh / overscroll.
+      // Works because listener is registered with passive:false.
       e.preventDefault();
       g.dragging = true;
       g.delta = dy;
       if (dy > 8) wasDraggingRef.current = true;
       applyGestureVisuals(dy);
     }
+
     function onTouchEnd() {
       const g = gestureRef.current;
       if (!g.dragging) return;
+
       const elapsed = Date.now() - g.startTime;
+      // px/ms — fast flick even with small distance should dismiss
       const velocity = elapsed > 0 ? g.delta / elapsed : 0;
       const shouldClose = g.delta > 80 || (g.delta > 35 && velocity > 0.4);
+
       if (shouldClose) {
+        // Fly out then unmount
         const img = imgContainerRef.current;
         const viewer = viewerRef.current;
         if (img && viewer) {
@@ -156,8 +196,10 @@ export default function ProfilePage() {
       } else {
         resetGestureVisuals();
       }
+
       gestureRef.current = { ...g, dragging: false, delta: 0, locked: false, lockAxis: null };
     }
+
     function onTouchCancel() {
       gestureRef.current.dragging = false;
       gestureRef.current.delta = 0;
@@ -170,6 +212,7 @@ export default function ProfilePage() {
     el.addEventListener("touchmove", onTouchMove, { passive: false });
     el.addEventListener("touchend", onTouchEnd, { passive: true });
     el.addEventListener("touchcancel", onTouchCancel, { passive: true });
+
     return () => {
       el.removeEventListener("touchstart", onTouchStart);
       el.removeEventListener("touchmove", onTouchMove);
@@ -183,13 +226,20 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!photoViewerOpen) return;
-    function onKey(e: KeyboardEvent) { if (e.key === "Escape") setPhotoViewerOpen(false); }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setPhotoViewerOpen(false);
+    }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [photoViewerOpen]);
 
+  // Avatar URL syncing and DB fallback are now handled by useAvatarUrl.
+
+  // role is read from the profiles table via useAuth (authoritative, not JWT metadata)
   const effectiveRole = role ?? "student";
   const isAdmin = effectiveRole === "admin" || effectiveRole === "super_admin";
+  // Only super_admin may edit their own protected fields (name, email, mobile)
+  // Admins and students have immutable protected fields on their own profile
   const canEditOwnProfile = effectiveRole === "super_admin";
 
   async function handleSaveName() {
@@ -225,7 +275,9 @@ export default function ProfilePage() {
 
   async function handleChangeEmail() {
     const trimmed = newEmail.trim().toLowerCase();
-    if (!EMAIL_REGEX.test(trimmed)) { toast({ title: "Invalid email address", variant: "destructive" }); return; }
+    if (!EMAIL_REGEX.test(trimmed)) {
+      toast({ title: "Invalid email address", variant: "destructive" }); return;
+    }
     if (trimmed === user?.email?.toLowerCase()) {
       toast({ title: "Same email address", description: "New email must be different from your current email.", variant: "destructive" }); return;
     }
@@ -234,14 +286,19 @@ export default function ProfilePage() {
     }
     setChangingEmail(true);
     try {
+      // Re-authenticate first
       const { error: reAuthErr } = await supabase.auth.signInWithPassword({ email: user!.email!, password: emailConfirmPwd });
       if (reAuthErr) {
         toast({ title: "Wrong password", description: "Your current password is incorrect.", variant: "destructive" });
-        setChangingEmail(false); return;
+        setChangingEmail(false);
+        return;
       }
       const { error } = await supabase.auth.updateUser({ email: trimmed });
       if (error) throw error;
-      setEmailChangeSuccess(true); setEditingEmail(false); setNewEmail(""); setEmailConfirmPwd("");
+      setEmailChangeSuccess(true);
+      setEditingEmail(false);
+      setNewEmail("");
+      setEmailConfirmPwd("");
     } catch (err: unknown) {
       toast({ title: "Error", description: (err as Error).message, variant: "destructive" });
     } finally { setChangingEmail(false); }
@@ -252,7 +309,8 @@ export default function ProfilePage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
     if (!file) return;
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-      toast({ title: "Invalid file type", description: "Please upload a JPG, PNG, or WEBP image.", variant: "destructive" }); return;
+      toast({ title: "Invalid file type", description: "Please upload a JPG, PNG, or WEBP image.", variant: "destructive" });
+      return;
     }
     if (cropSrc) URL.revokeObjectURL(cropSrc);
     setCropSrc(URL.createObjectURL(file));
@@ -261,39 +319,60 @@ export default function ProfilePage() {
 
   function handleCropClose() {
     setCropOpen(false);
-    if (cropSrc) { URL.revokeObjectURL(cropSrc); setCropSrc(""); }
+    if (cropSrc) {
+      URL.revokeObjectURL(cropSrc);
+      setCropSrc("");
+    }
   }
 
   async function handleCropConfirm(blob: Blob) {
     setCropOpen(false);
-    if (cropSrc) { URL.revokeObjectURL(cropSrc); setCropSrc(""); }
+    if (cropSrc) {
+      URL.revokeObjectURL(cropSrc);
+      setCropSrc("");
+    }
     setUploadingPhoto(true);
+    // Show blob URL immediately for zero-latency visual feedback
     const blobUrl = URL.createObjectURL(blob);
     setPhotoUrl(blobUrl);
     try {
+      // Upload directly to Supabase Storage — handles CORS natively, no proxy needed.
+      // "avatars" is a public bucket; upsert:true overwrites any previous photo.
       const storagePath = `${user!.id}/photo.jpg`;
-      const { error: uploadErr } = await supabase.storage.from("avatars").upload(storagePath, blob, { contentType: "image/jpeg", upsert: true });
+      const { error: uploadErr } = await supabase.storage
+        .from("avatars")
+        .upload(storagePath, blob, { contentType: "image/jpeg", upsert: true });
       if (uploadErr) throw new Error(uploadErr.message);
+
+      // Persist the Supabase Storage path in the profile table and JWT metadata
       await supabase.from("profiles").update({ avatar_url: storagePath }).eq("id", user!.id);
       await supabase.auth.updateUser({ data: { avatar_url: storagePath } });
+      // Transition from the temporary blob URL to the permanent Storage URL.
+      // Bump the cache-buster so the browser doesn't serve the old cached photo.
       bumpVersion();
       URL.revokeObjectURL(blobUrl);
       setPhotoUrl(buildUrl(storagePath));
       toast({ title: "Photo updated!" });
     } catch (err: unknown) {
+      // On failure, revert to the previous URL (or null)
       setPhotoUrl(buildUrl(storedAvatarPath));
       URL.revokeObjectURL(blobUrl);
       toast({ title: "Upload failed", description: (err as Error).message, variant: "destructive" });
-    } finally { setUploadingPhoto(false); }
+    } finally {
+      setUploadingPhoto(false);
+    }
   }
 
   async function handleRemovePhoto() {
-    setPhotoUrl(null); bumpVersion();
+    setPhotoUrl(null);
+    bumpVersion();
     try {
+      // Remove from Supabase Storage bucket
       if (storedAvatarPath && !storedAvatarPath.startsWith("users/")) {
         await supabase.storage.from("avatars").remove([storedAvatarPath]);
       }
-    } catch { /* best-effort */ }
+    } catch { /* best-effort — profile clear still proceeds */ }
+    // Clear in profiles table and JWT metadata
     await supabase.from("profiles").update({ avatar_url: null }).eq("id", user!.id);
     await supabase.auth.updateUser({ data: { avatar_url: null } });
     toast({ title: "Photo removed" });
@@ -309,7 +388,10 @@ export default function ProfilePage() {
     if (newPwd === currentPwd) { toast({ title: "Same password", description: "New password must be different.", variant: "destructive" }); return; }
     setChangingPwd(true);
     try {
-      await apiFetch("/auth/change-password", { method: "POST", body: JSON.stringify({ current_password: currentPwd, new_password: newPwd }) });
+      await apiFetch("/auth/change-password", {
+        method: "POST",
+        body: JSON.stringify({ current_password: currentPwd, new_password: newPwd }),
+      });
       toast({ title: "Password changed successfully!" });
       setCurrentPwd(""); setNewPwd(""); setConfirmPwd("");
     } catch (err: unknown) {
@@ -325,70 +407,65 @@ export default function ProfilePage() {
   }
 
   const maskedMobile = user?.user_metadata?.mobile_number || "";
+
   const roleLabel = role === "super_admin" ? "Super Admin" : role === "admin" ? "Admin" : "Student";
   const isEmailVerified = !!(user?.email_confirmed_at);
 
   return (
     <AppLayout>
-      {/*
-        ┌─ LAYOUT STRATEGY ────────────────────────────────────────────┐
-        │  Mobile (<768px):  max-w-xl, stacked cards, collapsible pwd  │
-        │  Desktop (≥768px): max-w-2xl, single column, pwd always      │
-        │                    expanded (no toggle needed)                │
-        │  Profile image is ABOVE name on ALL screen sizes             │
-        └──────────────────────────────────────────────────────────────┘
-      */}
-      <div className="max-w-xl sm:max-w-2xl mx-auto">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-3 sm:mb-5 md:mb-6">Profile Settings</h1>
+      <div className="max-w-xl sm:max-w-2xl mx-auto space-y-3 sm:space-y-5">
+        <h1 className="text-xl sm:text-3xl font-bold tracking-tight">Profile Settings</h1>
 
-        {/* ── Profile Header Card — full width, image always above name ── */}
-        <Card className="bg-card mb-3 sm:mb-4 md:mb-5">
-          <CardContent className="p-5 sm:p-8 md:p-10">
-            {/*
-              flex-col items-center on ALL breakpoints:
-              Image is visually above and centered above the name
-              on mobile, tablet, AND desktop.
-            */}
-            <div className="flex flex-col items-center gap-3 sm:gap-4">
-
-              {/* Avatar + edit button */}
+        <Card className="bg-card">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex flex-row items-start gap-3 sm:gap-5">
               <div className="relative shrink-0">
-                {/*
-                  Mobile  — 88px (w-22)
-                  Desktop — 112px (md:w-28): prominent hero on wide card
-                */}
-                <div className="w-[88px] h-[88px] md:w-28 md:h-28 rounded-full bg-muted flex items-center justify-center ring-2 ring-border overflow-hidden">
-                  {photoUrl
-                    ? <img src={photoUrl} alt="Profile" className="w-full h-full object-cover" />
-                    : <User className="w-10 h-10 md:w-12 md:h-12 text-muted-foreground" />}
+                {/* Avatar circle — smaller on mobile */}
+                <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-full bg-muted flex items-center justify-center ring-2 ring-border overflow-hidden">
+                  {photoUrl ? <img src={photoUrl} alt="Profile" className="w-full h-full object-cover" /> : <User className="w-7 h-7 sm:w-10 sm:h-10 text-muted-foreground" />}
                 </div>
 
-                {/* Edit/photo button — always centered above avatar */}
+                {/* Pencil / Edit button */}
                 <button
                   onClick={() => { if (!uploadingPhoto) setPhotoMenuOpen(v => !v); }}
                   disabled={uploadingPhoto}
-                  className="absolute bottom-0 right-0 w-8 h-8 md:w-10 md:h-10 rounded-full bg-primary flex items-center justify-center shadow-md hover:bg-primary/90 transition-colors disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  className="absolute bottom-0 right-0 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-primary flex items-center justify-center shadow-md hover:bg-primary/90 transition-colors disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   title="Edit photo"
                   aria-haspopup="menu"
                   aria-expanded={photoMenuOpen}
                 >
-                  <Pencil className="w-3.5 h-3.5 md:w-4 md:h-4 text-white" />
+                  <Pencil className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white" />
                 </button>
 
-                {/* Photo action popup — always centered below avatar */}
+                {/* Action popup */}
                 {photoMenuOpen && (
                   <>
-                    <div className="fixed inset-0 z-40" aria-hidden="true" onClick={() => setPhotoMenuOpen(false)} />
+                    {/* Transparent backdrop — closes popup on outside click */}
+                    <div
+                      className="fixed inset-0 z-40"
+                      aria-hidden="true"
+                      onClick={() => setPhotoMenuOpen(false)}
+                    />
+                    {/* Menu panel — left-0 anchors left edge to avatar left, preventing
+                        the off-screen clipping that occurred with the old left-1/2 centering
+                        after the profile card changed from flex-col (centered avatar) to
+                        flex-row (left-anchored avatar). max-w clamps to viewport on 320px. */}
                     <div
                       role="menu"
-                      className="absolute left-1/2 -translate-x-1/2 top-[calc(100%+10px)] z-50 min-w-[196px] max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-card shadow-2xl overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150"
+                      className="absolute left-0 top-[calc(100%+10px)] z-50 min-w-[188px] max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-card shadow-2xl overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150"
                     >
+                      {/* View Photo — only shown when a photo exists */}
                       {photoUrl && (
                         <>
                           <button
                             role="menuitem"
-                            onClick={() => { setPhotoMenuOpen(false); setViewerImgLoaded(false); setViewerImgError(false); setPhotoViewerOpen(true); }}
-                            className="flex w-full items-center gap-3 px-4 py-3.5 text-sm text-left hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:bg-muted/60"
+                            onClick={() => {
+                              setPhotoMenuOpen(false);
+                              setViewerImgLoaded(false);
+                              setViewerImgError(false);
+                              setPhotoViewerOpen(true);
+                            }}
+                            className="flex w-full items-center gap-3 px-4 py-3 text-sm text-left hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:bg-muted/60"
                           >
                             <ZoomIn className="w-4 h-4 text-primary shrink-0" />
                             <span>View Photo</span>
@@ -396,63 +473,86 @@ export default function ProfilePage() {
                           <div className="h-px bg-border mx-3" />
                         </>
                       )}
+
+                      {/* Upload / Update Photo */}
                       <button
                         role="menuitem"
                         onClick={() => { setPhotoMenuOpen(false); fileInputRef.current?.click(); }}
-                        className="flex w-full items-center gap-3 px-4 py-3.5 text-sm text-left hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:bg-muted/60"
+                        className="flex w-full items-center gap-3 px-4 py-3 text-sm text-left hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:bg-muted/60"
                       >
                         <ImagePlus className="w-4 h-4 text-primary shrink-0" />
                         <span>{photoUrl ? "Update Photo" : "Upload Photo"}</span>
                       </button>
+
+                      {/* Delete Photo — only shown when a photo exists */}
                       {photoUrl && (
                         <>
                           <div className="h-px bg-border mx-3" />
                           <button
                             role="menuitem"
                             onClick={() => { setPhotoMenuOpen(false); handleRemovePhoto(); }}
-                            className="flex w-full items-center gap-3 px-4 py-3.5 text-sm text-left text-destructive hover:bg-destructive/10 transition-colors focus-visible:outline-none focus-visible:bg-destructive/10"
+                            className="flex w-full items-center gap-3 px-4 py-3 text-sm text-left text-destructive hover:bg-destructive/10 transition-colors focus-visible:outline-none focus-visible:bg-destructive/10"
                           >
                             <Trash2 className="w-4 h-4 shrink-0" />
                             <span>Delete Photo</span>
                           </button>
                         </>
                       )}
+
+                      {/* Edit Details — Super Admin only */}
                       {canEditOwnProfile && (
                         <>
                           <div className="h-px bg-border mx-3 mt-1" />
-                          <div className="px-4 pt-3 pb-1">
-                            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60 select-none">Edit Details</p>
+                          <div className="px-4 pt-2.5 pb-1">
+                            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 select-none">Edit Details</p>
                           </div>
                           <button
                             role="menuitem"
-                            onClick={() => { setPhotoMenuOpen(false); setNewName(user?.user_metadata?.full_name || ""); setEditingName(true); }}
-                            className="flex w-full items-center gap-3 px-4 py-3 text-sm text-left hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:bg-muted/60"
+                            onClick={() => {
+                              setPhotoMenuOpen(false);
+                              setNewName(user?.user_metadata?.full_name || "");
+                              setEditingName(true);
+                            }}
+                            className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-left hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:bg-muted/60"
                           >
-                            <User className="w-4 h-4 text-primary shrink-0" /><span>Edit Name</span>
+                            <User className="w-4 h-4 text-primary shrink-0" />
+                            <span>Edit Name</span>
                           </button>
                           <button
                             role="menuitem"
-                            onClick={() => { setPhotoMenuOpen(false); setEditingEmail(true); setEmailChangeSuccess(false); }}
-                            className="flex w-full items-center gap-3 px-4 py-3 text-sm text-left hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:bg-muted/60"
+                            onClick={() => {
+                              setPhotoMenuOpen(false);
+                              setEditingEmail(true);
+                              setEmailChangeSuccess(false);
+                            }}
+                            className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-left hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:bg-muted/60"
                           >
-                            <Mail className="w-4 h-4 text-primary shrink-0" /><span>Edit Email</span>
+                            <Mail className="w-4 h-4 text-primary shrink-0" />
+                            <span>Edit Email</span>
                           </button>
                           <button
                             role="menuitem"
-                            onClick={() => { setPhotoMenuOpen(false); setNewMobile(user?.user_metadata?.mobile_number || "+91 "); setEditingMobile(true); }}
-                            className="flex w-full items-center gap-3 px-4 py-3 text-sm text-left hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:bg-muted/60"
+                            onClick={() => {
+                              setPhotoMenuOpen(false);
+                              setNewMobile(user?.user_metadata?.mobile_number || "+91 ");
+                              setEditingMobile(true);
+                            }}
+                            className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-left hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:bg-muted/60"
                           >
-                            <Phone className="w-4 h-4 text-primary shrink-0" /><span>Edit Mobile</span>
+                            <Phone className="w-4 h-4 text-primary shrink-0" />
+                            <span>Edit Mobile</span>
                           </button>
-                          <div className="pb-1.5" />
+                          <div className="pb-1" />
                         </>
                       )}
                     </div>
                   </>
                 )}
 
+                {/* Hidden file input — unchanged */}
                 <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleFileSelect} />
 
+                {/* Upload spinner overlay */}
                 {uploadingPhoto && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full">
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -460,75 +560,73 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              {/* Info column — centered on all breakpoints */}
-              <div className="w-full space-y-1.5 sm:space-y-2">
-
-                {/* Name */}
+              <div className="flex-1 min-w-0 w-full text-left space-y-1.5 sm:space-y-2">
                 {editingName && canEditOwnProfile ? (
-                  <div className="flex flex-col gap-2 items-center">
-                    <Input value={newName} onChange={e => setNewName(e.target.value)} className="w-full max-w-xs h-10 text-sm" autoFocus />
-                    <div className="flex gap-2">
-                      <Button size="sm" className="h-10 px-4 text-sm" onClick={handleSaveName} disabled={savingName}>{savingName ? "Saving..." : "Save"}</Button>
-                      <Button size="sm" variant="ghost" className="h-10 px-4 text-sm" onClick={() => setEditingName(false)}>Cancel</Button>
-                    </div>
+                  <div className="flex gap-2 items-center">
+                    <Input value={newName} onChange={e => setNewName(e.target.value)} className="max-w-xs h-8 text-sm" autoFocus />
+                    <Button size="sm" onClick={handleSaveName} disabled={savingName}>{savingName ? "Saving..." : "Save"}</Button>
+                    <Button size="sm" variant="ghost" onClick={() => setEditingName(false)}>Cancel</Button>
                   </div>
                 ) : (
-                  /* Name — centered on all breakpoints, full width available */
-                  <h2 className="text-xl md:text-3xl font-bold leading-tight text-center tracking-tight">
-                    {user?.user_metadata?.full_name || "Student"}
-                  </h2>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <h2 className="text-base sm:text-xl font-bold truncate min-w-0 leading-tight">{user?.user_metadata?.full_name || "Student"}</h2>
+                  </div>
                 )}
 
-                {/* Email / Phone / Role — centered rows */}
-                <div className="space-y-1.5">
-
-                  {/* Email row */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center gap-2 justify-center flex-wrap">
-                      <p className="text-muted-foreground text-sm text-center break-all">
-                        {user?.email}
-                      </p>
+                <div className="space-y-1">
+                  {/* Email field */}
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <p className="text-muted-foreground text-xs sm:text-sm truncate min-w-0 flex-1">{user?.email}</p>
                       {isEmailVerified
-                        ? (
-                          <Badge variant="secondary" className="bg-success/10 text-success text-xs gap-1 shrink-0 px-2 py-0.5">
-                            <CheckCircle className="w-3 h-3" />Verified
-                          </Badge>
-                        ) : (
-                          <Badge variant="destructive" className="text-xs shrink-0 px-2 py-0.5">Unverified</Badge>
-                        )}
+                        ? <Badge variant="secondary" className="bg-success/10 text-success text-[10px] sm:text-xs gap-1 shrink-0 px-1.5 py-0"><CheckCircle className="w-2.5 h-2.5 sm:w-3 sm:h-3" />Verified</Badge>
+                        : <Badge variant="destructive" className="text-[10px] sm:text-xs shrink-0 px-1.5 py-0">Unverified</Badge>}
                     </div>
 
                     {emailChangeSuccess && (
-                      <div className="flex items-start gap-2 rounded-md bg-success/10 border border-success/20 px-3 py-2.5 text-xs text-success max-w-md mx-auto">
+                      <div className="flex items-start gap-2 rounded-md bg-success/10 border border-success/20 px-3 py-2 text-xs text-success">
                         <CheckCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                         <span>Verification email sent to your new address. Click the link to confirm the change.</span>
                       </div>
                     )}
 
                     {canEditOwnProfile && editingEmail && (
-                      <div className="mt-2 space-y-3 rounded-lg border border-border bg-muted/30 p-4 max-w-md mx-auto">
+                      <div className="mt-2 space-y-2 rounded-lg border border-border bg-muted/30 p-3">
                         <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                          <Mail className="w-3.5 h-3.5 shrink-0" />
+                          <Mail className="w-3.5 h-3.5" />
                           A verification link will be sent to the new address. Your current email stays active until confirmed.
                         </p>
                         <div className="space-y-1.5">
-                          <Label className="text-sm">New Email Address</Label>
-                          <Input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="new@example.com" className="h-10 text-sm" autoFocus />
+                          <Label className="text-xs">New Email Address</Label>
+                          <Input
+                            type="email"
+                            value={newEmail}
+                            onChange={e => setNewEmail(e.target.value)}
+                            placeholder="new@example.com"
+                            className="h-8 text-sm"
+                            autoFocus
+                          />
                         </div>
                         <div className="space-y-1.5">
-                          <Label className="text-sm">Current Password (to confirm)</Label>
+                          <Label className="text-xs">Current Password (to confirm)</Label>
                           <div className="relative">
-                            <Input type={showEmailPwd ? "text" : "password"} value={emailConfirmPwd} onChange={e => setEmailConfirmPwd(e.target.value)} placeholder="Your current password" className="h-10 text-sm pr-10" />
-                            <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowEmailPwd(v => !v)}>
-                              {showEmailPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            <Input
+                              type={showEmailPwd ? "text" : "password"}
+                              value={emailConfirmPwd}
+                              onChange={e => setEmailConfirmPwd(e.target.value)}
+                              placeholder="Your current password"
+                              className="h-8 text-sm pr-8"
+                            />
+                            <button type="button" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowEmailPwd(v => !v)}>
+                              {showEmailPwd ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                             </button>
                           </div>
                         </div>
                         <div className="flex gap-2">
-                          <Button size="sm" className="h-10 px-4 text-sm" onClick={handleChangeEmail} disabled={changingEmail || !newEmail || !emailConfirmPwd}>
+                          <Button size="sm" className="h-7 text-xs" onClick={handleChangeEmail} disabled={changingEmail || !newEmail || !emailConfirmPwd}>
                             {changingEmail ? "Sending..." : "Send Verification"}
                           </Button>
-                          <Button size="sm" variant="ghost" className="h-10 px-4 text-sm" onClick={() => { setEditingEmail(false); setNewEmail(""); setEmailConfirmPwd(""); }}>
+                          <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setEditingEmail(false); setNewEmail(""); setEmailConfirmPwd(""); }}>
                             Cancel
                           </Button>
                         </div>
@@ -536,155 +634,110 @@ export default function ProfilePage() {
                     )}
                   </div>
 
-                  {/* Phone row */}
+                  {/* Mobile field */}
                   {editingMobile && canEditOwnProfile ? (
-                    <div className="flex flex-wrap gap-2 items-center justify-center">
+                    <div className="flex gap-2 items-center">
                       <div className="relative">
-                        <Phone className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                        <Input value={newMobile} onChange={e => setNewMobile(e.target.value)} placeholder="+91 9876543210" className="pl-8 w-[200px] text-sm h-10" autoFocus />
+                        <Phone className="w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                        <Input value={newMobile} onChange={e => setNewMobile(e.target.value)} placeholder="+91 9876543210"
+                          className="pl-7 max-w-[180px] text-sm h-8" autoFocus />
                       </div>
-                      <Button size="sm" className="h-10 px-4 text-sm" onClick={handleSaveMobile} disabled={savingMobile}>{savingMobile ? "Saving..." : "Save"}</Button>
-                      <Button size="sm" variant="ghost" className="h-10 px-4 text-sm" onClick={() => setEditingMobile(false)}>Cancel</Button>
+                      <Button size="sm" onClick={handleSaveMobile} disabled={savingMobile}>{savingMobile ? "Saving..." : "Save"}</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setEditingMobile(false)}>Cancel</Button>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2 justify-center min-w-0">
-                      <Phone className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
-                      <p className="text-muted-foreground text-sm">
-                        {maskedMobile || <span className="italic">No mobile number</span>}
-                      </p>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <Phone className="w-3 h-3 text-muted-foreground/60 shrink-0" />
+                      <p className="text-muted-foreground text-xs sm:text-sm truncate min-w-0">{maskedMobile || <span className="italic">No mobile number</span>}</p>
                     </div>
                   )}
+                </div>
 
-                  {/* Role badge */}
-                  <div className="flex items-center gap-1.5 justify-center">
-                    {isAdmin && <Shield className="w-3.5 h-3.5 text-primary" />}
-                    <Badge variant="outline" className={`text-xs px-2 py-0.5 ${isAdmin ? "border-primary text-primary" : ""}`}>
-                      {roleLabel}
-                    </Badge>
-                  </div>
+                <div className="flex items-center gap-1.5 pt-0.5">
+                  {isAdmin && <Shield className="w-3 h-3 text-primary" />}
+                  <Badge variant="outline" className={`text-[10px] sm:text-xs px-1.5 py-0 ${isAdmin ? "border-primary text-primary" : ""}`}>{roleLabel}</Badge>
                 </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/*
-          ┌─ BOTTOM SECTION ──────────────────────────────────────────────┐
-          │  Single column on all sizes — avoids height-mismatch between  │
-          │  the tall Password card and the short Account card.           │
-          └───────────────────────────────────────────────────────────────┘
-        */}
-        <div className="space-y-3 sm:space-y-4 md:space-y-5">
+        <Card>
+          <CardContent className="p-0">
+            {/* Collapsible header — tap to expand/collapse */}
+            <button
+              type="button"
+              onClick={() => setPasswordExpanded(v => !v)}
+              className="w-full flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-[inherit]"
+              aria-expanded={passwordExpanded}
+            >
+              <span className="text-sm font-semibold text-foreground">Change Password</span>
+              <ChevronDown
+                className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${passwordExpanded ? "rotate-180" : ""}`}
+              />
+            </button>
 
-          {/* ── Change Password Card ── */}
-          <Card>
-            <CardContent className="p-0">
-
-              {/*
-                Toggle button — MOBILE ONLY (md:hidden)
-                On desktop this button is hidden; content is always expanded
-              */}
-              <button
-                type="button"
-                onClick={() => setPasswordExpanded(v => !v)}
-                className="md:hidden w-full flex items-center justify-between px-4 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-[inherit]"
-                aria-expanded={passwordExpanded}
-              >
-                <span className="text-sm font-semibold text-foreground">Change Password</span>
-                <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${passwordExpanded ? "rotate-180" : ""}`} />
-              </button>
-
-              {/*
-                Section title — DESKTOP ONLY (hidden md:flex)
-                Replaces the toggle button on desktop with a static heading
-              */}
-              <div className="hidden md:flex items-center px-6 pt-5 pb-4">
-                <h3 className="text-base font-semibold text-foreground">Change Password</h3>
-              </div>
-
-              {/*
-                Content:
-                • Mobile: conditionally rendered based on passwordExpanded state
-                  Achieved via: hidden when collapsed, block when expanded
-                • Desktop: always visible via md:block (overrides the hidden)
-                CSS: `${passwordExpanded ? "" : "hidden"} md:block`
-              */}
-              <div className={`${passwordExpanded ? "" : "hidden"} md:block px-4 md:px-6 pb-5 md:pb-6 space-y-4 border-t border-border pt-4`}>
-                {/* Constrain fields to max-w-sm on desktop — inputs spanning 672px look awkward */}
-                <div className="space-y-4 md:max-w-sm">
-                  {[
-                    { label: "Current Password", value: currentPwd, set: setCurrentPwd, show: showCurrent, toggle: () => setShowCurrent(v => !v), placeholder: "Your current password", auto: "current-password" },
-                    { label: "New Password", value: newPwd, set: setNewPwd, show: showNew, toggle: () => setShowNew(v => !v), placeholder: "Min 8 chars, mixed case, number, special", auto: "new-password" },
-                    { label: "Confirm New Password", value: confirmPwd, set: setConfirmPwd, show: showConfirm, toggle: () => setShowConfirm(v => !v), placeholder: "Repeat new password", auto: "new-password" },
-                  ].map(field => (
-                    <div key={field.label} className="space-y-1.5">
-                      <Label className="text-sm">{field.label}</Label>
-                      <div className="relative">
-                        <Input
-                          type={field.show ? "text" : "password"}
-                          value={field.value}
-                          onChange={e => field.set(e.target.value)}
-                          placeholder={field.placeholder}
-                          autoComplete={field.auto}
-                          className="h-11 md:h-10 text-sm pr-10"
-                        />
-                        <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={field.toggle}>
-                          {field.show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </button>
-                      </div>
+            {/* Collapsible body */}
+            {passwordExpanded && (
+              <div className="px-4 sm:px-6 pb-4 sm:pb-6 space-y-3 border-t border-border pt-3">
+                {[
+                  { label: "Current Password", value: currentPwd, set: setCurrentPwd, show: showCurrent, toggle: () => setShowCurrent(v => !v), placeholder: "Your current password", auto: "current-password" },
+                  { label: "New Password", value: newPwd, set: setNewPwd, show: showNew, toggle: () => setShowNew(v => !v), placeholder: "Min 8 chars, mixed case, number, special", auto: "new-password" },
+                  { label: "Confirm New Password", value: confirmPwd, set: setConfirmPwd, show: showConfirm, toggle: () => setShowConfirm(v => !v), placeholder: "Repeat new password", auto: "new-password" },
+                ].map(field => (
+                  <div key={field.label} className="space-y-1">
+                    <Label className="text-xs">{field.label}</Label>
+                    <div className="relative">
+                      <Input type={field.show ? "text" : "password"} value={field.value} onChange={e => field.set(e.target.value)}
+                        placeholder={field.placeholder} autoComplete={field.auto} className="h-9 text-sm pr-9" />
+                      <button type="button" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={field.toggle}>
+                        {field.show ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
                     </div>
-                  ))}
-                  <Button
-                    className="h-11 md:h-10 text-sm w-full md:w-auto px-6"
-                    onClick={handleChangePassword}
-                    disabled={changingPwd || !currentPwd || !newPwd || !confirmPwd}
-                  >
-                    {changingPwd ? "Updating..." : "Update Password"}
-                  </Button>
-                </div>
+                  </div>
+                ))}
+                <Button size="sm" className="h-8 text-sm" onClick={handleChangePassword} disabled={changingPwd || !currentPwd || !newPwd || !confirmPwd}>
+                  {changingPwd ? "Updating..." : "Update Password"}
+                </Button>
               </div>
-            </CardContent>
-          </Card>
+            )}
+          </CardContent>
+        </Card>
 
-          {/* ── Account Actions Card ── */}
-          <Card>
-            <CardContent className="p-4 sm:p-6">
-              <p className="text-sm font-semibold text-foreground mb-3 sm:mb-4">Account</p>
-              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-                <Button
-                  variant="outline"
-                  className="justify-center h-10 text-sm sm:flex-1"
-                  onClick={async () => {
-                    try {
-                      const res = await fetch(`${getApiBase()}/user/export`, {
-                        headers: { Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token ?? ""}` },
-                      });
-                      if (!res.ok) throw new Error("Export failed");
-                      const blob = await res.blob();
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement("a");
-                      a.href = url;
-                      a.download = `gateed-my-data-${new Date().toISOString().split("T")[0]}.json`;
-                      a.click();
-                      URL.revokeObjectURL(url);
-                    } catch {
-                      toast({ title: "Export failed", description: "Could not download your data. Please try again.", variant: "destructive" });
-                    }
-                  }}
-                >
-                  <Download className="w-4 h-4 mr-2" /> Download My Data
-                </Button>
-                <Button
-                  variant="outline"
-                  className="justify-center h-10 text-sm sm:flex-1 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
-                  onClick={() => signOut()}
-                >
-                  <LogOut className="w-4 h-4 mr-2" /> Sign Out
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <Card>
+          <CardContent className="p-4 sm:p-6">
+            <p className="text-sm font-semibold text-foreground mb-3">Account</p>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="justify-start h-8 text-sm flex-1"
+                onClick={async () => {
+                  try {
+                    const res = await fetch(`${getApiBase()}/user/export`, {
+                      headers: { Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token ?? ""}` },
+                    });
+                    if (!res.ok) throw new Error("Export failed");
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `gateed-my-data-${new Date().toISOString().split("T")[0]}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  } catch {
+                    toast({ title: "Export failed", description: "Could not download your data. Please try again.", variant: "destructive" });
+                  }
+                }}
+              >
+                <Download className="w-3.5 h-3.5 mr-1.5" /> Download My Data
+              </Button>
+              <Button variant="outline" size="sm" className="justify-start h-8 text-sm flex-1 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30" onClick={() => signOut()}>
+                <LogOut className="w-3.5 h-3.5 mr-1.5" /> Sign Out
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <PhotoCropModal
@@ -695,50 +748,81 @@ export default function ProfilePage() {
         onError={(msg) => toast({ title: "Image processing failed", description: msg, variant: "destructive" })}
       />
 
-      {/* ── Full-screen photo viewer — all gesture logic unchanged ── */}
+      {/* ── Full-screen photo viewer ── */}
       {photoViewerOpen && photoUrl && (
         <div
           ref={viewerRef}
           className="fixed inset-0 z-[70] flex items-center justify-center bg-black/85 backdrop-blur-sm animate-in fade-in-0 duration-200"
-          style={{ touchAction: "pan-x pinch-zoom" }}
-          onClick={() => { if (wasDraggingRef.current) { wasDraggingRef.current = false; return; } setPhotoViewerOpen(false); }}
+          style={{
+            // pan-x pinch-zoom: let the browser handle horizontal panning and
+            // pinch-zoom natively (hardware-accelerated, zero JS latency).
+            // We still intercept vertical swipes via passive:false touchmove
+            // listeners, but only AFTER the 10px direction-lock dead zone
+            // confirms it's a downward-vertical gesture. This keeps normal
+            // touch response instant and smooth on all mobile browsers.
+            touchAction: "pan-x pinch-zoom",
+          }}
+          onClick={() => {
+            // Ignore the click that fires after a cancelled drag (snap-back)
+            if (wasDraggingRef.current) { wasDraggingRef.current = false; return; }
+            setPhotoViewerOpen(false);
+          }}
           role="dialog"
           aria-modal="true"
           aria-label="Profile photo viewer"
         >
+          {/* Close button — opacity driven imperatively during swipe */}
           <button
             ref={closeBtnRef}
-            className="absolute top-4 right-4 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
             onClick={(e) => { e.stopPropagation(); setPhotoViewerOpen(false); }}
             aria-label="Close viewer"
           >
             <X className="w-5 h-5 text-white" />
           </button>
 
-          <div ref={imgContainerRef} className="relative flex items-center justify-center p-6" onClick={e => e.stopPropagation()}>
+          {/* Image container — transform driven imperatively during swipe */}
+          <div
+            ref={imgContainerRef}
+            className="relative flex items-center justify-center p-6"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Loading spinner */}
             {!viewerImgLoaded && !viewerImgError && (
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="w-10 h-10 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               </div>
             )}
+
+            {/* Error fallback */}
             {viewerImgError && (
               <div className="flex flex-col items-center gap-3 text-white/60">
                 <User className="w-16 h-16" />
                 <p className="text-sm">Could not load photo</p>
               </div>
             )}
+
+            {/* The photo */}
             <img
               src={photoUrl}
               alt="Profile photo"
-              className={["max-w-[85vw] max-h-[80vh] w-auto h-auto rounded-2xl shadow-2xl object-contain transition-opacity duration-300", viewerImgLoaded ? "opacity-100" : "opacity-0", viewerImgError ? "hidden" : ""].join(" ")}
+              className={[
+                "max-w-[85vw] max-h-[80vh] w-auto h-auto rounded-2xl shadow-2xl object-contain transition-opacity duration-300",
+                viewerImgLoaded ? "opacity-100" : "opacity-0",
+                viewerImgError ? "hidden" : "",
+              ].join(" ")}
               onLoad={() => setViewerImgLoaded(true)}
               onError={() => { setViewerImgError(true); setViewerImgLoaded(true); }}
               draggable={false}
             />
           </div>
 
+          {/* Hint text — opacity driven imperatively during swipe */}
           {viewerImgLoaded && !viewerImgError && (
-            <p ref={hintRef} className="absolute bottom-5 left-1/2 -translate-x-1/2 text-xs text-white/40 select-none whitespace-nowrap">
+            <p
+              ref={hintRef}
+              className="absolute bottom-5 left-1/2 -translate-x-1/2 text-xs text-white/40 select-none whitespace-nowrap"
+            >
               Swipe down or tap outside to close
             </p>
           )}
