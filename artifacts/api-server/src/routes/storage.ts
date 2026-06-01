@@ -61,6 +61,23 @@ router.post(
       return;
     }
 
+    // Validate content type — only PDFs are allowed regardless of what the client claims
+    const allowedTypes = ["application/pdf"];
+    if (content_type && !allowedTypes.includes(content_type)) {
+      res.status(400).json({ error: "Only PDF files are allowed for notes uploads." });
+      return;
+    }
+
+    // Validate PDF magic bytes (%PDF-) in first 5 bytes to prevent type spoofing
+    const pdfMagic = Buffer.from([0x25, 0x50, 0x44, 0x46, 0x2d]); // %PDF-
+    if (!body.slice(0, 5).equals(pdfMagic)) {
+      res.status(400).json({ error: "File does not appear to be a valid PDF." });
+      return;
+    }
+
+    // Sanitize filename to prevent path traversal
+    const safeName = filename.replace(/[^a-zA-Z0-9._\- ]/g, "_").slice(0, 200);
+
     const sizeBytes = parseInt(size_bytes ?? "0", 10) || body.length;
 
     // Gate check
@@ -104,8 +121,8 @@ router.post(
       return;
     }
 
-    const storagePath = generateStoragePath(userId, chapter_id, filename);
-    const cleanName = filename.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
+    const storagePath = generateStoragePath(userId, chapter_id, safeName);
+    const cleanName = safeName.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
 
     try {
       // Get B2 upload URL and push bytes entirely server-side — no browser CORS involved

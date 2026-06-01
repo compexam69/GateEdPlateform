@@ -35,6 +35,14 @@ export async function requireAdmin(req: AuthRequest, res: Response, next: NextFu
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
+  if (!user.emailVerified) {
+    res.status(403).json({ error: "Email not verified.", code: "EMAIL_NOT_VERIFIED" });
+    return;
+  }
+  if (!user.isApproved) {
+    res.status(403).json({ error: "Account pending approval.", code: "PENDING_APPROVAL" });
+    return;
+  }
   if (user.role !== "admin" && user.role !== "super_admin") {
     res.status(403).json({ error: "Forbidden" });
     return;
@@ -47,6 +55,14 @@ export async function requireSuperAdmin(req: AuthRequest, res: Response, next: N
   const user = await getUserFromRequest(req.headers.authorization);
   if (!user) {
     res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  if (!user.emailVerified) {
+    res.status(403).json({ error: "Email not verified.", code: "EMAIL_NOT_VERIFIED" });
+    return;
+  }
+  if (!user.isApproved) {
+    res.status(403).json({ error: "Account pending approval.", code: "PENDING_APPROVAL" });
     return;
   }
   if (user.role !== "super_admin") {

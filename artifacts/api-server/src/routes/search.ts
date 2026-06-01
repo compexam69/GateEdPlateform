@@ -61,7 +61,8 @@ router.get("/search", requireAdmin, async (req: AuthRequest, res) => {
   }
 
   for (const c of chaptersRes.data ?? []) {
-    const sub = (c as { subjects?: { id: string; title: string } | null }).subjects;
+    const raw = c as unknown as { subjects?: { id: string; title: string } | null };
+    const sub = raw.subjects;
     if (!sub) continue;
     results.push({
       type: "chapter",
@@ -73,7 +74,7 @@ router.get("/search", requireAdmin, async (req: AuthRequest, res) => {
   }
 
   for (const t of topicsRes.data ?? []) {
-    const ch = (t as {
+    const ch = (t as unknown as {
       chapters?: {
         id: string;
         title: string;

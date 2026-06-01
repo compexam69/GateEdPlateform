@@ -506,12 +506,50 @@ router.get("/admin/gate-config", requireAdmin, async (req: AuthRequest, res) => 
   res.json(config);
 });
 
+const GATE_CONFIG_BOUNDS: Record<string, { min: number; max: number }> = {
+  lecture_quiz_passing_score:   { min: 0, max: 100 },
+  topic_test_passing_score:     { min: 0, max: 100 },
+  chapter_test_passing_score:   { min: 0, max: 100 },
+  subject_test_passing_score:   { min: 0, max: 100 },
+  max_quiz_attempts:            { min: 1, max: 20 },
+  max_exam_pauses:              { min: 0, max: 10 },
+  exam_timeout_warning_mins:    { min: 1, max: 30 },
+  per_user_storage_limit_mb:    { min: 1, max: 10240 },
+  global_storage_limit_gb:      { min: 1, max: 1024 },
+};
+
 router.patch("/admin/gate-config", requireAdmin, async (req: AuthRequest, res) => {
   const updates = req.body as Record<string, unknown>;
   const adminId = req.user!.id;
 
-  const upserts = Object.entries(updates)
-    .filter(([key]) => GATE_CONFIG_KEYS.includes(key))
+  // Validate and clamp numeric fields to their allowed bounds
+  const validationErrors: string[] = [];
+  const sanitized: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(updates)) {
+    if (!GATE_CONFIG_KEYS.includes(key)) continue;
+    const bounds = GATE_CONFIG_BOUNDS[key];
+    if (bounds !== undefined) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) {
+        validationErrors.push(`${key} must be a number`);
+        continue;
+      }
+      if (n < bounds.min || n > bounds.max) {
+        validationErrors.push(`${key} must be between ${bounds.min} and ${bounds.max}`);
+        continue;
+      }
+      sanitized[key] = n;
+    } else {
+      // boolean fields
+      sanitized[key] = Boolean(value);
+    }
+  }
+  if (validationErrors.length > 0) {
+    res.status(400).json({ error: validationErrors.join("; ") });
+    return;
+  }
+
+  const upserts = Object.entries(sanitized)
     .map(([key, value]) => ({
       key,
       value: value,

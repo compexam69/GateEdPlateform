@@ -553,7 +553,7 @@ function ImportErrorList({ errors }: { errors: Array<{ error: string } & Record<
   );
 }
 
-function UploadArea({ fileRef, onFile }: { fileRef: React.RefObject<HTMLInputElement>; onFile: (e: React.ChangeEvent<HTMLInputElement>) => void }) {
+function UploadArea({ fileRef, onFile }: { fileRef: React.RefObject<HTMLInputElement | null>; onFile: (e: React.ChangeEvent<HTMLInputElement>) => void }) {
   return (
     <div
       className="border-2 border-dashed border-border rounded-lg p-5 text-center cursor-pointer hover:border-primary/50 transition-colors"
@@ -1684,7 +1684,7 @@ function SortableSubjectRow(props: SubjectRowProps) {
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 20 : undefined }}
     >
-      <SubjectRow {...props} dragListeners={listeners as Record<string, unknown>} dragAttributes={attributes as Record<string, unknown>} isDragging={isDragging} />
+      <SubjectRow {...props} dragListeners={listeners as unknown as Record<string, unknown>} dragAttributes={attributes as unknown as Record<string, unknown>} isDragging={isDragging} />
     </div>
   );
 }
@@ -1827,7 +1827,7 @@ function SortableChapterRow(props: ChapterRowProps) {
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 20 : undefined, opacity: isDragging ? 0.75 : 1 }}
     >
-      <ChapterRow {...props} dragListeners={listeners as Record<string, unknown>} dragAttributes={attributes as Record<string, unknown>} />
+      <ChapterRow {...props} dragListeners={listeners as unknown as Record<string, unknown>} dragAttributes={attributes as unknown as Record<string, unknown>} />
     </div>
   );
 }

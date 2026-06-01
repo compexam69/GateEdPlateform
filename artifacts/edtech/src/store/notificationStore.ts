@@ -74,14 +74,20 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
         },
         (payload) => {
           const updated = payload.new as Notification;
-          set((state) => ({
-            notifications: state.notifications.map((n) =>
-              n.id === updated.id ? updated : n
-            ),
-            unreadCount: updated.is_read
-              ? Math.max(0, state.unreadCount - 1)
-              : state.unreadCount,
-          }));
+          set((state) => {
+            const old = state.notifications.find((n) => n.id === updated.id);
+            const wasUnread = old ? !old.is_read : false;
+            const nowRead = updated.is_read;
+            return {
+              notifications: state.notifications.map((n) =>
+                n.id === updated.id ? updated : n
+              ),
+              // Only decrement if the notification transitioned unread → read
+              unreadCount: wasUnread && nowRead
+                ? Math.max(0, state.unreadCount - 1)
+                : state.unreadCount,
+            };
+          });
         }
       )
       .subscribe();

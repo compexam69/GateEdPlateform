@@ -43,15 +43,31 @@ router.post("/tasks", requireAuth, async (req: AuthRequest, res) => {
   res.status(201).json(data);
 });
 
+const VALID_TASK_STATUSES = ["pending", "in_progress", "completed", "skipped"] as const;
+
 router.patch("/tasks/:taskId", requireAuth, async (req: AuthRequest, res) => {
   const updates: Record<string, unknown> = {};
-  if (req.body.title !== undefined) updates["title"] = req.body.title;
+  if (req.body.title !== undefined) {
+    if (typeof req.body.title !== "string" || !req.body.title.trim()) {
+      res.status(400).json({ error: "title must be a non-empty string" }); return;
+    }
+    updates["title"] = req.body.title.trim();
+  }
   if (req.body.description !== undefined) updates["description"] = req.body.description;
   if (req.body.status) {
+    if (!VALID_TASK_STATUSES.includes(req.body.status as typeof VALID_TASK_STATUSES[number])) {
+      res.status(400).json({ error: `status must be one of: ${VALID_TASK_STATUSES.join(", ")}` }); return;
+    }
     updates["status"] = req.body.status;
     if (req.body.status === "completed") updates["completed_at"] = new Date().toISOString();
   }
-  if (req.body.priority !== undefined) updates["priority"] = req.body.priority;
+  if (req.body.priority !== undefined) {
+    const p = Number(req.body.priority);
+    if (isNaN(p) || p < 0 || p > 5) {
+      res.status(400).json({ error: "priority must be a number between 0 and 5" }); return;
+    }
+    updates["priority"] = p;
+  }
   if (req.body.order_index !== undefined) updates["order_index"] = req.body.order_index;
 
   const { data, error } = await supabase
@@ -145,8 +161,7 @@ router.post("/tasks/generate", requireAuth, async (req: AuthRequest, res) => {
       return;
     }
 
-    await supabase.from("study_tasks").delete().eq("user_id", userId).eq("source", "auto").eq("status", "pending");
-
+    // Build new tasks first — only delete old ones after successful generation
     const newTasks = [];
     for (const topic of unstarted) {
       const chapter = topic["chapters"] as Record<string, unknown> | null;
@@ -161,6 +176,12 @@ router.post("/tasks/generate", requireAuth, async (req: AuthRequest, res) => {
       if (insertRes1.data) newTasks.push(insertRes1.data);
     }
 
+    // Only clear old auto-tasks after new ones are successfully inserted
+    if (newTasks.length > 0) {
+      await supabase.from("study_tasks").delete().eq("user_id", userId).eq("source", "auto").eq("status", "pending")
+        .not("id", "in", `(${newTasks.map((t) => `'${(t as Record<string, unknown>)["id"]}'`).join(",")})`);
+    }
+
     await createNotification(userId, "Study Plan Updated", `${newTasks.length} new tasks added to your study plan.`, "plan");
     await sendPushToUser(userId, {
       title: "Your Daily Plan is Ready",
@@ -173,8 +194,7 @@ router.post("/tasks/generate", requireAuth, async (req: AuthRequest, res) => {
     return;
   }
 
-  await supabase.from("study_tasks").delete().eq("user_id", userId).eq("source", "auto").eq("status", "pending");
-
+  // Build new tasks first — only delete old ones after successful generation
   const newTasks = [];
   for (const topic of weakTopics) {
     const avg = topic.accuracies.reduce((s, a) => s + a, 0) / Math.max(topic.accuracies.length, 1);
@@ -187,6 +207,12 @@ router.post("/tasks/generate", requireAuth, async (req: AuthRequest, res) => {
       status: "pending", source: "auto",
     }).select().single();
     if (insertRes2.data) newTasks.push(insertRes2.data);
+  }
+
+  // Only clear old auto-tasks after new ones are successfully inserted
+  if (newTasks.length > 0) {
+    await supabase.from("study_tasks").delete().eq("user_id", userId).eq("source", "auto").eq("status", "pending")
+      .not("id", "in", `(${newTasks.map((t) => `'${(t as Record<string, unknown>)["id"]}'`).join(",")})`);
   }
 
   await createNotification(userId, "Smart Plan Ready",

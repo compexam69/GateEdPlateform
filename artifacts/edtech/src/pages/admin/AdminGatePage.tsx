@@ -100,7 +100,16 @@ export default function AdminGatePage() {
   });
 
   function handleChange(key: keyof GateConfig, value: string | boolean) {
-    setForm(prev => ({ ...prev, [key]: typeof value === "boolean" ? value : Number(value) }));
+    if (typeof value === "boolean") {
+      setForm(prev => ({ ...prev, [key]: value }));
+      setDirty(true);
+      return;
+    }
+    const field = FIELDS.find(f => f.key === key);
+    let n = Number(value);
+    if (field?.min !== undefined) n = Math.max(field.min, n);
+    if (field?.max !== undefined) n = Math.min(field.max, n);
+    setForm(prev => ({ ...prev, [key]: n }));
     setDirty(true);
   }
 

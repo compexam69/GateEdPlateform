@@ -37,6 +37,7 @@ export default function ExamPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showWarning, setShowWarning] = useState<string | null>(null);
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
   const [showResumeBanner, setShowResumeBanner] = useState(false);
   const [draft, setDraft] = useState<DraftState | null>(null);
@@ -316,8 +317,9 @@ export default function ExamPage() {
 
   function updateCurrentTimeSpent() {
     const elapsed = Date.now() - questionStartTime.current;
+    const idx = currentIdxRef.current;
     setQuestionStates(prev => prev.map((qs, i) =>
-      i === currentIdx ? { ...qs, timeSpentMs: qs.timeSpentMs + elapsed } : qs
+      i === idx ? { ...qs, timeSpentMs: qs.timeSpentMs + elapsed } : qs
     ));
     questionStartTime.current = Date.now();
   }
@@ -491,7 +493,7 @@ export default function ExamPage() {
             <Pause className="w-4 h-4 mr-1.5" /> Pause ({2 - pauseCount} left)
           </Button>
         </div>
-        <Button variant="destructive" size="sm" onClick={handleSubmit} disabled={submitting}>
+        <Button variant="destructive" size="sm" onClick={() => setShowSubmitConfirm(true)} disabled={submitting}>
           {submitting ? "Submitting..." : "Submit"}
         </Button>
       </header>
@@ -617,7 +619,7 @@ export default function ExamPage() {
                 <Button
                   variant="destructive"
                   className="w-full"
-                  onClick={handleSubmit}
+                  onClick={() => setShowSubmitConfirm(true)}
                   disabled={submitting}
                 >
                   {submitting ? "Submitting..." : `Submit (${answered}/${questionStates.length})`}
@@ -656,13 +658,61 @@ export default function ExamPage() {
           <Button
             variant="destructive"
             className="w-full mt-auto"
-            onClick={handleSubmit}
+            onClick={() => setShowSubmitConfirm(true)}
             disabled={submitting}
           >
             {submitting ? "Submitting..." : `Submit Exam (${answered}/${questionStates.length} answered)`}
           </Button>
         </aside>
       </div>
+
+      {/* Submit confirmation dialog */}
+      {showSubmitConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-card border border-border rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4">
+            <h2 className="text-lg font-semibold mb-1">Submit Exam?</h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Review your progress before final submission — this cannot be undone.
+            </p>
+            <div className="grid grid-cols-2 gap-2 text-sm mb-6">
+              <div className="bg-success/10 border border-success/20 rounded-lg px-3 py-2 text-center">
+                <div className="font-semibold text-success text-xl">{answered}</div>
+                <div className="text-muted-foreground">Answered</div>
+              </div>
+              <div className="bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2 text-center">
+                <div className="font-semibold text-destructive text-xl">{notAnswered}</div>
+                <div className="text-muted-foreground">Unanswered</div>
+              </div>
+              <div className="bg-warning/10 border border-warning/20 rounded-lg px-3 py-2 text-center">
+                <div className="font-semibold text-warning text-xl">{markedForReview}</div>
+                <div className="text-muted-foreground">Marked</div>
+              </div>
+              <div className="bg-muted/50 border border-border rounded-lg px-3 py-2 text-center">
+                <div className="font-semibold text-xl">{notVisited}</div>
+                <div className="text-muted-foreground">Not Visited</div>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowSubmitConfirm(false)}
+                disabled={submitting}
+              >
+                Continue Exam
+              </Button>
+              <Button
+                variant="destructive"
+                className="flex-1"
+                onClick={() => { setShowSubmitConfirm(false); handleSubmit(); }}
+                disabled={submitting}
+              >
+                {submitting ? "Submitting..." : "Submit Now"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

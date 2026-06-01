@@ -10,6 +10,8 @@ router.post("/exam/start", requireAuth, async (req: AuthRequest, res) => {
   const { quiz_id } = req.body as { quiz_id: string };
   const userId = req.user!.id;
 
+  if (!quiz_id) { res.status(400).json({ error: "quiz_id is required" }); return; }
+
   // Per-user persistent rate check: 5 starts/minute (survives server restarts)
   const { allowed, retryAfterMs } = await checkRateLimitDb(`exam-start:${userId}`, 5, 60_000);
   if (!allowed) {
@@ -26,6 +28,23 @@ router.post("/exam/start", requireAuth, async (req: AuthRequest, res) => {
     .eq("id", quiz_id)
     .single();
   if (qErr || !quiz) { res.status(404).json({ error: "Quiz not found" }); return; }
+
+  // Prevent parallel in-progress attempts for the same quiz
+  const { data: existingInProgress } = await supabase
+    .from("user_attempts")
+    .select("id, started_at")
+    .eq("user_id", userId)
+    .eq("quiz_id", quiz_id)
+    .eq("status", "in_progress")
+    .maybeSingle();
+  if (existingInProgress) {
+    res.status(409).json({
+      error: "You already have an exam in progress for this quiz.",
+      code: "ATTEMPT_IN_PROGRESS",
+      attempt_id: existingInProgress.id,
+    });
+    return;
+  }
 
   // Access control: student and admin roles must be explicitly listed in allowed_roles.
   // super_admin always has access (for testing/preview).
@@ -79,6 +98,8 @@ router.post("/exam/submit", requireAuth, async (req: AuthRequest, res) => {
   };
   const userId = req.user!.id;
 
+  if (!attempt_id) { res.status(400).json({ error: "attempt_id is required" }); return; }
+
   const { data: attempt } = await supabase
     .from("user_attempts")
     .select("*, quizzes(*)")
@@ -86,6 +107,12 @@ router.post("/exam/submit", requireAuth, async (req: AuthRequest, res) => {
     .eq("user_id", userId)
     .single();
   if (!attempt) { res.status(404).json({ error: "Attempt not found" }); return; }
+
+  // Idempotency guard: prevent double-submission
+  if (attempt.status === "submitted") {
+    res.status(409).json({ error: "This attempt has already been submitted.", code: "ALREADY_SUBMITTED" });
+    return;
+  }
 
   const { data: questions } = await supabase
     .from("quiz_questions")
@@ -455,7 +482,8 @@ router.get("/exam/history", requireAuth, async (req: AuthRequest, res) => {
     .limit(50);
   if (error) { res.status(500).json({ error: error.message }); return; }
   res.json((data ?? []).map((a: Record<string, unknown>) => {
-    const q = a["quizzes"] as { title: string } | null;
+    const q = a["quizzes"] as { title: string; passing_score?: number } | null;
+    const passingScore = q?.passing_score ?? 60;
     return {
       attempt_id: a["id"],
       quiz_id: a["quiz_id"],
@@ -463,7 +491,7 @@ router.get("/exam/history", requireAuth, async (req: AuthRequest, res) => {
       score: a["score"],
       total_marks: a["total_marks"],
       accuracy: a["accuracy"],
-      passed: (a["accuracy"] as number) >= 60,
+      passed: (a["accuracy"] as number) >= passingScore,
       submitted_at: a["submitted_at"],
     };
   }));
