@@ -1,0 +1,553 @@
+This requirement is a **Profile Information Hierarchy and Layout Consistency Enhancement**, not simply moving a field.
+
+After analyzing the prompt, the real objective is:
+
+### Current Requirement
+
+The **User Role** must remain visible and positioned between the **Name** and **Email** fields throughout the Profile Settings section.
+
+### Desired Information Hierarchy
+
+The profile information should always appear in the following order:
+
+```text
+Profile Image
+↓
+Name
+↓
+User Role
+↓
+Email
+↓
+Mobile Number
+```
+
+This hierarchy improves:
+
+* Readability
+* Information scanning
+* Visual consistency
+* Professional appearance
+* Role visibility for Admin/Super Admin accounts
+* Mobile and desktop usability
+
+The implementation should ensure this order is consistently maintained across all responsive layouts and future Profile UI updates.
+
+---
+
+# 🟢 Checkpoint X: Profile Settings Information Hierarchy Standardization (Profile Image → Name → User Role → Email → Mobile Number)
+
+## Goal
+
+Standardize the Profile Settings information hierarchy so that the **User Role** is permanently displayed between the **Name** and **Email** fields.
+
+The final profile layout must always follow this order:
+
+```text
+Profile Image
+Name
+User Role
+Email
+Mobile Number
+```
+
+This hierarchy must be preserved across:
+
+* Mobile devices
+* Tablets
+* Desktop screens
+* PWA installations
+
+while maintaining a clean, professional, and responsive user experience.
+
+---
+
+# Context Analysis
+
+## Existing Issue
+
+Recent Profile module changes may have:
+
+* Moved User Role elsewhere
+* Hidden User Role on some breakpoints
+* Changed field ordering
+* Created inconsistencies between mobile and desktop layouts
+
+This causes:
+
+```text
+❌ Poor information hierarchy
+❌ Reduced role visibility
+❌ Inconsistent layouts
+❌ Less professional appearance
+❌ Confusing account information flow
+```
+
+---
+
+## Desired Layout Structure
+
+The Profile Settings section should render information in this exact order:
+
+```text
+[ Profile Image ]
+
+John Doe
+
+Super Admin
+
+john@example.com
+
++91 9876543210
+```
+
+---
+
+# Instructions
+
+## 1. Analyze Existing Profile Layout
+
+Review:
+
+* Profile module
+* Profile Settings component
+* Mobile layout
+* Desktop layout
+* Profile card rendering
+* User information rendering logic
+* Responsive breakpoints
+
+Identify:
+
+* Current field order
+* Responsive variations
+* Any conditional rendering affecting User Role visibility
+
+Document findings before implementation.
+
+---
+
+# 2. Standardize Information Hierarchy
+
+Ensure the following order is enforced everywhere:
+
+### Order
+
+```text
+1. Profile Image
+2. Name
+3. User Role
+4. Email
+5. Mobile Number
+```
+
+This order must remain consistent regardless of:
+
+* Device type
+* Screen size
+* Orientation
+* User role
+
+---
+
+# 3. Preserve User Role Visibility
+
+Ensure:
+
+### Super Admin
+
+Role remains visible.
+
+### Admin
+
+Role remains visible.
+
+### Student/User
+
+Role remains visible if currently intended by system design.
+
+Do not accidentally hide the role during responsive rendering.
+
+---
+
+# 4. Improve Visual Hierarchy
+
+Ensure:
+
+### Name
+
+Primary emphasis.
+
+### User Role
+
+Secondary emphasis.
+
+### Email
+
+Supporting account information.
+
+### Mobile Number
+
+Displayed after Email.
+
+Avoid:
+
+```text
+Email before Role
+Role after Mobile Number
+Role hidden inside dropdowns
+```
+
+---
+
+# 5. Preserve Profile Image Position
+
+Maintain:
+
+```text
+Profile Image
+↓
+Name
+```
+
+The profile image must remain above the user's name.
+
+Do not relocate the image beside or below the information block.
+
+---
+
+# 6. Maintain Responsive Consistency
+
+Verify the same hierarchy on:
+
+### Mobile
+
+```text
+Image
+Name
+Role
+Email
+Mobile
+```
+
+### Tablet
+
+```text
+Image
+Name
+Role
+Email
+Mobile
+```
+
+### Desktop
+
+```text
+Image
+Name
+Role
+Email
+Mobile
+```
+
+Only spacing/layout may vary.
+
+Ordering must never change.
+
+---
+
+# 7. Preserve Existing Functionality
+
+Ensure this change does NOT affect:
+
+* Profile image upload
+* Profile image deletion
+* Profile image preview
+* Name editing
+* Email editing
+* Mobile number editing
+* Permission logic
+* Audit logs
+* Authentication flows
+
+This should be a presentation-layer enhancement only.
+
+---
+
+# 8. Improve Typography & Readability
+
+Ensure:
+
+### Name
+
+Most prominent text.
+
+### User Role
+
+Clearly distinguishable.
+
+### Email
+
+Readable and accessible.
+
+### Mobile Number
+
+Readable and accessible.
+
+Avoid:
+
+```text
+Tiny role text
+Hidden labels
+Crowded spacing
+```
+
+---
+
+# 9. Accessibility Validation
+
+Verify:
+
+### Screen Readers
+
+Read information in correct order.
+
+### Keyboard Navigation
+
+Remains functional.
+
+### Focus Management
+
+Unaffected.
+
+### Contrast
+
+Meets accessibility standards.
+
+---
+
+# 10. Responsive Testing
+
+Test:
+
+## Mobile
+
+```text
+320px
+360px
+375px
+390px
+430px
+```
+
+Verify:
+
+* Correct order maintained.
+* No clipping.
+* No overflow.
+
+---
+
+## Tablet
+
+```text
+768px
+820px
+1024px
+```
+
+Verify:
+
+* Correct hierarchy preserved.
+
+---
+
+## Desktop
+
+```text
+1280px
+1366px
+1440px
+1920px
+```
+
+Verify:
+
+* Layout remains balanced.
+* Information order preserved.
+
+---
+
+# 11. Prevent Layout Regressions
+
+Verify:
+
+* No overlapping text.
+* No hidden fields.
+* No spacing issues.
+* No responsive inconsistencies.
+
+---
+
+# 12. Backend / Database Review
+
+Determine whether:
+
+* Database changes required
+* API changes required
+* Permission changes required
+* Profile schema changes required
+
+Document findings.
+
+---
+
+# 13. SQL & Supabase Guidance
+
+Expected implementation:
+
+```text
+SQL Changes Required: NO
+Database Changes Required: NO
+RLS Changes Required: NO
+Supabase Changes Required: NO
+```
+
+This should be a frontend layout and hierarchy adjustment only.
+
+If SQL changes are proposed, explain why they are necessary.
+
+---
+
+# 14. Testing & Validation
+
+Verify:
+
+### Profile Image
+
+Remains above Name.
+
+### User Role
+
+Appears between Name and Email.
+
+### Email
+
+Appears after Role.
+
+### Mobile Number
+
+Appears after Email.
+
+### Responsive Layout
+
+Works correctly across all devices.
+
+### Errors
+
+No console/runtime errors occur.
+
+---
+
+# 15. Final Implementation Report
+
+Provide:
+
+### Files Modified
+
+### Layout Changes
+
+### Information Hierarchy Changes
+
+### Responsive Validation Results
+
+### Accessibility Validation
+
+### Testing Results
+
+### Remaining Limitations
+
+---
+
+# 16. Checkpoint Requirement
+
+After implementation and testing:
+
+Create checkpoint immediately.
+
+### Checkpoint Name
+
+**"Profile Information Hierarchy Standardization"**
+
+Checkpoint verification must confirm:
+
+* Profile Image remains above Name.
+* User Role appears between Name and Email.
+* Email appears before Mobile Number.
+* Layout remains responsive.
+* Existing functionality remains intact.
+* No regressions introduced.
+* No console/runtime errors remain.
+
+---
+
+# Acceptance Criteria
+
+* [ ] Profile Image remains positioned above the user's Name.
+* [ ] User Role is displayed directly below Name.
+* [ ] User Role appears before Email.
+* [ ] Email appears before Mobile Number.
+* [ ] Information hierarchy is consistent across mobile and desktop views.
+* [ ] User Role remains visible on all supported screen sizes.
+* [ ] Existing profile functionality remains unaffected.
+* [ ] No clipping, overflow, or responsive layout issues occur.
+* [ ] No console/runtime errors occur.
+* [ ] Checkpoint created after successful implementation and testing.
+
+---
+
+## Guidance for You
+
+### Supabase SQL Editor
+
+**Do NOT run any SQL.**
+
+Expected classification:
+
+```text
+Frontend Layout & Information Hierarchy Enhancement
+```
+
+Expected outcome:
+
+```text
+SQL Required: NO
+Database Changes Required: NO
+RLS Changes Required: NO
+Supabase Changes Required: NO
+```
+
+### Post-Implementation Verification
+
+Request the developer to provide:
+
+1. Mobile screenshots showing:
+
+   * Profile Image
+   * Name
+   * User Role
+   * Email
+   * Mobile Number
+
+2. Desktop screenshots showing the same order.
+
+3. Confirmation that User Role remains visible for all applicable user types.
+
+4. Confirmation that profile editing and image functionality still work correctly.
+
+5. Checkpoint confirmation including:
+
+   * Files modified
+   * Testing performed
+   * Responsive validation results
+   * Any remaining limitations (if applicable).

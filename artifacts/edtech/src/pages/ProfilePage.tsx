@@ -570,14 +570,14 @@ export default function ProfilePage() {
                     <Button size="sm" variant="ghost" onClick={() => setEditingName(false)}>Cancel</Button>
                   </div>
                 ) : (
-                  <div className="flex items-center justify-center md:justify-start gap-2 flex-wrap min-w-0">
-                    <h2 className="text-xl font-bold truncate min-w-0 leading-tight">{user?.user_metadata?.full_name || "Student"}</h2>
-                    <div className="flex items-center gap-1 shrink-0">
-                      {isAdmin && <Shield className="w-3 h-3 text-primary" />}
-                      <Badge variant="outline" className={`text-xs px-1.5 py-0 ${isAdmin ? "border-primary text-primary" : ""}`}>{roleLabel}</Badge>
-                    </div>
-                  </div>
+                  <h2 className="text-xl font-bold truncate min-w-0 leading-tight text-center md:text-left">{user?.user_metadata?.full_name || "Student"}</h2>
                 )}
+
+                {/* User Role — always on its own row, between Name and Email */}
+                <div className="flex items-center justify-center md:justify-start gap-1">
+                  {isAdmin && <Shield className="w-3 h-3 text-primary" />}
+                  <Badge variant="outline" className={`text-xs px-1.5 py-0 ${isAdmin ? "border-primary text-primary" : ""}`}>{roleLabel}</Badge>
+                </div>
 
                 <div className="space-y-1 flex flex-col items-center md:items-start">
                   {/* Email field */}
