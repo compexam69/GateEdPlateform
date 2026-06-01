@@ -585,7 +585,7 @@ export default function ProfilePage() {
                     <div className="flex items-center justify-center md:justify-start gap-1.5 min-w-0 flex-wrap">
                       <p className="text-muted-foreground text-sm truncate min-w-0">{user?.email}</p>
                       {isEmailVerified
-                        ? <Badge variant="secondary" className="bg-success/10 text-success text-xs gap-1 shrink-0 px-1.5 py-0"><CheckCircle className="w-3 h-3" />Verified</Badge>
+                        ? <Badge variant="secondary" aria-label="Email verified" className="bg-success/10 text-success text-xs shrink-0 px-1.5 py-0"><CheckCircle className="w-3 h-3" /></Badge>
                         : <Badge variant="destructive" className="text-xs shrink-0 px-1.5 py-0">Unverified</Badge>}
                     </div>
 

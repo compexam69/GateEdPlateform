@@ -1,0 +1,463 @@
+This requirement is a **Profile UI refinement and visual hierarchy improvement**, not simply removing a text label.
+
+After analyzing the requirement, the real objective is:
+
+### Current Situation
+
+In the Profile section, the email field is displayed like:
+
+```text
+john@example.com ✓ Verified
+```
+
+Problems:
+
+* Redundant verification indicators (icon + text).
+* Creates unnecessary visual clutter.
+* Consumes horizontal space, especially on mobile devices.
+* Makes the email row appear crowded.
+* Reduces the clean, professional appearance of the Profile page.
+
+### Desired Result
+
+Display:
+
+```text
+john@example.com ✓
+```
+
+Where:
+
+* The blue verification tick remains visible.
+* The text **"Verified"** is completely removed.
+* Verified status remains clear and recognizable.
+* Layout becomes cleaner and more space-efficient.
+
+The verification logic itself must remain unchanged.
+
+---
+
+# 🟢 Checkpoint X: Profile Email Verification UI Simplification (Keep Tick, Remove "Verified" Text)
+
+## Goal
+
+Simplify the email verification display in the Profile module by removing the visible **"Verified"** text while preserving the blue verification tick icon.
+
+The updated design must:
+
+* Keep the blue verification tick visible.
+* Remove the "Verified" label completely.
+* Preserve all verification logic.
+* Improve visual cleanliness and professionalism.
+* Reduce unnecessary UI clutter.
+* Work consistently across mobile, tablet, desktop, and PWA environments.
+
+---
+
+# Context Analysis
+
+## Current Display
+
+Current UI resembles:
+
+```text
+john@example.com ✓ Verified
+```
+
+Issues:
+
+❌ Duplicate verification indicators
+
+❌ Wasted horizontal space
+
+❌ Cluttered email row
+
+❌ Less professional appearance
+
+❌ Reduced readability on small screens
+
+---
+
+## Desired Display
+
+Replace with:
+
+```text
+john@example.com ✓
+```
+
+Benefits:
+
+✅ Cleaner interface
+
+✅ Better visual hierarchy
+
+✅ More professional appearance
+
+✅ Improved mobile responsiveness
+
+✅ Maintains verification visibility
+
+---
+
+# Instructions
+
+## 1. Analyze Existing Verification UI
+
+Review:
+
+* Profile module
+* Profile card component
+* Profile Settings component
+* Email rendering logic
+* Verification status rendering
+* Badge/icon implementation
+* Responsive layouts
+
+Identify:
+
+* Where the "Verified" text is rendered
+* Whether the text and icon are separate components
+* Any conditional verification display logic
+
+Document findings before implementation.
+
+---
+
+# 2. Remove "Verified" Text
+
+Remove:
+
+```text
+Verified
+```
+
+from the Profile UI.
+
+Ensure:
+
+* The text is not rendered.
+* The text does not occupy layout space.
+* No placeholder remains.
+
+---
+
+# 3. Preserve Verification Tick
+
+Keep:
+
+* Blue verification tick icon
+* Existing icon styling
+* Existing positioning (unless spacing optimization is needed)
+
+The icon must continue indicating verified status.
+
+---
+
+# 4. Preserve Verification Logic
+
+Ensure this change does NOT affect:
+
+* Email verification state
+* Authentication logic
+* User account status
+* Verification checks
+* Backend validation
+* Access permissions
+* Audit logs
+
+This must be a presentation-layer change only.
+
+---
+
+# 5. Improve Layout & Spacing
+
+After removing the text:
+
+Ensure:
+
+* Email row remains visually balanced.
+* Icon alignment remains correct.
+* No excessive empty spacing appears.
+* Mobile layouts remain clean.
+
+Prevent:
+
+❌ Misaligned icon positioning
+
+❌ Unused spacing
+
+❌ Broken text wrapping
+
+---
+
+# 6. Mobile Optimization
+
+Test on:
+
+```text
+320px
+360px
+375px
+390px
+430px
+```
+
+Verify:
+
+* Email remains readable.
+* Tick remains visible.
+* No clipping occurs.
+* No horizontal scrolling occurs.
+
+---
+
+# 7. Desktop Optimization
+
+Test on:
+
+```text
+1280px
+1366px
+1440px
+1920px
+```
+
+Verify:
+
+* Email row looks professional.
+* Tick remains properly aligned.
+* No visual imbalance appears.
+
+---
+
+# 8. Accessibility Validation
+
+Ensure:
+
+### Screen Readers
+
+Continue to identify verified accounts appropriately.
+
+If accessibility labels currently rely on the visible text:
+
+* Add or preserve an aria-label such as:
+
+```text
+Verified Email
+```
+
+while keeping the text visually hidden.
+
+---
+
+### Keyboard Navigation
+
+Remains unaffected.
+
+---
+
+### Contrast
+
+Verification icon remains visible.
+
+---
+
+# 9. Prevent Functional Regressions
+
+Verify:
+
+* Profile rendering remains stable.
+* Verification status still updates correctly.
+* Email display remains correct.
+* Responsive layouts remain intact.
+
+---
+
+# 10. Responsive Validation
+
+Test:
+
+### Mobile
+
+* Portrait
+* Landscape
+
+### Tablet
+
+* Portrait
+* Landscape
+
+### Desktop
+
+* Standard browser
+* Full-width browser
+
+### PWA
+
+* Installed mode
+
+Verify consistency across all environments.
+
+---
+
+# 11. Backend / Database Review
+
+Determine whether:
+
+* Database changes required
+* API changes required
+* Verification schema changes required
+* Authentication changes required
+
+Document findings.
+
+---
+
+# 12. SQL & Supabase Guidance
+
+Expected implementation:
+
+```text
+SQL Changes Required: NO
+Database Changes Required: NO
+RLS Changes Required: NO
+Supabase Changes Required: NO
+```
+
+This should be a frontend UI refinement only.
+
+If any SQL changes are proposed, explain why they are necessary.
+
+---
+
+# 13. Testing & Validation
+
+Verify:
+
+### Verified Accounts
+
+Display:
+
+```text
+Email ✓
+```
+
+without:
+
+```text
+Verified
+```
+
+### Unverified Accounts
+
+Continue using existing behavior.
+
+### Responsive Layout
+
+Works correctly across all breakpoints.
+
+### Errors
+
+No console/runtime errors occur.
+
+---
+
+# 14. Final Implementation Report
+
+Provide:
+
+### Files Modified
+
+### Verification UI Changes
+
+### Layout Adjustments
+
+### Accessibility Validation
+
+### Responsive Validation Results
+
+### Testing Results
+
+### Remaining Limitations
+
+---
+
+# 15. Checkpoint Requirement
+
+After implementation and testing:
+
+Create checkpoint immediately.
+
+### Checkpoint Name
+
+**"Profile Verification UI Simplification"**
+
+Checkpoint verification must confirm:
+
+* "Verified" text removed.
+* Blue verification tick retained.
+* Verification logic unchanged.
+* Accessibility preserved.
+* Responsive layouts validated.
+* No regressions introduced.
+* No console/runtime errors remain.
+
+---
+
+# Acceptance Criteria
+
+* [ ] "Verified" text is removed from the Profile section.
+* [ ] Blue verification tick remains visible.
+* [ ] Verified status remains clearly indicated.
+* [ ] Email row appears cleaner and more professional.
+* [ ] Verification logic remains unchanged.
+* [ ] Accessibility remains intact.
+* [ ] Mobile responsiveness remains correct.
+* [ ] Desktop responsiveness remains correct.
+* [ ] No layout regressions occur.
+* [ ] No console/runtime errors occur.
+* [ ] Checkpoint created after successful implementation and testing.
+
+---
+
+## Guidance for You
+
+### Supabase SQL Editor
+
+**Do NOT run any SQL.**
+
+Expected classification:
+
+```text
+Frontend UI Cleanup & Visual Refinement
+```
+
+Expected outcome:
+
+```text
+SQL Required: NO
+Database Changes Required: NO
+RLS Changes Required: NO
+Supabase Changes Required: NO
+```
+
+### Post-Implementation Verification
+
+Request the developer to provide:
+
+1. Before-and-after screenshots of the email section.
+2. Mobile screenshots showing:
+
+   * Email address
+   * Blue verification tick
+   * No "Verified" text.
+3. Desktop screenshots showing the same.
+4. Confirmation that verification logic remains unchanged.
+5. Accessibility validation results (if aria-label updates were required).
+6. Checkpoint confirmation including:
+
+   * Files modified
+   * Testing results
+   * Responsive validation outcomes
+   * Any remaining limitations (if applicable).
