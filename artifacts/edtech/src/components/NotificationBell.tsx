@@ -74,8 +74,9 @@ export function NotificationBell() {
   // Load prefs from Supabase auth metadata whenever the settings panel opens
   useEffect(() => {
     if (!showSettings) return;
+    let cancelled = false;
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return;
+      if (cancelled || !user) return;
       const raw = user.user_metadata?.notification_prefs as Partial<NotifPrefs> | undefined;
       setNotifPrefs({
         daily_plan:    raw?.daily_plan    ?? DEFAULT_PREFS.daily_plan,
@@ -83,6 +84,7 @@ export function NotificationBell() {
         exam_reminders: raw?.exam_reminders ?? DEFAULT_PREFS.exam_reminders,
       });
     });
+    return () => { cancelled = true; };
   }, [showSettings]);
 
   const handlePrefChange = useCallback(async (key: keyof NotifPrefs, value: boolean) => {

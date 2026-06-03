@@ -66,7 +66,8 @@ router.get("/admin/users", requireAdmin, async (req: AuthRequest, res) => {
   const { data, error } = await supabase
     .from("profiles")
     .select("*")
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(500);
   if (error) { res.status(500).json({ error: error.message }); return; }
 
   const users = (data ?? []) as Record<string, unknown>[];
@@ -463,9 +464,11 @@ router.get("/admin/storage", requireAdmin, async (req: AuthRequest, res) => {
           .select("id, email, full_name")
           .in("role", ["admin", "super_admin"]);
         if (!admins) return;
-        for (const admin of admins as { id: string; email: string; full_name: string }[]) {
-          try { await sendPushToUser(admin.id, { title: alertTitle, body: alertBody, url: "/admin/storage", tag: "storage-alert" }); } catch { /* best-effort */ }
-        }
+        await Promise.all(
+          (admins as { id: string; email: string; full_name: string }[]).map(admin =>
+            sendPushToUser(admin.id, { title: alertTitle, body: alertBody, url: "/admin/storage", tag: "storage-alert" }).catch(() => {})
+          )
+        );
       } catch { /* best-effort */ }
     })();
   }

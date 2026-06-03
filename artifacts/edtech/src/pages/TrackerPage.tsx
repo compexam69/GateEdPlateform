@@ -14,7 +14,7 @@ import {
   useCreateExternalTest, useDeleteExternalTest,
 } from "@workspace/api-client-react";
 import type { ExternalTest } from "@workspace/api-client-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { format } from "date-fns";
@@ -161,23 +161,28 @@ export default function TrackerPage() {
     setShowAdd(false); setEditingTest(null); setForm(EMPTY_FORM);
   }
 
-  const sortedTests = [...tests].sort((a: ExternalTest, b: ExternalTest) => a.exam_date.localeCompare(b.exam_date));
-  const sortedTestsDesc = [...sortedTests].reverse();
+  const sortedTests = useMemo(
+    () => [...tests].sort((a: ExternalTest, b: ExternalTest) => a.exam_date.localeCompare(b.exam_date)),
+    [tests]
+  );
+  const sortedTestsDesc = useMemo(() => [...sortedTests].reverse(), [sortedTests]);
 
   // Merge external and internal into unified chart dataset
-  const allDates = new Set<string>([
-    ...sortedTests.map((t: ExternalTest) => t.exam_date),
-    ...internalScores.map(s => s.date),
-  ]);
-  const chartData = Array.from(allDates).sort().map(date => {
-    const ext = sortedTests.find((t: ExternalTest) => t.exam_date === date);
-    const int = internalScores.find(s => s.date === date);
-    return {
-      label: format(new Date(date), "MMM d"),
-      external: ext ? Math.round((ext.score_obtained / ext.total_marks) * 100) : null,
-      internal: int?.avg_score ?? null,
-    };
-  });
+  const chartData = useMemo(() => {
+    const allDates = new Set<string>([
+      ...sortedTests.map((t: ExternalTest) => t.exam_date),
+      ...internalScores.map(s => s.date),
+    ]);
+    return Array.from(allDates).sort().map(date => {
+      const ext = sortedTests.find((t: ExternalTest) => t.exam_date === date);
+      const int = internalScores.find(s => s.date === date);
+      return {
+        label: format(new Date(date), "MMM d"),
+        external: ext ? Math.round((ext.score_obtained / ext.total_marks) * 100) : null,
+        internal: int?.avg_score ?? null,
+      };
+    });
+  }, [sortedTests, internalScores]);
 
   const getTrend = (idx: number, arr: ExternalTest[]) => {
     const curr = (arr[idx].score_obtained / arr[idx].total_marks) * 100;

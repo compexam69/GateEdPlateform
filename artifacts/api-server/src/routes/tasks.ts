@@ -219,19 +219,20 @@ router.post("/tasks/generate", requireAuth, async (req: AuthRequest, res) => {
     }
 
     // Build new tasks first — only delete old ones after successful generation
-    const newTasks = [];
-    for (const topic of unstarted) {
-      const chapter = topic["chapters"] as Record<string, unknown> | null;
-      const subject = chapter?.["subjects"] as Record<string, unknown> | null;
-      const insertRes1: { data: Record<string, unknown> | null } = await supabase.from("study_tasks").insert({
-        user_id: userId,
-        title: capText(`Start: ${topic["title"] as string}`, MAX.TITLE) ?? `Start: ${String(topic["id"]).slice(0, 8)}`,
-        description: capText(`${subject?.["title"] as string || ""} › ${chapter?.["title"] as string || ""} — Watch the lecture to begin`, MAX.DESCRIPTION),
-        target_type: "platform_subtopic", target_id: topic["id"] as string,
-        priority: 1, order_index: newTasks.length, status: "pending", source: "auto",
-      }).select().single();
-      if (insertRes1.data) newTasks.push(insertRes1.data);
-    }
+    const insertResults1 = await Promise.all(
+      unstarted.map((topic, idx) => {
+        const chapter = topic["chapters"] as Record<string, unknown> | null;
+        const subject = chapter?.["subjects"] as Record<string, unknown> | null;
+        return supabase.from("study_tasks").insert({
+          user_id: userId,
+          title: capText(`Start: ${topic["title"] as string}`, MAX.TITLE) ?? `Start: ${String(topic["id"]).slice(0, 8)}`,
+          description: capText(`${subject?.["title"] as string || ""} › ${chapter?.["title"] as string || ""} — Watch the lecture to begin`, MAX.DESCRIPTION),
+          target_type: "platform_subtopic", target_id: topic["id"] as string,
+          priority: 1, order_index: idx, status: "pending", source: "auto",
+        }).select().single<Record<string, unknown>>();
+      })
+    );
+    const newTasks = insertResults1.flatMap(r => r.data ? [r.data] : []);
 
     // Only clear old auto-tasks after new ones are successfully inserted
     if (newTasks.length > 0) {
@@ -251,20 +252,21 @@ router.post("/tasks/generate", requireAuth, async (req: AuthRequest, res) => {
     return;
   }
 
-  // Build new tasks first — only delete old ones after successful generation
-  const newTasks = [];
-  for (const topic of weakTopics) {
-    const avg = topic.accuracies.reduce((s, a) => s + a, 0) / Math.max(topic.accuracies.length, 1);
-    const insertRes2: { data: Record<string, unknown> | null } = await supabase.from("study_tasks").insert({
-      user_id: userId,
-      title: capText(`Revise: ${topic.topicTitle}`, MAX.TITLE) ?? `Revise: ${topic.topicId.slice(0, 8)}`,
-      description: capText(`${topic.subjectTitle} › ${topic.chapterTitle} — Avg accuracy: ${Math.round(avg)}%. Redo DPP or Topic Test.`, MAX.DESCRIPTION),
-      target_type: "platform_subtopic", target_id: topic.topicId,
-      priority: Math.min(5, Math.round((60 - avg) / 10)), order_index: newTasks.length,
-      status: "pending", source: "auto",
-    }).select().single();
-    if (insertRes2.data) newTasks.push(insertRes2.data);
-  }
+  // Build new tasks in parallel — only delete old ones after successful generation
+  const insertResults2 = await Promise.all(
+    weakTopics.map((topic, idx) => {
+      const avg = topic.accuracies.reduce((s, a) => s + a, 0) / Math.max(topic.accuracies.length, 1);
+      return supabase.from("study_tasks").insert({
+        user_id: userId,
+        title: capText(`Revise: ${topic.topicTitle}`, MAX.TITLE) ?? `Revise: ${topic.topicId.slice(0, 8)}`,
+        description: capText(`${topic.subjectTitle} › ${topic.chapterTitle} — Avg accuracy: ${Math.round(avg)}%. Redo DPP or Topic Test.`, MAX.DESCRIPTION),
+        target_type: "platform_subtopic", target_id: topic.topicId,
+        priority: Math.min(5, Math.round((60 - avg) / 10)), order_index: idx,
+        status: "pending", source: "auto",
+      }).select().single<Record<string, unknown>>();
+    })
+  );
+  const newTasks = insertResults2.flatMap(r => r.data ? [r.data] : []);
 
   // Only clear old auto-tasks after new ones are successfully inserted
   if (newTasks.length > 0) {

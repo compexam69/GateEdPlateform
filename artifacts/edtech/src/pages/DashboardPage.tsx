@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -74,16 +75,17 @@ export default function DashboardPage() {
   });
 
   // Merge internal + external into a combined chart timeline
-  const allDates = Array.from(new Set([
-    ...internalHistory.map(d => d.date),
-    ...externalHistory.map(d => d.date),
-  ])).sort();
-
-  const chartData = allDates.map(date => {
-    const internal = internalHistory.find(d => d.date === date)?.internal ?? null;
-    const external = externalHistory.find(d => d.date === date)?.external ?? null;
-    return { date, internal, external };
-  });
+  const chartData = useMemo(() => {
+    const allDates = Array.from(new Set([
+      ...internalHistory.map(d => d.date),
+      ...externalHistory.map(d => d.date),
+    ])).sort();
+    return allDates.map(date => {
+      const internal = internalHistory.find(d => d.date === date)?.internal ?? null;
+      const external = externalHistory.find(d => d.date === date)?.external ?? null;
+      return { date, internal, external };
+    });
+  }, [internalHistory, externalHistory]);
 
   const hasChart = chartData.length >= 1;
 
