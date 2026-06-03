@@ -1,3 +1,4 @@
+- [CSRF implementation](csrf-implementation.md) — double-submit cookie via csrf-csrf v3; session ID = JWT sub; token endpoint must receive auth header for consistent session ID
 - [Auth Role Source](auth-role-source.md) — role/is_approved must be read from profiles table, never from user_metadata (trigger only writes to profiles)
 - [B2 Account ID Auth](b2-account-id-auth.md) — use accountId from b2_authorize_account response in all subsequent B2 calls, not B2_ACCOUNT_ID env var
 - [API Route Hardening](api-route-hardening.md) — all input validation patterns used across routes: UUID, capText, sanitizeEnum, mass-assignment whitelist

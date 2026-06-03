@@ -7,9 +7,11 @@ export type ErrorType<T = unknown> = ApiError<T>;
 export type BodyType<T> = T;
 
 export type AuthTokenGetter = () => Promise<string | null> | string | null;
+export type CsrfTokenGetter = () => Promise<string | null> | string | null;
 
 const NO_BODY_STATUS = new Set([204, 205, 304]);
 const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 // ---------------------------------------------------------------------------
 // Module-level configuration
@@ -17,6 +19,7 @@ const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
 
 let _baseUrl: string | null = null;
 let _authTokenGetter: AuthTokenGetter | null = null;
+let _csrfTokenGetter: CsrfTokenGetter | null = null;
 
 /**
  * Set a base URL that is prepended to every relative request URL
@@ -42,6 +45,17 @@ export function setBaseUrl(url: string | null): void {
  */
 export function setAuthTokenGetter(getter: AuthTokenGetter | null): void {
   _authTokenGetter = getter;
+}
+
+/**
+ * Register a getter that supplies a CSRF token.  Before every non-safe
+ * (POST/PATCH/PUT/DELETE) fetch the getter is invoked; when it returns a
+ * non-null string, an `x-csrf-token` header is attached to the request.
+ *
+ * Pass `null` to clear the getter (e.g. during testing).
+ */
+export function setCsrfTokenGetter(getter: CsrfTokenGetter | null): void {
+  _csrfTokenGetter = getter;
 }
 
 function isRequest(input: RequestInfo | URL): input is Request {
@@ -355,6 +369,19 @@ export async function customFetch<T = unknown>(
     const token = await _authTokenGetter();
     if (token) {
       headers.set("authorization", `Bearer ${token}`);
+    }
+  }
+
+  // Attach CSRF token for state-mutating requests when a getter is configured.
+  if (_csrfTokenGetter && !SAFE_METHODS.has(method) && !headers.has("x-csrf-token")) {
+    try {
+      const csrfToken = await _csrfTokenGetter();
+      if (csrfToken) {
+        headers.set("x-csrf-token", csrfToken);
+      }
+    } catch {
+      // Best-effort: if the CSRF token fetch fails, proceed and let the
+      // server return 403 rather than silently swallowing the error here.
     }
   }
 

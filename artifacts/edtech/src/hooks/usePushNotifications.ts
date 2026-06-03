@@ -1,13 +1,21 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { getApiBase } from "@/lib/api";
+import { getCsrfToken } from "@/lib/csrf";
 
 async function apiFetch(path: string, opts: RequestInit = {}) {
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
+  let csrfToken = "";
+  try { csrfToken = await getCsrfToken(); } catch { /* best-effort */ }
   return fetch(`${getApiBase()}${path}`, {
     ...opts,
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}`, ...(opts.headers ?? {}) },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token ?? ""}`,
+      "x-csrf-token": csrfToken,
+      ...(opts.headers ?? {}),
+    },
   });
 }
 
