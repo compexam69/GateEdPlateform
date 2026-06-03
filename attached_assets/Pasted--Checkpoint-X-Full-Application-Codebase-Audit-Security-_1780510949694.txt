@@ -1,0 +1,431 @@
+🟢 Checkpoint X: Full Application Codebase Audit, Security Hardening, Bug Fixing, Cleanup & Production Stabilization
+
+Goal:
+
+Perform a comprehensive production-level audit of the entire application codebase, database architecture, security configuration, API layer, Content Editor modules, Quiz/Test systems, Notes/PDF modules, authentication flows, dashboard modules, and supporting infrastructure.
+
+The objective is to identify, document, and FIX ALL discovered issues wherever safely possible, including:
+
+• Dead code
+• Bugs
+• Logic errors
+• Security weaknesses
+• Vulnerabilities
+• Performance bottlenecks
+• Database inconsistencies
+• Unused modules
+• Permission issues
+• Responsive design issues
+• UI/UX inconsistencies
+• Technical debt
+
+while ensuring no existing functionality is broken.
+
+Important Requirement:
+
+This is NOT a reporting-only audit.
+
+Every issue discovered during the audit must be:
+
+1. Investigated
+2. Root cause identified
+3. Fixed
+4. Retested
+5. Verified
+
+Only issues that are genuinely unsafe to fix without business clarification may remain open, and these must be documented separately with clear justification.
+
+━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Full Application Audit
+   ━━━━━━━━━━━━━━━━━━━━━━━
+
+Analyze the entire application including:
+
+• Frontend
+• Backend
+• Database
+• APIs
+• Authentication
+• Authorization
+• Storage
+• Content Editor
+• Subject/Chapter/Topic hierarchy
+• Lecture system
+• Access Control system
+• Quiz/Test system
+• Question Editor
+• Notes/PDF system
+• Analytics
+• Notifications
+• User Management
+• Profile module
+• Focus Timer
+• Telegram integration
+• Dashboard modules
+• PWA functionality
+• Responsive layouts
+
+Identify every issue and fix all issues that can be safely remediated.
+
+━━━━━━━━━━━━━━━━━━━━━━━
+2. Dead Code Detection & Cleanup
+━━━━━━━━━━━━━━━━━━━━━━━
+
+Identify and remove:
+
+• Unused files
+• Unused components
+• Unused imports
+• Unused variables
+• Unused state variables
+• Unused hooks
+• Unused utility functions
+• Deprecated code paths
+• Legacy implementations
+• Orphaned modules
+• Unreachable code
+
+For every removal:
+
+• Verify no active functionality depends on it
+• Verify lazy-loaded modules remain intact
+• Verify dynamic imports remain intact
+
+Fix all confirmed dead code safely.
+
+━━━━━━━━━━━━━━━━━━━━━━━
+3. Bug Detection & Remediation
+━━━━━━━━━━━━━━━━━━━━━━━
+
+Identify and fix:
+
+• Runtime errors
+• Console errors
+• Undefined references
+• Async issues
+• Race conditions
+• State synchronization bugs
+• Navigation bugs
+• Form validation issues
+• CRUD failures
+• Import/export failures
+• Search issues
+• Notification issues
+• Mobile issues
+• Desktop issues
+• Responsive issues
+• Data consistency issues
+
+Every discovered bug must be fixed and retested.
+
+━━━━━━━━━━━━━━━━━━━━━━━
+4. Security Audit & Remediation
+━━━━━━━━━━━━━━━━━━━━━━━
+
+Review and fix:
+
+• Hardcoded secrets
+• Exposed API keys
+• XSS risks
+• Unsafe HTML rendering
+• Insecure localStorage usage
+• Weak authentication patterns
+• Missing authorization checks
+• Excessive permissions
+• Sensitive data exposure
+
+Verify:
+
+• No privilege escalation exists
+• No unauthorized access exists
+• No exposed secrets remain
+
+Fix all security issues discovered.
+
+━━━━━━━━━━━━━━━━━━━━━━━
+5. Vulnerability Assessment & Remediation
+━━━━━━━━━━━━━━━━━━━━━━━
+
+Identify and fix:
+
+• Missing input validation
+• SQL injection risks
+• RLS bypass opportunities
+• Broken access control
+• CSRF vulnerabilities
+• Open redirects
+• Insecure file uploads
+• Permission escalation paths
+
+Verify all discovered vulnerabilities are remediated.
+
+━━━━━━━━━━━━━━━━━━━━━━━
+6. Database & SQL Audit
+━━━━━━━━━━━━━━━━━━━━━━━
+
+Review:
+
+• Tables
+• Relationships
+• Foreign keys
+• Constraints
+• Indexes
+• Views
+• Triggers
+• Functions
+• RLS policies
+
+Identify and fix:
+
+• Broken relationships
+• Missing constraints
+• Missing indexes
+• Redundant columns
+• Unused tables
+• Data integrity issues
+
+If SQL changes are required:
+
+Provide separately:
+
+A. Migration SQL
+B. Rollback SQL
+C. RLS updates
+D. Index updates
+E. Constraint updates
+F. Cleanup scripts
+
+For each SQL change explain:
+
+• Why required
+• Risk level
+• Impact on existing data
+• Rollback strategy
+
+If SQL changes are not required:
+
+Explicitly state:
+
+"No SQL Editor changes are required."
+
+━━━━━━━━━━━━━━━━━━━━━━━
+7. Permission & Access Control Audit
+━━━━━━━━━━━━━━━━━━━━━━━
+
+Review and fix:
+
+• Subject permissions
+• Lecture permissions
+• Exam permissions
+• Content visibility
+• User permissions
+• Admin permissions
+• Super Admin permissions
+
+Verify:
+
+• Ownership validation
+• RLS enforcement
+• Access filtering
+• Role restrictions
+
+Fix all permission issues discovered.
+
+━━━━━━━━━━━━━━━━━━━━━━━
+8. API Audit & Remediation
+━━━━━━━━━━━━━━━━━━━━━━━
+
+Review all APIs.
+
+Verify:
+
+• Authorization exists
+• Validation exists
+• Error handling exists
+
+Fix:
+
+• Unsafe endpoints
+• Overexposed responses
+• Excessive payloads
+• Missing validation
+• Missing authorization
+
+━━━━━━━━━━━━━━━━━━━━━━━
+9. Performance Optimization
+━━━━━━━━━━━━━━━━━━━━━━━
+
+Identify and fix:
+
+• Memory leaks
+• Infinite renders
+• Excessive API calls
+• Expensive queries
+• Missing pagination
+• Redundant re-renders
+• Large bundle issues
+• Blocking operations
+• Unnecessary computations
+
+Optimize wherever safely possible.
+
+━━━━━━━━━━━━━━━━━━━━━━━
+10. Dependency Audit
+━━━━━━━━━━━━━━━━━━━━━━━
+
+Review:
+
+• package.json
+• Installed dependencies
+• Build dependencies
+
+Identify and fix:
+
+• Deprecated packages
+• Vulnerable packages
+• Unused packages
+• Duplicate libraries
+
+Update dependencies safely.
+
+━━━━━━━━━━━━━━━━━━━━━━━
+11. UI/UX & Responsive Audit
+━━━━━━━━━━━━━━━━━━━━━━━
+
+Review and fix:
+
+• Mobile responsiveness
+• Desktop responsiveness
+• Tablet responsiveness
+• Overflow issues
+• Modal issues
+• Alignment issues
+• Accessibility issues
+• Layout inconsistencies
+
+Verify all modules render correctly.
+
+━━━━━━━━━━━━━━━━━━━━━━━
+12. Preserve Existing Functionality
+━━━━━━━━━━━━━━━━━━━━━━━
+
+Ensure fixes do NOT break:
+
+• Authentication
+• Content Editor
+• Subject management
+• Chapter management
+• Topic management
+• Lecture management
+• Telegram integration
+• Quiz/Test system
+• Notes/PDF system
+• Notifications
+• User Management
+• Dashboard modules
+• Analytics
+• PWA functionality
+
+━━━━━━━━━━━━━━━━━━━━━━━
+13. Testing & Validation
+━━━━━━━━━━━━━━━━━━━━━━━
+
+After all fixes:
+
+Perform complete regression testing.
+
+Test:
+
+• Authentication flows
+• User registration/login
+• Role permissions
+• Subject access
+• Chapter access
+• Topic access
+• Lecture access
+• Exams
+• Notes
+• PDFs
+• Telegram links
+• Notifications
+• User Management
+• Profile module
+• Dashboard modules
+• Search
+• Imports
+• Exports
+• Mobile responsiveness
+• Desktop responsiveness
+• Tablet responsiveness
+• PWA mode
+
+Verify:
+
+• No regressions
+• No runtime errors
+• No console errors
+• No permission failures
+• No broken workflows
+
+━━━━━━━━━━━━━━━━━━━━━━━
+14. Required Output
+━━━━━━━━━━━━━━━━━━━━━━━
+
+Provide:
+
+1. Total issues found
+2. Total issues fixed
+3. Remaining issues (if any)
+4. Security issues fixed
+5. SQL changes required
+6. SQL scripts
+7. RLS updates
+8. Performance optimizations
+9. Dependencies updated
+10. Files modified
+11. Risk assessment
+12. Production readiness status
+
+━━━━━━━━━━━━━━━━━━━━━━━
+15. Mandatory Checkpoint Requirement
+━━━━━━━━━━━━━━━━━━━━━━━
+
+After ALL fixes, optimizations, validations, and testing are successfully completed:
+
+Create a checkpoint/commit immediately.
+
+Checkpoint Name:
+
+"Full Application Audit, Security Hardening, Bug Fixes & Production Stabilization"
+
+Provide final implementation summary including:
+
+• Files modified
+• Dead code removed
+• Bugs fixed
+• Security issues fixed
+• Vulnerabilities fixed
+• SQL changes
+• RLS changes
+• Performance improvements
+• Dependency updates
+• Responsive fixes
+• Remaining limitations (if any)
+
+Acceptance Criteria:
+
+[ ] All discovered bugs are fixed.
+[ ] All discovered security issues are fixed.
+[ ] All discovered vulnerabilities are fixed.
+[ ] All safe dead code is removed.
+[ ] Permission issues are fixed.
+[ ] API issues are fixed.
+[ ] Performance issues are optimized.
+[ ] Responsive issues are fixed.
+[ ] Dependency audit completed.
+[ ] Existing functionality remains intact.
+[ ] No critical issues remain unresolved.
+[ ] No console/runtime errors remain.
+[ ] Production readiness verified.
+[ ] Checkpoint/commit created after successful completion.
