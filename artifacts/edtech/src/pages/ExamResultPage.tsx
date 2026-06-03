@@ -9,7 +9,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis
 import { useQuery } from "@tanstack/react-query";
 import { getExamResult, getGetExamResultUrl } from "@workspace/api-client-react";
 import { Badge } from "@/components/ui/badge";
-import { useState, useMemo } from "react";
+import { useState } from "react";
 
 export default function ExamResultPage() {
   const { resultId } = useParams<{ resultId: string }>();
@@ -42,85 +42,65 @@ export default function ExamResultPage() {
     );
   }
 
-  // All derived values keyed to `result` — recomputes only when the API
-  // response changes, not on every answerFilter / tab state update.
-  const {
-    correct, incorrect, skipped,
-    score, totalMarks, accuracy, timeTakenMs, negativeMarks,
-    passed, scorePercent, timeTakenMin,
-    rank, percentile, totalAttempts,
-    pieData, answers,
-    slowest, fastest, avgTimeMs, timeDistData, withVideo,
-  } = useMemo(() => {
-    const _correct  = result.answers?.filter((a: unknown) => (a as { is_correct: boolean }).is_correct).length ?? 0;
-    const _incorrect = result.answers?.filter((a: unknown) => { const r = a as { is_correct: boolean; selected_option?: string | null }; return !r.is_correct && r.selected_option; }).length ?? 0;
-    const _skipped  = result.answers?.filter((a: unknown) => !(a as { selected_option?: string | null }).selected_option).length ?? 0;
-    const _score       = result.score ?? 0;
-    const _totalMarks  = result.total_marks ?? 1;
-    const _accuracy    = result.accuracy ?? 0;
-    const _timeTakenMs = result.time_taken_ms ?? 0;
-    const _negativeMarks = result.negative_marks_applied ?? 0;
-    const _passed      = (result as { passed?: boolean }).passed ?? (_accuracy >= 60);
-    const _scorePercent = Math.round((_score / _totalMarks) * 100);
-    const _timeTakenMin = Math.round(_timeTakenMs / 60000);
-    const _rank        = (result as { rank?: number }).rank;
-    const _percentile  = (result as { percentile?: number }).percentile;
-    const _totalAttempts = (result as { total_attempts?: number }).total_attempts ?? 0;
+  const correct = result.answers?.filter((a: unknown) => (a as { is_correct: boolean }).is_correct).length ?? 0;
+  const incorrect = result.answers?.filter((a: unknown) => { const r = a as { is_correct: boolean; selected_option?: string | null }; return !r.is_correct && r.selected_option; }).length ?? 0;
+  const skipped = result.answers?.filter((a: unknown) => !(a as { selected_option?: string | null }).selected_option).length ?? 0;
+  const score = result.score ?? 0;
+  const totalMarks = result.total_marks ?? 1;
+  const accuracy = result.accuracy ?? 0;
+  const timeTakenMs = result.time_taken_ms ?? 0;
+  const negativeMarks = result.negative_marks_applied ?? 0;
+  const passed = (result as { passed?: boolean }).passed ?? (accuracy >= 60);
+  const scorePercent = Math.round((score / totalMarks) * 100);
+  const timeTakenMin = Math.round(timeTakenMs / 60000);
+  const rank = (result as { rank?: number }).rank;
+  const percentile = (result as { percentile?: number }).percentile;
+  const totalAttempts = (result as { total_attempts?: number }).total_attempts ?? 0;
 
-    const _pieData = [
-      { name: "Correct",   value: _correct,   color: "hsl(var(--success))" },
-      { name: "Incorrect", value: _incorrect,  color: "hsl(var(--destructive))" },
-      { name: "Skipped",   value: _skipped,    color: "hsl(var(--muted-foreground))" },
-    ].filter(d => d.value > 0);
+  const pieData = [
+    { name: "Correct", value: correct, color: "hsl(var(--success))" },
+    { name: "Incorrect", value: incorrect, color: "hsl(var(--destructive))" },
+    { name: "Skipped", value: skipped, color: "hsl(var(--muted-foreground))" },
+  ].filter(d => d.value > 0);
 
-    const _answers = (result.answers ?? []) as Array<{
-      question_id: string;
-      selected_option: string | null;
+  const answers = (result.answers ?? []) as Array<{
+    question_id: string;
+    selected_option: string | null;
+    correct_answer?: string;
+    is_correct: boolean;
+    time_spent_ms?: number;
+    explanation?: string;
+    video_solution_url?: string;
+    qr_code_url?: string;
+    quiz_questions?: {
+      question_text?: string;
+      options?: Record<string, string>;
       correct_answer?: string;
-      is_correct: boolean;
-      time_spent_ms?: number;
       explanation?: string;
       video_solution_url?: string;
       qr_code_url?: string;
-      quiz_questions?: {
-        question_text?: string;
-        options?: Record<string, string>;
-        correct_answer?: string;
-        explanation?: string;
-        video_solution_url?: string;
-        qr_code_url?: string;
-      };
-    }>;
-
-    // Insights: time analysis
-    const withTime = _answers.filter(a => (a.time_spent_ms ?? 0) > 0);
-    const _slowest = [...withTime].sort((a, b) => (b.time_spent_ms ?? 0) - (a.time_spent_ms ?? 0)).slice(0, 3);
-    const _fastest = [...withTime].sort((a, b) => (a.time_spent_ms ?? 0) - (b.time_spent_ms ?? 0)).slice(0, 3);
-    const _avgTimeMs = withTime.length
-      ? withTime.reduce((s, a) => s + (a.time_spent_ms ?? 0), 0) / withTime.length
-      : 0;
-
-    // Time distribution bar chart
-    const _timeDistData = _answers.map((a, i) => ({
-      q: `Q${i + 1}`,
-      time: Math.round((a.time_spent_ms ?? 0) / 1000),
-      correct: a.is_correct,
-    }));
-
-    // Videos with links
-    const _withVideo = _answers.filter(a => !!(a.quiz_questions?.video_solution_url || a.video_solution_url));
-
-    return {
-      correct: _correct, incorrect: _incorrect, skipped: _skipped,
-      score: _score, totalMarks: _totalMarks, accuracy: _accuracy,
-      timeTakenMs: _timeTakenMs, negativeMarks: _negativeMarks,
-      passed: _passed, scorePercent: _scorePercent, timeTakenMin: _timeTakenMin,
-      rank: _rank, percentile: _percentile, totalAttempts: _totalAttempts,
-      pieData: _pieData, answers: _answers,
-      slowest: _slowest, fastest: _fastest, avgTimeMs: _avgTimeMs,
-      timeDistData: _timeDistData, withVideo: _withVideo,
     };
-  }, [result]);
+  }>;
+
+  // Insights: time analysis
+  const withTime = answers.filter(a => (a.time_spent_ms ?? 0) > 0);
+  const sorted = [...withTime].sort((a, b) => (b.time_spent_ms ?? 0) - (a.time_spent_ms ?? 0));
+  const slowest = sorted.slice(0, 3);
+  const fastest = [...withTime].sort((a, b) => (a.time_spent_ms ?? 0) - (b.time_spent_ms ?? 0)).slice(0, 3);
+  const avgTimeMs = withTime.length ? withTime.reduce((s, a) => s + (a.time_spent_ms ?? 0), 0) / withTime.length : 0;
+
+  // Time distribution bar chart
+  const timeDistData = answers.map((a, i) => ({
+    q: `Q${i + 1}`,
+    time: Math.round((a.time_spent_ms ?? 0) / 1000),
+    correct: a.is_correct,
+  }));
+
+  // Videos with links
+  const withVideo = answers.filter(a => {
+    const v = a.quiz_questions?.video_solution_url || a.video_solution_url;
+    return !!v;
+  });
 
   return (
     <AppLayout>
