@@ -2,6 +2,7 @@ import { Router } from "express";
 import { supabase } from "../lib/supabase";
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth";
 import { capText, isValidUuid, sanitizeEnum, MAX } from "../lib/sanitize";
+import { sendPushToAll } from "../lib/push";
 
 const ANNOUNCEMENT_TYPES = ["info", "warning", "success"] as const;
 
@@ -72,6 +73,15 @@ router.post("/admin/announcements", requireAdmin, async (req: AuthRequest, res) 
     .single();
 
   if (error) { res.status(500).json({ error: error.message }); return; }
+
+  // Fire-and-forget: push to all subscribed users without blocking the response
+  sendPushToAll({
+    title: `📢 ${data.title}`,
+    body: data.body,
+    url: "/dashboard",
+    tag: `announcement-${data.id}`,
+  }).catch((err: unknown) => console.error("[push] announcement broadcast failed", err));
+
   res.status(201).json(data);
 });
 
