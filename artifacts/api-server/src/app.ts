@@ -45,6 +45,10 @@ app.use(express.urlencoded({ extended: true }));
 app.use(doubleCsrfProtection);
 
 // Strict rate limits on sensitive write endpoints
+// CSRF token endpoint: 20 fetches per 15 min per IP. The SPA caches the token
+// for the lifetime of a session, so legitimate users hit this at most once per
+// login. Anything beyond that is either a misconfigured client or token farming.
+app.use("/api/csrf-token", rateLimit(20, 15 * 60_000));
 app.use("/api/auth/register", rateLimit(10, 3_600_000));
 app.use("/api/exam/submit", rateLimit(10, 60_000));
 app.use("/api/exam/start", rateLimit(20, 60_000));
