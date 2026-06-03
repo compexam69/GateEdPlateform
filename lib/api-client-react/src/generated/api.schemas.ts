@@ -667,6 +667,59 @@ export interface AdminStorageStats {
   top_users: StorageUser[];
 }
 
+export type AnnouncementType = typeof AnnouncementType[keyof typeof AnnouncementType];
+
+
+export const AnnouncementType = {
+  info: 'info',
+  warning: 'warning',
+  success: 'success',
+} as const;
+
+export interface Announcement {
+  id: string;
+  title: string;
+  body: string;
+  type: AnnouncementType;
+  is_active: boolean;
+  created_by?: string | null;
+  created_at: string;
+  expires_at?: string | null;
+}
+
+export type AnnouncementInputType = typeof AnnouncementInputType[keyof typeof AnnouncementInputType];
+
+
+export const AnnouncementInputType = {
+  info: 'info',
+  warning: 'warning',
+  success: 'success',
+} as const;
+
+export interface AnnouncementInput {
+  title: string;
+  body: string;
+  type?: AnnouncementInputType;
+  expires_at?: string | null;
+}
+
+export type AnnouncementUpdateType = typeof AnnouncementUpdateType[keyof typeof AnnouncementUpdateType];
+
+
+export const AnnouncementUpdateType = {
+  info: 'info',
+  warning: 'warning',
+  success: 'success',
+} as const;
+
+export interface AnnouncementUpdate {
+  title?: string;
+  body?: string;
+  type?: AnnouncementUpdateType;
+  is_active?: boolean;
+  expires_at?: string | null;
+}
+
 export type SearchResultType = typeof SearchResultType[keyof typeof SearchResultType];
 
 

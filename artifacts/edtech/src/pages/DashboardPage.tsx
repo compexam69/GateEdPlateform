@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -114,6 +115,7 @@ export default function DashboardPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
+        <AnnouncementBanner />
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
             Welcome back, {user?.user_metadata?.full_name?.split(" ")[0] || "Student"}

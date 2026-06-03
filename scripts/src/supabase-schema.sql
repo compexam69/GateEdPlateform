@@ -1013,3 +1013,43 @@ create policy "notifications_delete" on notifications
 --   quizzes               → topic_id references topics(id) ON DELETE CASCADE
 --   user_topic_progress   → topic_id references topics(id) ON DELETE CASCADE
 -- ============================================================
+
+-- ============================================================
+-- SECTION 27: Platform Announcements
+-- Run in Supabase SQL Editor after Section 26.
+-- Safe to re-run (all statements are idempotent).
+-- ============================================================
+
+-- 1. Create announcements table
+create table if not exists public.announcements (
+  id          uuid primary key default gen_random_uuid(),
+  title       text not null,
+  body        text not null,
+  type        text not null default 'info'
+                check (type in ('info', 'warning', 'success')),
+  is_active   boolean not null default true,
+  created_by  uuid references auth.users(id) on delete set null,
+  created_at  timestamptz not null default now(),
+  expires_at  timestamptz
+);
+
+-- 2. Enable RLS
+alter table public.announcements enable row level security;
+
+-- 3. Any authenticated user can read announcements
+--    (active filtering is handled in the API layer)
+drop policy if exists "announcements_read" on public.announcements;
+create policy "announcements_read" on public.announcements
+  for select using (auth.role() = 'authenticated');
+
+-- 4. Writes go through the service-role API (bypasses RLS)
+--    No insert/update/delete policies needed.
+
+-- 5. Index for fast active-announcement queries
+create index if not exists idx_announcements_is_active
+  on public.announcements(is_active, created_at desc);
+
+-- ============================================================
+-- SECTION 27 ROLLBACK (keep commented unless needed):
+-- ============================================================
+-- drop table if exists public.announcements;

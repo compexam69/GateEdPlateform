@@ -915,3 +915,87 @@ export const AdminGetStorageStatsResponse = zod.object({
 })
 
 
+/**
+ * @summary Get active announcements (authenticated users)
+ */
+export const GetActiveAnnouncementsResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "title": zod.string(),
+  "body": zod.string(),
+  "type": zod.enum(['info', 'warning', 'success']),
+  "is_active": zod.boolean(),
+  "created_by": zod.string().uuid().nullish(),
+  "created_at": zod.coerce.date(),
+  "expires_at": zod.coerce.date().nullish()
+})
+export const GetActiveAnnouncementsResponse = zod.array(GetActiveAnnouncementsResponseItem)
+
+
+/**
+ * @summary List all announcements (admin only)
+ */
+export const AdminListAnnouncementsResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "title": zod.string(),
+  "body": zod.string(),
+  "type": zod.enum(['info', 'warning', 'success']),
+  "is_active": zod.boolean(),
+  "created_by": zod.string().uuid().nullish(),
+  "created_at": zod.coerce.date(),
+  "expires_at": zod.coerce.date().nullish()
+})
+export const AdminListAnnouncementsResponse = zod.array(AdminListAnnouncementsResponseItem)
+
+
+/**
+ * @summary Create an announcement (admin only)
+ */
+export const adminCreateAnnouncementBodyTypeDefault = `info`;
+
+export const AdminCreateAnnouncementBody = zod.object({
+  "title": zod.string(),
+  "body": zod.string(),
+  "type": zod.enum(['info', 'warning', 'success']).default(adminCreateAnnouncementBodyTypeDefault),
+  "expires_at": zod.coerce.date().nullish()
+})
+
+
+/**
+ * @summary Update an announcement (admin only)
+ */
+export const AdminUpdateAnnouncementParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const AdminUpdateAnnouncementBody = zod.object({
+  "title": zod.string().optional(),
+  "body": zod.string().optional(),
+  "type": zod.enum(['info', 'warning', 'success']).optional(),
+  "is_active": zod.boolean().optional(),
+  "expires_at": zod.coerce.date().nullish()
+})
+
+export const AdminUpdateAnnouncementResponse = zod.object({
+  "id": zod.string().uuid(),
+  "title": zod.string(),
+  "body": zod.string(),
+  "type": zod.enum(['info', 'warning', 'success']),
+  "is_active": zod.boolean(),
+  "created_by": zod.string().uuid().nullish(),
+  "created_at": zod.coerce.date(),
+  "expires_at": zod.coerce.date().nullish()
+})
+
+
+/**
+ * @summary Delete an announcement (admin only)
+ */
+export const AdminDeleteAnnouncementParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const AdminDeleteAnnouncementResponse = zod.object({
+  "message": zod.string()
+})
+
+

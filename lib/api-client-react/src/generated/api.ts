@@ -23,6 +23,9 @@ import type {
   AdminAnalytics,
   AdminStorageStats,
   AdminUpdateProfileInput,
+  Announcement,
+  AnnouncementInput,
+  AnnouncementUpdate,
   BulkImportResult,
   BulkQuestionsInput,
   Chapter,
@@ -4052,4 +4055,371 @@ export function useAdminGetStorageStats<TData = Awaited<ReturnType<typeof adminG
 
 
 
+
+export const getGetActiveAnnouncementsUrl = () => {
+
+
+
+
+  return `/api/announcements/active`
+}
+
+/**
+ * @summary Get active announcements (authenticated users)
+ */
+export const getActiveAnnouncements = async ( options?: RequestInit): Promise<Announcement[]> => {
+
+  return customFetch<Announcement[]>(getGetActiveAnnouncementsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetActiveAnnouncementsQueryKey = () => {
+    return [
+    `/api/announcements/active`
+    ] as const;
+    }
+
+
+export const getGetActiveAnnouncementsQueryOptions = <TData = Awaited<ReturnType<typeof getActiveAnnouncements>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getActiveAnnouncements>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetActiveAnnouncementsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getActiveAnnouncements>>> = ({ signal }) => getActiveAnnouncements({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getActiveAnnouncements>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetActiveAnnouncementsQueryResult = NonNullable<Awaited<ReturnType<typeof getActiveAnnouncements>>>
+export type GetActiveAnnouncementsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get active announcements (authenticated users)
+ */
+
+export function useGetActiveAnnouncements<TData = Awaited<ReturnType<typeof getActiveAnnouncements>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getActiveAnnouncements>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetActiveAnnouncementsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getAdminListAnnouncementsUrl = () => {
+
+
+
+
+  return `/api/admin/announcements`
+}
+
+/**
+ * @summary List all announcements (admin only)
+ */
+export const adminListAnnouncements = async ( options?: RequestInit): Promise<Announcement[]> => {
+
+  return customFetch<Announcement[]>(getAdminListAnnouncementsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminListAnnouncementsQueryKey = () => {
+    return [
+    `/api/admin/announcements`
+    ] as const;
+    }
+
+
+export const getAdminListAnnouncementsQueryOptions = <TData = Awaited<ReturnType<typeof adminListAnnouncements>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListAnnouncements>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminListAnnouncementsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminListAnnouncements>>> = ({ signal }) => adminListAnnouncements({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminListAnnouncements>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdminListAnnouncementsQueryResult = NonNullable<Awaited<ReturnType<typeof adminListAnnouncements>>>
+export type AdminListAnnouncementsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List all announcements (admin only)
+ */
+
+export function useAdminListAnnouncements<TData = Awaited<ReturnType<typeof adminListAnnouncements>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminListAnnouncements>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdminListAnnouncementsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getAdminCreateAnnouncementUrl = () => {
+
+
+
+
+  return `/api/admin/announcements`
+}
+
+/**
+ * @summary Create an announcement (admin only)
+ */
+export const adminCreateAnnouncement = async (announcementInput: AnnouncementInput, options?: RequestInit): Promise<Announcement> => {
+
+  return customFetch<Announcement>(getAdminCreateAnnouncementUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      announcementInput,)
+  }
+);}
+
+
+
+
+export const getAdminCreateAnnouncementMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminCreateAnnouncement>>, TError,{data: BodyType<AnnouncementInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminCreateAnnouncement>>, TError,{data: BodyType<AnnouncementInput>}, TContext> => {
+
+const mutationKey = ['adminCreateAnnouncement'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminCreateAnnouncement>>, {data: BodyType<AnnouncementInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  adminCreateAnnouncement(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminCreateAnnouncementMutationResult = NonNullable<Awaited<ReturnType<typeof adminCreateAnnouncement>>>
+    export type AdminCreateAnnouncementMutationBody = BodyType<AnnouncementInput>
+    export type AdminCreateAnnouncementMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create an announcement (admin only)
+ */
+export const useAdminCreateAnnouncement = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminCreateAnnouncement>>, TError,{data: BodyType<AnnouncementInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminCreateAnnouncement>>,
+        TError,
+        {data: BodyType<AnnouncementInput>},
+        TContext
+      > => {
+      return useMutation(getAdminCreateAnnouncementMutationOptions(options));
+    }
+
+export const getAdminUpdateAnnouncementUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/announcements/${id}`
+}
+
+/**
+ * @summary Update an announcement (admin only)
+ */
+export const adminUpdateAnnouncement = async (id: string,
+    announcementUpdate: AnnouncementUpdate, options?: RequestInit): Promise<Announcement> => {
+
+  return customFetch<Announcement>(getAdminUpdateAnnouncementUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      announcementUpdate,)
+  }
+);}
+
+
+
+
+export const getAdminUpdateAnnouncementMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUpdateAnnouncement>>, TError,{id: string;data: BodyType<AnnouncementUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminUpdateAnnouncement>>, TError,{id: string;data: BodyType<AnnouncementUpdate>}, TContext> => {
+
+const mutationKey = ['adminUpdateAnnouncement'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminUpdateAnnouncement>>, {id: string;data: BodyType<AnnouncementUpdate>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  adminUpdateAnnouncement(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminUpdateAnnouncementMutationResult = NonNullable<Awaited<ReturnType<typeof adminUpdateAnnouncement>>>
+    export type AdminUpdateAnnouncementMutationBody = BodyType<AnnouncementUpdate>
+    export type AdminUpdateAnnouncementMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update an announcement (admin only)
+ */
+export const useAdminUpdateAnnouncement = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUpdateAnnouncement>>, TError,{id: string;data: BodyType<AnnouncementUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminUpdateAnnouncement>>,
+        TError,
+        {id: string;data: BodyType<AnnouncementUpdate>},
+        TContext
+      > => {
+      return useMutation(getAdminUpdateAnnouncementMutationOptions(options));
+    }
+
+export const getAdminDeleteAnnouncementUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/announcements/${id}`
+}
+
+/**
+ * @summary Delete an announcement (admin only)
+ */
+export const adminDeleteAnnouncement = async (id: string, options?: RequestInit): Promise<MessageResponse> => {
+
+  return customFetch<MessageResponse>(getAdminDeleteAnnouncementUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getAdminDeleteAnnouncementMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminDeleteAnnouncement>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminDeleteAnnouncement>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['adminDeleteAnnouncement'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminDeleteAnnouncement>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  adminDeleteAnnouncement(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminDeleteAnnouncementMutationResult = NonNullable<Awaited<ReturnType<typeof adminDeleteAnnouncement>>>
+
+    export type AdminDeleteAnnouncementMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete an announcement (admin only)
+ */
+export const useAdminDeleteAnnouncement = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminDeleteAnnouncement>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminDeleteAnnouncement>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getAdminDeleteAnnouncementMutationOptions(options));
+    }
 
