@@ -2,6 +2,7 @@ import { Router } from "express";
 import { supabase } from "../lib/supabase";
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth";
 import { isValidUuid, capText, MAX } from "../lib/sanitize";
+import { subjectsCache } from "../lib/cache";
 
 const router = Router();
 
@@ -52,6 +53,14 @@ function subjectIsVisible(
 router.get("/subjects", requireAuth, async (req: AuthRequest, res) => {
   const role = req.user!.role;
   const userId = req.user!.id;
+  const cacheKey = `list:${userId}`;
+
+  // ── Cache read ──────────────────────────────────────────────────────────
+  const cached = subjectsCache.get(cacheKey);
+  if (cached !== undefined) {
+    res.json(cached);
+    return;
+  }
 
   let query = supabase
     .from("subjects")
@@ -84,6 +93,10 @@ router.get("/subjects", requireAuth, async (req: AuthRequest, res) => {
 
   const { data, error } = await query;
   if (error) { res.status(500).json({ error: error.message }); return; }
+
+  // ── Cache write ─────────────────────────────────────────────────────────
+  subjectsCache.set(cacheKey, data);
+
   res.json(data);
 });
 
@@ -122,6 +135,10 @@ router.post("/subjects", requireAdmin, async (req: AuthRequest, res) => {
     .select()
     .single();
   if (error) { res.status(500).json({ error: error.message }); return; }
+
+  // Bust every user's subjects list — a new subject is visible to all matching roles
+  subjectsCache.deleteByPrefix("list:");
+
   res.status(201).json(data);
 });
 
@@ -132,6 +149,14 @@ router.get("/subjects/:subjectId", requireAuth, async (req: AuthRequest, res) =>
 
   const role = req.user!.role;
   const userId = req.user!.id;
+  const cacheKey = `item:${subjectId}:${userId}`;
+
+  // ── Cache read ──────────────────────────────────────────────────────────
+  const cached = subjectsCache.get(cacheKey);
+  if (cached !== undefined) {
+    res.json(cached);
+    return;
+  }
 
   const { data, error } = await supabase
     .from("subjects")
@@ -155,6 +180,10 @@ router.get("/subjects/:subjectId", requireAuth, async (req: AuthRequest, res) =>
   }
 
   if (!allowed) { res.status(403).json({ error: "Forbidden" }); return; }
+
+  // ── Cache write ─────────────────────────────────────────────────────────
+  subjectsCache.set(cacheKey, data);
+
   res.json(data);
 });
 
@@ -223,6 +252,10 @@ router.patch("/subjects/:subjectId", requireAdmin, async (req: AuthRequest, res)
     });
   }
 
+  // Bust all list caches (visibility may have changed) and the specific item cache
+  subjectsCache.deleteByPrefix("list:");
+  subjectsCache.deleteByPrefix(`item:${subjectId}:`);
+
   res.json(data);
 });
 
@@ -259,6 +292,11 @@ router.delete("/subjects/:subjectId", requireAdmin, async (req: AuthRequest, res
     .delete()
     .eq("id", subjectId);
   if (error) { res.status(500).json({ error: error.message }); return; }
+
+  // Bust all list caches and the deleted item's caches
+  subjectsCache.deleteByPrefix("list:");
+  subjectsCache.deleteByPrefix(`item:${subjectId}:`);
+
   res.json({ message: "Deleted" });
 });
 

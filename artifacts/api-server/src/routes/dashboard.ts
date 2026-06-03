@@ -1,11 +1,20 @@
 import { Router } from "express";
 import { supabase } from "../lib/supabase";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
+import { dashboardCache } from "../lib/cache";
 
 const router = Router();
 
 router.get("/dashboard/summary", requireAuth, async (req: AuthRequest, res) => {
   const userId = req.user!.id;
+  const cacheKey = `dashboard:${userId}`;
+
+  // ── Cache read ────────────────────────────────────────────────────────────
+  const cached = dashboardCache.get(cacheKey);
+  if (cached !== undefined) {
+    res.json(cached);
+    return;
+  }
 
   const [subjectsRes, topicsRes, topicProgressRes, tasksRes, attemptsRes, pomodoroRes] = await Promise.all([
     supabase.from("subjects").select("id, title").eq("is_active", true),
@@ -82,7 +91,7 @@ router.get("/dashboard/summary", requireAuth, async (req: AuthRequest, res) => {
     ? Math.round((recentAttempt.score / Math.max(recentAttempt.total_marks, 1)) * 100)
     : null;
 
-  res.json({
+  const payload = {
     focus_streak_days: focusStreak,
     focus_time_today_minutes: Math.floor(todayPomodoro / 60),
     total_topics_complete: completedTopicIds.size,
@@ -90,7 +99,12 @@ router.get("/dashboard/summary", requireAuth, async (req: AuthRequest, res) => {
     pending_tasks: tasksRes.data?.length ?? 0,
     recent_exam_score: recentScore,
     subjects_progress: subjectsProgress,
-  });
+  };
+
+  // ── Cache write ───────────────────────────────────────────────────────────
+  dashboardCache.set(cacheKey, payload);
+
+  res.json(payload);
 });
 
 export default router;

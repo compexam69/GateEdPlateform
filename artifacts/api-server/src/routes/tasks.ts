@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
 import { createNotification } from "./notifications";
 import { sendPushToUser } from "../lib/push";
+import { dashboardCache } from "../lib/cache";
 import { capText, isValidUuid, MAX } from "../lib/sanitize";
 
 const router = Router();
@@ -63,6 +64,10 @@ router.post("/tasks", requireAuth, async (req: AuthRequest, res) => {
     .select()
     .single();
   if (error) { res.status(500).json({ error: error.message }); return; }
+
+  // Bust dashboard cache — pending task count has changed
+  dashboardCache.delete(`dashboard:${req.user!.id}`);
+
   res.status(201).json(data);
 });
 
@@ -116,6 +121,10 @@ router.patch("/tasks/:taskId", requireAuth, async (req: AuthRequest, res) => {
     .single();
   if (error) { res.status(500).json({ error: error.message }); return; }
   if (!data) { res.status(404).json({ error: "Task not found" }); return; }
+
+  // Bust dashboard cache — task status / pending count may have changed
+  dashboardCache.delete(`dashboard:${req.user!.id}`);
+
   res.json(data);
 });
 
@@ -129,6 +138,10 @@ router.delete("/tasks/:taskId", requireAuth, async (req: AuthRequest, res) => {
     .eq("id", taskId)
     .eq("user_id", req.user!.id);
   if (error) { res.status(500).json({ error: error.message }); return; }
+
+  // Bust dashboard cache — pending task count has changed
+  dashboardCache.delete(`dashboard:${req.user!.id}`);
+
   res.json({ message: "Deleted" });
 });
 

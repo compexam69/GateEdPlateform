@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
 import { sendPushToUser } from "../lib/push";
 import { capText } from "../lib/sanitize";
+import { dashboardCache } from "../lib/cache";
 
 const router = Router();
 
@@ -47,6 +48,9 @@ router.post("/pomodoro/sessions", requireAuth, async (req: AuthRequest, res) => 
     .select()
     .single();
   if (error) { res.status(500).json({ error: error.message }); return; }
+
+  // Bust dashboard cache — focus time and streak have changed
+  dashboardCache.delete(`dashboard:${userId}`);
 
   // ── Streak-break alert (best-effort, fire-and-forget) ──────────────────────
   void (async () => {
