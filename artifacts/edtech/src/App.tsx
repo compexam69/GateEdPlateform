@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
 import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
+import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import OnboardingPage from "@/pages/OnboardingPage";
 import PendingApprovalPage from "@/pages/PendingApprovalPage";
 import DashboardPage from "@/pages/DashboardPage";
@@ -59,6 +60,7 @@ function Router() {
       <Route path="/login" component={LoginPage} />
       <Route path="/register" component={RegisterPage} />
       <Route path="/forgot-password" component={ForgotPasswordPage} />
+      <Route path="/reset-password" component={ResetPasswordPage} />
       <Route path="/pending-approval" component={PendingApprovalPage} />
       
       <Route path="/dashboard"><ProtectedRoute><DashboardPage /></ProtectedRoute></Route>
