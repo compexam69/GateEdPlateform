@@ -1,0 +1,398 @@
+🟢 Checkpoint X: Global Theme System (Dark/Light Mode + Ebony, Carbon & Monokai Themes)
+
+Goal:
+
+Implement a fully production-ready global theme system that adds:
+
+• Dark/Light mode toggle
+• Multiple selectable themes:
+• Ebony
+• Carbon
+• Monokai
+
+The theme system must persist user preferences in BOTH:
+
+• localStorage
+• Supabase profile data
+
+so that the selected theme remains synchronized across:
+
+• Page refreshes
+• Logout/login cycles
+• Different devices
+• Multiple sessions
+
+The implementation must provide a clean, responsive, visually polished, and consistent UI/UX across the entire application.
+
+━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Analyze Existing Theme & Styling Architecture
+   ━━━━━━━━━━━━━━━━━━━━━━━
+
+Review and analyze:
+
+• Existing global styles
+• Tailwind configuration
+• CSS variables
+• Theme providers/context
+• Layout wrappers
+• Profile module
+• Dashboard modules
+• Authentication pages
+• Content Editor
+• Quiz/Test modules
+• Notes/PDF modules
+• Notification system
+• Existing dark mode implementation (if any)
+• localStorage usage
+• Supabase profile schema
+
+Identify:
+
+• Current color system
+• Existing theme state management
+• Styling conflicts
+• Components not theme-compatible
+• Hardcoded colors
+• Areas requiring refactor
+
+━━━━━━━━━━━━━━━━━━━━━━━
+2. Implement Global Theme System
+━━━━━━━━━━━━━━━━━━━━━━━
+
+Create a centralized theme management system supporting:
+
+• Light Mode
+• Dark Mode
+• Ebony Theme
+• Carbon Theme
+• Monokai Theme
+
+Ensure:
+
+• Theme switching applies instantly
+• Entire application updates consistently
+• No page refresh required
+• Theme state is globally synchronized
+
+Prevent:
+
+• Flash of incorrect theme (FOUC)
+• Partial theme updates
+• Inconsistent component styling
+• Theme flickering during load
+
+━━━━━━━━━━━━━━━━━━━━━━━
+3. Implement Theme Persistence
+━━━━━━━━━━━━━━━━━━━━━━━
+
+Persist selected theme in BOTH:
+
+A. localStorage
+B. Supabase profile data
+
+Ensure:
+
+• Theme persists after refresh
+• Theme persists after logout/login
+• Theme syncs across devices
+• Theme restores immediately on app load
+
+Implement synchronization logic:
+
+• localStorage acts as immediate cache
+• Supabase acts as persistent cross-device storage
+
+Handle:
+
+• Missing profile theme
+• Invalid theme values
+• Offline mode
+• Sync conflicts
+• Failed Supabase updates
+
+━━━━━━━━━━━━━━━━━━━━━━━
+4. Supabase Database & SQL Requirements
+━━━━━━━━━━━━━━━━━━━━━━━
+
+Analyze whether the profiles table already supports theme storage.
+
+If NOT:
+
+Create required SQL migration.
+
+Recommended column:
+
+• theme_preference TEXT
+
+Allowed values:
+
+• light
+• dark
+• ebony
+• carbon
+• monokai
+
+Provide:
+
+A. SQL migration script
+B. Rollback SQL
+C. RLS policy updates if required
+
+Example requirements:
+
+• Users can update ONLY their own theme preference
+• Theme preference must NOT expose other user data
+
+Explicitly explain:
+
+• Where to run SQL
+• Whether existing users are affected
+• Whether backfill/default values are required
+
+If SQL changes are NOT required:
+
+Explicitly state:
+
+"No SQL Editor changes are required."
+
+━━━━━━━━━━━━━━━━━━━━━━━
+5. Create Theme Selector UI
+━━━━━━━━━━━━━━━━━━━━━━━
+
+Add a visually polished theme selector inside the Profile page/settings.
+
+Requirements:
+
+• Theme cards/buttons for:
+• Light
+• Dark
+• Ebony
+• Carbon
+• Monokai
+
+Ensure:
+
+• Clean professional design
+• Instant preview/application
+• Responsive layout
+• Touch-friendly interaction
+• Active theme clearly highlighted
+• Smooth transitions/animations
+
+Prevent:
+
+• Overflow issues
+• Misaligned theme cards
+• Broken mobile layouts
+• Excessive spacing
+
+━━━━━━━━━━━━━━━━━━━━━━━
+6. Mobile-First Responsive Design
+━━━━━━━━━━━━━━━━━━━━━━━
+
+Ensure the theme selector is optimized for:
+
+• Mobile browsers
+• Tablets
+• Desktop browsers
+• Installed PWA mode
+
+On mobile:
+
+• Theme cards/buttons must fit properly
+• No horizontal scrolling
+• Proper touch spacing
+• Compact but readable layout
+
+On desktop:
+
+• Balanced spacing
+• Professional alignment
+• Efficient use of screen width
+
+━━━━━━━━━━━━━━━━━━━━━━━
+7. Apply Themes Across Entire Application
+━━━━━━━━━━━━━━━━━━━━━━━
+
+Ensure ALL modules correctly support theme changes:
+
+• Dashboard
+• Content Editor
+• Quiz/Test Editor
+• User Management
+• Notes/PDF Viewer
+• Notifications
+• Profile module
+• Focus Timer
+• Navigation bars
+• Sidebars
+• Modals
+• Dropdowns
+• Inputs
+• Tables
+• Cards
+• Toasts
+• Dialogs
+
+Fix all styling inconsistencies.
+
+Prevent:
+
+• Unreadable text
+• Low contrast issues
+• Unstyled components
+• Mixed themes
+• White flashes in dark mode
+
+━━━━━━━━━━━━━━━━━━━━━━━
+8. Accessibility & UX Validation
+━━━━━━━━━━━━━━━━━━━━━━━
+
+Ensure:
+
+• Sufficient contrast ratios
+• Readable typography
+• Accessible focus states
+• Keyboard accessibility
+• Smooth transitions
+• Consistent visual hierarchy
+
+Verify themes remain:
+
+• Comfortable for long usage
+• Visually balanced
+• Accessible in both dark and light environments
+
+━━━━━━━━━━━━━━━━━━━━━━━
+9. Error Handling & Edge Cases
+━━━━━━━━━━━━━━━━━━━━━━━
+
+Handle:
+
+• Corrupted localStorage theme data
+• Missing Supabase theme values
+• Failed theme sync
+• Slow network conditions
+• Invalid theme selection
+• Theme provider initialization failures
+
+Ensure:
+
+• Safe fallback theme exists
+• UI never breaks
+• App remains usable under failure conditions
+
+━━━━━━━━━━━━━━━━━━━━━━━
+10. Performance Optimization
+━━━━━━━━━━━━━━━━━━━━━━━
+
+Ensure:
+
+• Minimal unnecessary re-renders
+• Efficient theme state updates
+• No layout thrashing
+• Fast theme switching
+• Optimized CSS variable usage
+• Efficient hydration in PWA mode
+
+Prevent:
+
+• Performance degradation
+• Flickering
+• Memory leaks
+
+━━━━━━━━━━━━━━━━━━━━━━━
+11. Preserve Existing Functionality
+━━━━━━━━━━━━━━━━━━━━━━━
+
+Ensure the implementation does NOT break:
+
+• Authentication
+• Dashboard functionality
+• Role-based access
+• Content Editor
+• Quiz/Test systems
+• Notifications
+• PWA functionality
+• Existing responsive layouts
+• Existing Profile module logic
+
+━━━━━━━━━━━━━━━━━━━━━━━
+12. Testing & Validation
+━━━━━━━━━━━━━━━━━━━━━━━
+
+Test thoroughly on:
+
+• Mobile devices
+• Tablets
+• Desktop browsers
+• Installed PWA mode
+
+Verify:
+
+• Theme switching works instantly
+• Themes persist after refresh
+• Themes persist after logout/login
+• Cross-device sync works correctly
+• Active theme highlighting works
+• All components theme correctly
+• No overflow or layout issues occur
+• No console/runtime errors exist
+
+Test scenarios:
+
+• User changes theme offline
+• User logs in from another device
+• Invalid localStorage data
+• Supabase sync failure
+• Slow network conditions
+
+━━━━━━━━━━━━━━━━━━━━━━━
+13. Final Verification Requirements
+━━━━━━━━━━━━━━━━━━━━━━━
+
+After implementation:
+
+Provide:
+
+• Files modified
+• Theme architecture overview
+• Theme synchronization logic
+• SQL changes required
+• RLS changes required
+• Components updated
+• Responsive improvements
+• Remaining limitations/issues (if any)
+
+━━━━━━━━━━━━━━━━━━━━━━━
+14. Mandatory Checkpoint Requirement
+━━━━━━━━━━━━━━━━━━━━━━━
+
+After successful implementation, testing, optimization, and validation:
+
+Create a checkpoint/commit immediately.
+
+Checkpoint Name:
+
+"Global Theme System, Dark/Light Mode & Multi-Theme Support"
+
+━━━━━━━━━━━━━━━━━━━━━━━
+Acceptance Criteria
+━━━━━━━━━━━━━━━━━━━━━━━
+
+[ ] Dark/Light mode toggle implemented successfully.
+[ ] Ebony theme implemented successfully.
+[ ] Carbon theme implemented successfully.
+[ ] Monokai theme implemented successfully.
+[ ] Theme preference persists in localStorage.
+[ ] Theme preference persists in Supabase profile data.
+[ ] Theme syncs across sessions and devices.
+[ ] Themes apply instantly across the application.
+[ ] Active theme is clearly highlighted.
+[ ] Theme selector is responsive on mobile and desktop.
+[ ] No overflow or responsive issues occur.
+[ ] No inconsistent styling remains.
+[ ] Existing functionality remains unaffected.
+[ ] No console/runtime errors occur.
+[ ] Checkpoint/commit created after successful completion.

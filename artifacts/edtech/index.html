@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en" class="dark" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
@@ -31,7 +31,8 @@
       Directive notes:
       - script-src: no 'unsafe-inline'; sha256 hashes cover the two inline
         scripts injected by @replit/vite-plugin-runtime-error-modal in dev
-        (harmless no-ops in prod where the scripts are absent).
+        (harmless no-ops in prod where the scripts are absent), plus the
+        FOUC-prevention theme script below.
       - style-src: 'unsafe-inline' is required — Framer Motion writes animation
         transforms to element.style at runtime.
       - connect-src: Supabase REST + Realtime WSS; *.backblazeb2.com covers
@@ -44,7 +45,8 @@
         'sha256-L7SfyzTM3npW90hLyjdsYsxVh+bDBqSHkvhPRa2jshQ='
         'sha256-6zo87Fg0XqbKOP1XEwHCmVJ4yfWii/6FiRQsK0hr2d8='
         'sha256-/sitxIYv8ojX1g/MlPBtW5TQExZ+/gm33T4WHn7Vx34='
-        'sha256-Z2/iFzh9VMlVkEOar1f/oSHWwQk3ve1qk/C2WdsC4Xk=';
+        'sha256-Z2/iFzh9VMlVkEOar1f/oSHWwQk3ve1qk/C2WdsC4Xk='
+        'sha256-Ry8YuaZuNFEaS82mzCSHLwCgZlT1QT5yJKFFJIktWvc=';
       style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
       font-src 'self' https://fonts.gstatic.com data:;
       img-src 'self' data: blob: https://*.supabase.co https://*.backblazeb2.com;
@@ -63,6 +65,12 @@
     ">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+    <!--
+      FOUC Prevention: apply stored theme before first paint.
+      Hash: sha256-Ry8YuaZuNFEaS82mzCSHLwCgZlT1QT5yJKFFJIktWvc=
+      This script must match the hash above exactly (whitespace included).
+    -->
+    <script>(function(){try{var t=localStorage.getItem("edtech-theme");var v=["light","dark","ebony","carbon","monokai"];if(!t||!v.includes(t))t="dark";var h=document.documentElement;h.setAttribute("data-theme",t);if(t!=="light")h.classList.add("dark");else h.classList.remove("dark");}catch(e){}})();</script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">

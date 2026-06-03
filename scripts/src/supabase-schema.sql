@@ -41,18 +41,37 @@ exception when duplicate_object then null; end $$;
 -- ── 3. profiles ───────────────────────────────────────────────────────────────
 -- Linked 1-to-1 with auth.users via Supabase Auth trigger below.
 create table if not exists profiles (
-  id             uuid        primary key references auth.users(id) on delete cascade,
-  full_name      text        not null,
-  mobile_number  text,
-  email          text,
-  role           user_role   not null default 'student',
-  is_approved    boolean     not null default false,
-  status         user_status not null default 'pending_approval',
-  email_verified boolean     not null default false,
-  avatar_url     text,                          -- Supabase Storage path: "<userId>/photo.jpg"
-  created_at     timestamptz not null default now(),
-  updated_at     timestamptz not null default now()
+  id                uuid        primary key references auth.users(id) on delete cascade,
+  full_name         text        not null,
+  mobile_number     text,
+  email             text,
+  role              user_role   not null default 'student',
+  is_approved       boolean     not null default false,
+  status            user_status not null default 'pending_approval',
+  email_verified    boolean     not null default false,
+  avatar_url        text,                          -- Supabase Storage path: "<userId>/photo.jpg"
+  theme_preference  text        check (theme_preference in ('light','dark','ebony','carbon','monokai')),
+  created_at        timestamptz not null default now(),
+  updated_at        timestamptz not null default now()
 );
+
+-- ── 3b. theme_preference migration (run in Supabase SQL Editor for EXISTING databases) ──
+-- New installs: the column above is already included in the CREATE TABLE.
+-- Existing databases: run the following block once in your Supabase SQL Editor.
+-- It is idempotent — safe to run even if the column already exists.
+--
+-- do $$ begin
+--   alter table public.profiles
+--     add column if not exists theme_preference text
+--       check (theme_preference in ('light','dark','ebony','carbon','monokai'));
+-- exception when others then null;
+-- end $$;
+--
+-- Rollback SQL (removes the column — ALL theme preferences will be lost):
+--   alter table public.profiles drop column if exists theme_preference;
+--
+-- RLS: No new policy required. The existing "Users can update their own profile"
+-- policy (UPDATE WHERE id = auth.uid()) already covers this column.
 
 -- ── 3a. Auth trigger — first user = super_admin, rest = student/pending ───────
 -- FIX: Do NOT update auth.users inside this trigger.

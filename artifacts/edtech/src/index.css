@@ -64,7 +64,9 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-:root {
+/* ── Light Theme (:root) ──────────────────────────────────────────────────── */
+:root,
+[data-theme="light"] {
   --background: 210 40% 98%;
   --foreground: 222.2 47.4% 11.2%;
 
@@ -111,11 +113,13 @@
   --app-font-sans: 'Inter', sans-serif;
   --app-font-serif: Georgia, serif;
   --app-font-mono: Menlo, monospace;
-  
+
   --radius: 0.5rem;
 }
 
-.dark {
+/* ── Dark Theme ───────────────────────────────────────────────────────────── */
+.dark,
+[data-theme="dark"] {
   --background: 222.2 47.4% 11.2%;
   --foreground: 210 40% 98%;
 
@@ -158,6 +162,144 @@
   --success: 160.1 84.1% 39.4%;
   --warning: 37.7 92.1% 50.2%;
   --error: 0 84.2% 60.2%;
+}
+
+/* ── Ebony Theme — warm dark with amber accents ───────────────────────────── */
+[data-theme="ebony"] {
+  --background: 25 35% 8%;
+  --foreground: 40 52% 88%;
+
+  --card: 25 28% 12%;
+  --card-foreground: 40 52% 88%;
+  --card-border: 25 22% 22%;
+
+  --popover: 25 28% 12%;
+  --popover-foreground: 40 52% 88%;
+  --popover-border: 25 22% 22%;
+
+  --primary: 38 95% 55%;
+  --primary-foreground: 25 25% 9%;
+
+  --secondary: 168 52% 36%;
+  --secondary-foreground: 40 52% 88%;
+
+  --muted: 25 22% 15%;
+  --muted-foreground: 35 28% 58%;
+
+  --accent: 16 82% 52%;
+  --accent-foreground: 40 52% 88%;
+
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 40 52% 88%;
+
+  --border: 25 20% 22%;
+  --input: 25 20% 22%;
+  --ring: 38 95% 55%;
+
+  --sidebar: 25 38% 6%;
+  --sidebar-foreground: 40 52% 88%;
+  --sidebar-border: 25 20% 18%;
+  --sidebar-primary: 38 95% 55%;
+  --sidebar-primary-foreground: 25 25% 9%;
+  --sidebar-accent: 25 22% 12%;
+  --sidebar-accent-foreground: 40 52% 88%;
+  --sidebar-ring: 38 95% 55%;
+
+  --success: 142 60% 40%;
+  --warning: 38 90% 52%;
+  --error: 0 72% 51%;
+}
+
+/* ── Carbon Theme — pure black with cyan accents ─────────────────────────── */
+[data-theme="carbon"] {
+  --background: 0 0% 7%;
+  --foreground: 0 0% 90%;
+
+  --card: 0 0% 11%;
+  --card-foreground: 0 0% 90%;
+  --card-border: 0 0% 20%;
+
+  --popover: 0 0% 11%;
+  --popover-foreground: 0 0% 90%;
+  --popover-border: 0 0% 20%;
+
+  --primary: 192 100% 50%;
+  --primary-foreground: 0 0% 5%;
+
+  --secondary: 142 60% 40%;
+  --secondary-foreground: 0 0% 90%;
+
+  --muted: 0 0% 15%;
+  --muted-foreground: 0 0% 55%;
+
+  --accent: 265 65% 62%;
+  --accent-foreground: 0 0% 90%;
+
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 90%;
+
+  --border: 0 0% 19%;
+  --input: 0 0% 19%;
+  --ring: 192 100% 50%;
+
+  --sidebar: 0 0% 5%;
+  --sidebar-foreground: 0 0% 90%;
+  --sidebar-border: 0 0% 15%;
+  --sidebar-primary: 192 100% 50%;
+  --sidebar-primary-foreground: 0 0% 5%;
+  --sidebar-accent: 0 0% 12%;
+  --sidebar-accent-foreground: 0 0% 90%;
+  --sidebar-ring: 192 100% 50%;
+
+  --success: 142 65% 40%;
+  --warning: 40 95% 50%;
+  --error: 0 72% 51%;
+}
+
+/* ── Monokai Theme — developer classic with vivid accents ────────────────── */
+[data-theme="monokai"] {
+  --background: 70 8% 15%;
+  --foreground: 60 30% 96%;
+
+  --card: 69 6% 19%;
+  --card-foreground: 60 30% 96%;
+  --card-border: 69 5% 26%;
+
+  --popover: 69 6% 19%;
+  --popover-foreground: 60 30% 96%;
+  --popover-border: 69 5% 26%;
+
+  --primary: 80 73% 55%;
+  --primary-foreground: 70 8% 10%;
+
+  --secondary: 191 90% 60%;
+  --secondary-foreground: 70 8% 10%;
+
+  --muted: 69 5% 22%;
+  --muted-foreground: 60 20% 62%;
+
+  --accent: 30 100% 58%;
+  --accent-foreground: 70 8% 10%;
+
+  --destructive: 335 82% 60%;
+  --destructive-foreground: 60 30% 96%;
+
+  --border: 69 5% 26%;
+  --input: 69 5% 26%;
+  --ring: 80 73% 55%;
+
+  --sidebar: 70 9% 12%;
+  --sidebar-foreground: 60 30% 96%;
+  --sidebar-border: 69 5% 22%;
+  --sidebar-primary: 80 73% 55%;
+  --sidebar-primary-foreground: 70 8% 10%;
+  --sidebar-accent: 69 6% 16%;
+  --sidebar-accent-foreground: 60 30% 96%;
+  --sidebar-ring: 80 73% 55%;
+
+  --success: 80 73% 50%;
+  --warning: 30 100% 58%;
+  --error: 335 82% 60%;
 }
 
 @layer base {

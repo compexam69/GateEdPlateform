@@ -32,7 +32,8 @@ const csp = [
     " 'sha256-L7SfyzTM3npW90hLyjdsYsxVh+bDBqSHkvhPRa2jshQ='" +
     " 'sha256-6zo87Fg0XqbKOP1XEwHCmVJ4yfWii/6FiRQsK0hr2d8='" +
     " 'sha256-/sitxIYv8ojX1g/MlPBtW5TQExZ+/gm33T4WHn7Vx34='" +
-    " 'sha256-Z2/iFzh9VMlVkEOar1f/oSHWwQk3ve1qk/C2WdsC4Xk='",
+    " 'sha256-Z2/iFzh9VMlVkEOar1f/oSHWwQk3ve1qk/C2WdsC4Xk='" +
+    " 'sha256-Ry8YuaZuNFEaS82mzCSHLwCgZlT1QT5yJKFFJIktWvc='",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com data:",
   "img-src 'self' data: blob: https://*.supabase.co https://*.backblazeb2.com",

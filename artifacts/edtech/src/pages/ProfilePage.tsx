@@ -1,16 +1,17 @@
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LogOut, User, Eye, EyeOff, CheckCircle, Shield, Pencil, Phone, Mail, Download, ImagePlus, Trash2, X, ZoomIn, ChevronDown } from "lucide-react";
+import { LogOut, User, Eye, EyeOff, CheckCircle, Shield, Pencil, Phone, Mail, Download, ImagePlus, Trash2, X, ZoomIn, ChevronDown, Palette } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { PhotoCropModal } from "@/components/PhotoCropModal";
+import { useTheme } from "@/contexts/ThemeContext";
+import { THEMES, THEME_CONFIGS, type Theme } from "@/lib/theme";
 
 import { apiFetch, getApiBase } from "@/lib/api";
 import { useAvatarUrl } from "@/hooks/useAvatarUrl";
@@ -21,6 +22,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export default function ProfilePage() {
   const { user, signOut, role } = useAuth();
   const { toast } = useToast();
+  const { theme, setTheme, isSyncing } = useTheme();
 
   const [editingName, setEditingName] = useState(false);
   const [newName, setNewName] = useState(user?.user_metadata?.full_name || "");
@@ -348,7 +350,7 @@ export default function ProfilePage() {
       await supabase.from("profiles").update({ avatar_url: storagePath }).eq("id", user!.id);
       await supabase.auth.updateUser({ data: { avatar_url: storagePath } });
       // Transition from the temporary blob URL to the permanent Storage URL.
-      // Bump the cache-buster so the browser doesn't serve the old cached photo.
+      // Bump the cache-buster so the browser doesn't fetch the old cached photo.
       bumpVersion();
       URL.revokeObjectURL(blobUrl);
       setPhotoUrl(buildUrl(storagePath));
@@ -447,10 +449,7 @@ export default function ProfilePage() {
                       aria-hidden="true"
                       onClick={() => setPhotoMenuOpen(false)}
                     />
-                    {/* Menu panel — left-0 anchors left edge to avatar left, preventing
-                        the off-screen clipping that occurred with the old left-1/2 centering
-                        after the profile card changed from flex-col (centered avatar) to
-                        flex-row (left-anchored avatar). max-w clamps to viewport on 320px. */}
+                    {/* Menu panel */}
                     <div
                       role="menu"
                       className="absolute left-0 top-[calc(100%+10px)] z-50 min-w-[188px] max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-card shadow-2xl overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150"
@@ -663,6 +662,7 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
+        {/* ── Change Password ── */}
         <Card>
           <CardContent className="p-0">
             {/* Collapsible header — tap to expand/collapse on mobile; static label on desktop */}
@@ -703,6 +703,103 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
+        {/* ── Appearance / Theme Selector ── */}
+        <Card>
+          <CardContent className="p-3 sm:p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <Palette className="w-4 h-4 text-primary shrink-0" />
+              <p className="text-sm font-semibold text-foreground">Appearance</p>
+              {isSyncing && (
+                <div className="ml-auto w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-2.5">
+              {(THEMES as readonly Theme[]).map((t) => {
+                const config = THEME_CONFIGS[t];
+                const isActive = theme === t;
+                return (
+                  <button
+                    key={t}
+                    onClick={() => setTheme(t)}
+                    className={[
+                      "relative rounded-lg border-2 overflow-hidden transition-all duration-200 text-left",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background",
+                      isActive
+                        ? "border-primary shadow-md shadow-primary/20 scale-[1.02]"
+                        : "border-border hover:border-primary/40 hover:scale-[1.01]",
+                    ].join(" ")}
+                    aria-pressed={isActive}
+                    aria-label={`Switch to ${config.label} theme`}
+                  >
+                    {/* Color swatch preview */}
+                    <div
+                      className="h-11 w-full flex items-stretch gap-1 p-1.5"
+                      style={{ backgroundColor: config.swatches.bg }}
+                    >
+                      {/* Simulated content area */}
+                      <div className="flex-1 flex flex-col justify-center gap-1 pl-0.5">
+                        <div
+                          className="h-1.5 rounded-full w-3/4"
+                          style={{ backgroundColor: config.swatches.text, opacity: 0.85 }}
+                        />
+                        <div
+                          className="h-1 rounded-full w-1/2"
+                          style={{ backgroundColor: config.swatches.text, opacity: 0.4 }}
+                        />
+                        <div
+                          className="h-1 rounded-full w-2/3"
+                          style={{ backgroundColor: config.swatches.text, opacity: 0.25 }}
+                        />
+                      </div>
+                      {/* Simulated accent/card block */}
+                      <div className="flex flex-col items-end gap-1">
+                        <div
+                          className="h-5 w-5 rounded"
+                          style={{ backgroundColor: config.swatches.primary }}
+                        />
+                        <div
+                          className="h-2.5 w-7 rounded-sm"
+                          style={{ backgroundColor: config.swatches.card, border: `1px solid ${config.swatches.text}22` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Label row */}
+                    <div
+                      className="flex items-center justify-between px-2 py-1.5"
+                      style={{
+                        backgroundColor: config.swatches.card,
+                        borderTop: `1px solid ${config.swatches.text}18`,
+                      }}
+                    >
+                      <span
+                        className="text-xs font-medium truncate"
+                        style={{ color: config.swatches.text }}
+                      >
+                        {config.label}
+                      </span>
+                      {isActive && (
+                        <div
+                          className="w-3.5 h-3.5 rounded-full flex items-center justify-center shrink-0"
+                          style={{ backgroundColor: config.swatches.primary }}
+                        >
+                          <div className="w-1.5 h-1.5 rounded-full bg-white/90" />
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            <p className="text-xs text-muted-foreground mt-2.5">
+              {user ? "Theme syncs across all your devices." : "Sign in to sync your theme across devices."}
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* ── Account ── */}
         <Card>
           <CardContent className="p-3 sm:p-5">
             <p className="text-sm font-semibold text-foreground mb-2">Account</p>
@@ -753,16 +850,9 @@ export default function ProfilePage() {
           ref={viewerRef}
           className="fixed inset-0 z-[70] flex items-center justify-center bg-black/85 backdrop-blur-sm animate-in fade-in-0 duration-200"
           style={{
-            // pan-x pinch-zoom: let the browser handle horizontal panning and
-            // pinch-zoom natively (hardware-accelerated, zero JS latency).
-            // We still intercept vertical swipes via passive:false touchmove
-            // listeners, but only AFTER the 10px direction-lock dead zone
-            // confirms it's a downward-vertical gesture. This keeps normal
-            // touch response instant and smooth on all mobile browsers.
             touchAction: "pan-x pinch-zoom",
           }}
           onClick={() => {
-            // Ignore the click that fires after a cancelled drag (snap-back)
             if (wasDraggingRef.current) { wasDraggingRef.current = false; return; }
             setPhotoViewerOpen(false);
           }}
@@ -770,7 +860,7 @@ export default function ProfilePage() {
           aria-modal="true"
           aria-label="Profile photo viewer"
         >
-          {/* Close button — opacity driven imperatively during swipe */}
+          {/* Close button */}
           <button
             ref={closeBtnRef}
             className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
@@ -780,28 +870,23 @@ export default function ProfilePage() {
             <X className="w-5 h-5 text-white" />
           </button>
 
-          {/* Image container — transform driven imperatively during swipe */}
+          {/* Image container */}
           <div
             ref={imgContainerRef}
             className="relative flex items-center justify-center p-6"
             onClick={e => e.stopPropagation()}
           >
-            {/* Loading spinner */}
             {!viewerImgLoaded && !viewerImgError && (
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="w-10 h-10 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               </div>
             )}
-
-            {/* Error fallback */}
             {viewerImgError && (
               <div className="flex flex-col items-center gap-3 text-white/60">
                 <User className="w-16 h-16" />
                 <p className="text-sm">Could not load photo</p>
               </div>
             )}
-
-            {/* The photo */}
             <img
               src={photoUrl}
               alt="Profile photo"
@@ -816,7 +901,6 @@ export default function ProfilePage() {
             />
           </div>
 
-          {/* Hint text — opacity driven imperatively during swipe */}
           {viewerImgLoaded && !viewerImgError && (
             <p
               ref={hintRef}
