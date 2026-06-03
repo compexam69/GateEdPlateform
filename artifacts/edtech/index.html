@@ -19,20 +19,24 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="EdTech" />
     <!--
-      Content-Security-Policy — covers the React SPA.
-      'unsafe-inline' in style-src is required because Framer Motion applies
-      animation transforms via inline styles at runtime.
-      Supabase realtime uses WSS; Backblaze B2 presigned URLs can come from
-      multiple regional subdomains so *.backblazeb2.com covers them all.
-    -->
-    <!--
-      CSP notes:
-      - frame-ancestors is intentionally absent: it only works in HTTP headers,
-        not meta tags. It is set in Vite server.headers (dev) and Express (API).
-      - The two sha256 hashes in script-src whitelist inline scripts injected by
-        @replit/vite-plugin-runtime-error-modal in development. They are harmless
-        no-ops in production (the scripts won't be present to match).
-      - 'unsafe-inline' in style-src is required for Framer Motion inline styles.
+      Content-Security-Policy (meta tag — belt-and-suspenders fallback).
+
+      The canonical CSP is delivered as an HTTP header by the Vite dev/preview
+      server (vite.config.ts `server.headers` / `preview.headers`). That header
+      is the enforcement point for frame-ancestors and applies before any HTML
+      is parsed.  This meta tag mirrors the same policy for static hosting
+      environments that do not set headers, and is ignored for frame-ancestors
+      (browsers discard that directive in meta tags per spec).
+
+      Directive notes:
+      - script-src: no 'unsafe-inline'; sha256 hashes cover the two inline
+        scripts injected by @replit/vite-plugin-runtime-error-modal in dev
+        (harmless no-ops in prod where the scripts are absent).
+      - style-src: 'unsafe-inline' is required — Framer Motion writes animation
+        transforms to element.style at runtime.
+      - connect-src: Supabase REST + Realtime WSS; *.backblazeb2.com covers
+        regional B2 download subdomains; Sentry ingestion endpoints.
+      - worker-src blob: needed for the PWA service worker and PDF.js worker.
     -->
     <meta http-equiv="Content-Security-Policy" content="
       default-src 'self';

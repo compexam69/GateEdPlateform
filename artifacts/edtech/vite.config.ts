@@ -8,6 +8,44 @@ import { VitePWA } from "vite-plugin-pwa";
 const port = Number(process.env.PORT ?? "5000");
 const basePath = process.env.BASE_PATH ?? "/";
 
+/**
+ * Content Security Policy for the React SPA.
+ *
+ * Directive rationale:
+ *  - script-src: 'self' only; two sha256 hashes whitelist the inline scripts
+ *    injected by @replit/vite-plugin-runtime-error-modal in development (they
+ *    are harmless no-ops in production). No 'unsafe-inline'.
+ *  - style-src: 'unsafe-inline' is required because Framer Motion applies
+ *    animation transforms via element.style at runtime.
+ *  - connect-src: Supabase REST + Realtime WSS, Backblaze B2 presigned URLs
+ *    (regional subdomains vary so *.backblazeb2.com covers them all), and
+ *    Sentry ingestion.
+ *  - worker-src: blob: is needed for the PWA service worker injected by
+ *    vite-plugin-pwa and for PDF.js worker blobs.
+ *  - frame-ancestors: only effective in HTTP headers (ignored in meta tags);
+ *    this is the canonical enforcement point — the meta tag is belt-and-
+ *    suspenders for static hosting environments that don't set headers.
+ */
+const csp = [
+  "default-src 'self'",
+  "script-src 'self'" +
+    " 'sha256-L7SfyzTM3npW90hLyjdsYsxVh+bDBqSHkvhPRa2jshQ='" +
+    " 'sha256-6zo87Fg0XqbKOP1XEwHCmVJ4yfWii/6FiRQsK0hr2d8='",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com data:",
+  "img-src 'self' data: blob: https://*.supabase.co https://*.backblazeb2.com",
+  "connect-src 'self'" +
+    " https://*.supabase.co wss://*.supabase.co" +
+    " https://*.backblazeb2.com https://api.backblazeb2.com" +
+    " https://*.ingest.sentry.io https://*.sentry.io",
+  "worker-src 'self' blob:",
+  "manifest-src 'self'",
+  "form-action 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+].join("; ");
+
 export default defineConfig({
   base: basePath,
   plugins: [
@@ -88,12 +126,20 @@ export default defineConfig({
       "Referrer-Policy": "strict-origin-when-cross-origin",
       "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
       "Cross-Origin-Opener-Policy": "same-origin",
-      "Content-Security-Policy": "frame-ancestors 'none'",
+      "Content-Security-Policy": csp,
     },
   },
   preview: {
     port,
     host: "0.0.0.0",
     allowedHosts: true,
+    headers: {
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY",
+      "Referrer-Policy": "strict-origin-when-cross-origin",
+      "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
+      "Cross-Origin-Opener-Policy": "same-origin",
+      "Content-Security-Policy": csp,
+    },
   },
 });
