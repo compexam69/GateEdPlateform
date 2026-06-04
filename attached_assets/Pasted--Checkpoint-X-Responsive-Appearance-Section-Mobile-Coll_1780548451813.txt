@@ -1,0 +1,310 @@
+🟢 Checkpoint X: Responsive Appearance Section (Mobile Collapsible + Desktop Expanded Layout)
+
+Goal:
+
+Optimize the **Appearance** section inside the Profile module using a responsive, device-specific layout strategy.
+
+Requirements:
+
+• On mobile devices, the Appearance section should behave as a collapsible/dropdown component to save screen space and maintain a clean UI.
+• On desktop devices, the Appearance section should be permanently expanded and displayed without dropdown functionality.
+• The desktop implementation should follow the same behavior currently used for the Change Password section (always visible and expanded).
+• The final design must improve usability, responsiveness, visual balance, and efficient use of screen space while preserving all existing theme-selection functionality.
+
+━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Analyze Existing Profile & Appearance Architecture
+   ━━━━━━━━━━━━━━━━━━━━━━━
+
+Review:
+
+• Profile module structure
+• Appearance section implementation
+• Theme selector implementation
+• Change Password section implementation
+• Responsive breakpoint logic
+• Existing dropdown/collapsible components
+• Mobile layout
+• Desktop layout
+• PWA behavior
+
+Identify:
+
+• How Appearance is currently rendered
+• How Change Password behaves on desktop
+• Existing responsive state handling
+• Any layout dependencies that could be affected
+
+Determine the safest implementation approach.
+
+━━━━━━━━━━━━━━━━━━━━━━━
+2. Implement Responsive Appearance Behavior
+━━━━━━━━━━━━━━━━━━━━━━━
+
+Mobile Behavior (<768px):
+
+• Appearance section remains collapsible
+• Users can expand/collapse manually
+• Default state may remain collapsed if currently implemented
+• Saves vertical screen space
+• Preserves clean mobile layout
+
+Desktop Behavior (≥768px):
+
+• Remove dropdown/collapse behavior entirely
+• Automatically display Appearance content
+• Always show all theme options
+• No expand/collapse interaction required
+• Use available desktop screen space efficiently
+
+Ensure:
+
+• Mobile and desktop behaviors are completely independent
+• No state conflicts occur when resizing between breakpoints
+
+━━━━━━━━━━━━━━━━━━━━━━━
+3. Preserve Existing Theme Functionality
+━━━━━━━━━━━━━━━━━━━━━━━
+
+Ensure the change does NOT break:
+
+• Dark mode toggle
+• Light mode toggle
+• Ebony theme
+• Carbon theme
+• Monokai theme
+• Theme persistence
+• Theme synchronization
+• Theme highlighting
+• Theme preview behavior
+• Theme storage in localStorage
+• Theme storage in Supabase
+
+Verify all existing appearance settings continue functioning normally.
+
+━━━━━━━━━━━━━━━━━━━━━━━
+4. Desktop Layout Optimization
+━━━━━━━━━━━━━━━━━━━━━━━
+
+For desktop screens:
+
+• Display Appearance section content immediately
+• Remove unnecessary dropdown UI elements
+• Improve spacing and alignment
+• Utilize available width efficiently
+• Match the visual style of other expanded desktop sections
+
+Ensure:
+
+• Layout feels balanced
+• Content does not appear cramped
+• Theme cards/buttons have proper spacing
+• Visual hierarchy remains clear
+
+Prevent:
+
+• Excessive whitespace
+• Over-compression of content
+• Unbalanced card layouts
+
+━━━━━━━━━━━━━━━━━━━━━━━
+5. Mobile Layout Optimization
+━━━━━━━━━━━━━━━━━━━━━━━
+
+Ensure mobile layout remains:
+
+• Compact
+• Scroll-efficient
+• Touch-friendly
+• Easy to navigate
+
+Verify:
+
+• Dropdown opens smoothly
+• Dropdown closes smoothly
+• Theme cards remain responsive
+• No horizontal scrolling occurs
+• No layout shifts occur
+
+Prevent:
+
+• Overflow issues
+• Clipped content
+• Touch target problems
+
+━━━━━━━━━━━━━━━━━━━━━━━
+6. Responsive Breakpoint Validation
+━━━━━━━━━━━━━━━━━━━━━━━
+
+Verify behavior across:
+
+• Small mobile devices
+• Large mobile devices
+• Tablets
+• Laptops
+• Desktop monitors
+• Installed PWA mode
+
+Ensure:
+
+• Mobile → Desktop transitions work correctly
+• Desktop → Mobile transitions work correctly
+• Appearance state remains stable
+• No hydration mismatches occur
+• No duplicate rendering occurs
+
+━━━━━━━━━━━━━━━━━━━━━━━
+7. Accessibility & UX Improvements
+━━━━━━━━━━━━━━━━━━━━━━━
+
+Ensure:
+
+• Keyboard accessibility remains functional
+• Focus states remain visible
+• Screen readers behave correctly
+• Expanded desktop content remains accessible
+• Mobile dropdown interactions remain intuitive
+
+Verify:
+
+• Consistent UI behavior
+• Professional appearance
+• Clear user expectations
+
+━━━━━━━━━━━━━━━━━━━━━━━
+8. Error Handling & State Management
+━━━━━━━━━━━━━━━━━━━━━━━
+
+Ensure:
+
+• Dropdown state resets correctly
+• Resize events do not create UI inconsistencies
+• No duplicate Appearance sections appear
+• No broken state synchronization occurs
+
+Prevent:
+
+• Infinite re-renders
+• Responsive flickering
+• State persistence bugs
+
+━━━━━━━━━━━━━━━━━━━━━━━
+9. Preserve Existing Functionality
+━━━━━━━━━━━━━━━━━━━━━━━
+
+Ensure this update does NOT affect:
+
+• Profile image functionality
+• User information display
+• Change Password section
+• Account Settings section
+• Notification Preferences
+• Theme management
+• Authentication
+• Dashboard navigation
+• PWA behavior
+
+All existing functionality must remain stable.
+
+━━━━━━━━━━━━━━━━━━━━━━━
+10. Testing & Validation
+━━━━━━━━━━━━━━━━━━━━━━━
+
+Test:
+
+Mobile:
+
+• Expand Appearance section
+• Collapse Appearance section
+• Change themes
+• Rotate device
+• Refresh page
+
+Desktop:
+
+• Appearance section always visible
+• Theme switching
+• Window resizing
+• Large-screen layouts
+• Browser refresh
+
+Verify:
+
+• Mobile uses collapsible layout
+• Desktop uses expanded layout
+• Theme functionality works correctly
+• No overflow occurs
+• No console/runtime errors occur
+
+━━━━━━━━━━━━━━━━━━━━━━━
+11. Backend / Database / SQL Validation
+━━━━━━━━━━━━━━━━━━━━━━━
+
+Determine whether any backend changes are required.
+
+Expected Result:
+
+This is a UI/UX responsiveness change only.
+
+Therefore:
+
+• No database schema changes should be required
+• No API changes should be required
+• No Supabase table changes should be required
+• No SQL migration should be required
+
+Explicitly verify this during implementation.
+
+If any SQL change becomes necessary, explain:
+
+• Why it is required
+• Exact SQL script
+• Rollback procedure
+• Impact on existing users
+
+Otherwise explicitly state:
+
+"No SQL Editor changes are required."
+
+━━━━━━━━━━━━━━━━━━━━━━━
+12. Final Verification Summary
+━━━━━━━━━━━━━━━━━━━━━━━
+
+After implementation provide:
+
+• Files modified
+• Responsive logic changes
+• Appearance section changes
+• Mobile UX improvements
+• Desktop UX improvements
+• Any limitations/issues remaining
+
+━━━━━━━━━━━━━━━━━━━━━━━
+13. Mandatory Checkpoint Requirement
+━━━━━━━━━━━━━━━━━━━━━━━
+
+After successful implementation, testing, and validation:
+
+Create a checkpoint/commit immediately.
+
+Checkpoint Name:
+
+"Responsive Appearance Section - Mobile Collapsible & Desktop Expanded"
+
+━━━━━━━━━━━━━━━━━━━━━━━
+Acceptance Criteria
+━━━━━━━━━━━━━━━━━━━━━━━
+
+[ ] Appearance section behaves as a dropdown/collapsible component on mobile devices.
+[ ] Appearance section is automatically expanded on desktop devices.
+[ ] Desktop view does not display dropdown functionality.
+[ ] Mobile view preserves space-efficient collapsible behavior.
+[ ] Theme selection functionality remains fully operational.
+[ ] Theme persistence remains fully operational.
+[ ] Mobile responsiveness remains intact.
+[ ] Desktop layout utilizes screen space effectively.
+[ ] No overflow or layout issues occur.
+[ ] No console/runtime errors occur.
+[ ] Existing Profile functionality remains unaffected.
+[ ] No SQL changes are required unless explicitly justified.
+[ ] Checkpoint/commit created after successful implementation and testing.

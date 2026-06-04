@@ -47,6 +47,7 @@ export default function ProfilePage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [changingPwd, setChangingPwd] = useState(false);
   const [passwordExpanded, setPasswordExpanded] = useState(false);
+  const [appearanceExpanded, setAppearanceExpanded] = useState(false);
 
   // storedAvatarPath is still needed here for handleRemovePhoto's storage
   // deletion check — the hook uses it internally for syncing.
@@ -705,15 +706,28 @@ export default function ProfilePage() {
 
         {/* ── Appearance / Theme Selector ── */}
         <Card>
-          <CardContent className="p-3 sm:p-5">
-            <div className="flex items-center gap-2 mb-3">
-              <Palette className="w-4 h-4 text-primary shrink-0" />
-              <p className="text-sm font-semibold text-foreground">Appearance</p>
-              {isSyncing && (
-                <div className="ml-auto w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-              )}
-            </div>
+          <CardContent className="p-0">
+            {/* Collapsible header — tap to expand/collapse on mobile; static label on desktop */}
+            <button
+              type="button"
+              onClick={() => setAppearanceExpanded(v => !v)}
+              className="w-full flex items-center justify-between px-4 sm:px-6 py-2 sm:py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary md:cursor-default md:pointer-events-none md:focus-visible:ring-0 rounded-[inherit]"
+              aria-expanded={appearanceExpanded}
+            >
+              <span className="flex items-center gap-2">
+                <Palette className="w-4 h-4 text-primary shrink-0" />
+                <span className="text-sm font-semibold text-foreground">Appearance</span>
+                {isSyncing && (
+                  <div className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                )}
+              </span>
+              <ChevronDown
+                className={`md:hidden w-4 h-4 text-muted-foreground transition-transform duration-200 ${appearanceExpanded ? "rotate-180" : ""}`}
+              />
+            </button>
 
+            {/* Collapsible body — hidden on mobile when collapsed, always visible on desktop */}
+            <div className={`${appearanceExpanded ? "" : "hidden"} md:block px-4 sm:px-6 pb-3 sm:pb-4 border-t border-border pt-2.5`}>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-2.5">
               {(THEMES as readonly Theme[]).map((t) => {
                 const config = THEME_CONFIGS[t];
@@ -796,6 +810,7 @@ export default function ProfilePage() {
             <p className="text-xs text-muted-foreground mt-2.5">
               {user ? "Theme syncs across all your devices." : "Sign in to sync your theme across devices."}
             </p>
+            </div>
           </CardContent>
         </Card>
 
