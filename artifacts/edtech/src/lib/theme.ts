@@ -1,4 +1,4 @@
-export const THEMES = ['light', 'dark', 'ebony', 'carbon', 'monokai'] as const;
+export const THEMES = ['light', 'dark', 'ebony', 'carbon', 'monokai', 'amoled'] as const;
 export type Theme = typeof THEMES[number];
 
 export const THEME_STORAGE_KEY = 'edtech-theme';
@@ -35,6 +35,11 @@ export const THEME_CONFIGS: Record<Theme, ThemeConfig> = {
     label: 'Monokai',
     description: 'Developer classic, vivid accents',
     swatches: { bg: '#272822', card: '#2e2e2a', primary: '#a6e22e', text: '#f8f8f2' },
+  },
+  amoled: {
+    label: 'AMOLED Black',
+    description: 'Pure black for OLED displays',
+    swatches: { bg: '#000000', card: '#0d0d0d', primary: '#6366f1', text: '#f5f5f5' },
   },
 };
 

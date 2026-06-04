@@ -50,7 +50,7 @@ create table if not exists profiles (
   status            user_status not null default 'pending_approval',
   email_verified    boolean     not null default false,
   avatar_url        text,                          -- Supabase Storage path: "<userId>/photo.jpg"
-  theme_preference  text        check (theme_preference in ('light','dark','ebony','carbon','monokai')),
+  theme_preference  text        check (theme_preference in ('light','dark','ebony','carbon','monokai','amoled')),
   created_at        timestamptz not null default now(),
   updated_at        timestamptz not null default now()
 );
@@ -63,7 +63,7 @@ create table if not exists profiles (
 -- do $$ begin
 --   alter table public.profiles
 --     add column if not exists theme_preference text
---       check (theme_preference in ('light','dark','ebony','carbon','monokai'));
+--       check (theme_preference in ('light','dark','ebony','carbon','monokai','amoled'));
 -- exception when others then null;
 -- end $$;
 --

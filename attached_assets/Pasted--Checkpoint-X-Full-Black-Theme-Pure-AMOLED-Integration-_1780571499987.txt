@@ -1,0 +1,480 @@
+# 🟢 Checkpoint X: Full Black Theme (Pure AMOLED) Integration for Appearance Settings
+
+## Goal
+
+Add a new **Full Black Theme (Pure AMOLED Theme)** to the existing Appearance/Theming system alongside the existing themes (Light, Ebony, Carbon, Monokai, etc.).
+
+The Full Black Theme must use true black (`#000000`) backgrounds wherever appropriate to maximize contrast, reduce battery consumption on OLED/AMOLED displays, and provide a premium dark-mode experience.
+
+The theme must integrate seamlessly with the existing theme system, support instant switching, persist across sessions and devices, and remain visually consistent throughout the entire application.
+
+---
+
+## Context
+
+Currently:
+
+* The application supports Light/Dark appearance modes.
+* Additional themes such as:
+
+  * Ebony
+  * Carbon
+  * Monokai
+    exist in the Appearance section.
+* Some users prefer a true-black AMOLED experience rather than dark gray backgrounds.
+
+The new Full Black Theme should provide:
+
+* Pure black backgrounds
+* High contrast UI
+* Consistent styling
+* Improved OLED battery efficiency
+* Better nighttime usability
+
+without affecting existing themes.
+
+---
+
+# Requirements Analysis
+
+The requirement is not simply changing background colors.
+
+The implementation must:
+
+### Add New Theme
+
+Theme Name:
+
+**Full Black**
+
+Alternative Label:
+
+**AMOLED Black**
+
+### Theme Characteristics
+
+Use:
+
+* Pure Black Backgrounds (`#000000`)
+* High Contrast Text
+* Accessible Color Ratios
+* Consistent Component Styling
+
+Ensure:
+
+* Entire application follows the selected theme.
+* No mixed gray/black inconsistencies appear.
+
+---
+
+# Instructions
+
+## 1. Analyze Existing Theme System
+
+Review:
+
+* Theme provider
+* Theme context
+* Appearance settings module
+* Theme persistence logic
+* LocalStorage implementation
+* Supabase profile theme storage
+* Existing theme switcher UI
+* Global CSS/theme tokens
+* Tailwind configuration (if used)
+
+Identify:
+
+* How themes are currently defined
+* How theme selection is stored
+* How theme switching is applied
+
+---
+
+## 2. Create Full Black Theme
+
+Add:
+
+### Theme Name
+
+Full Black
+
+or
+
+AMOLED Black
+
+### Theme Palette
+
+Primary Background:
+
+* #000000
+
+Secondary Background:
+
+* Near-black tones only where necessary
+
+Text:
+
+* High-contrast white/light text
+
+Borders:
+
+* Subtle visible contrast
+
+Cards:
+
+* Pure black or slightly elevated black variants
+
+Ensure:
+
+* Theme remains readable.
+* Accessibility standards are met.
+
+---
+
+## 3. Apply Theme Across Entire Application
+
+Ensure Full Black Theme affects:
+
+### Student Modules
+
+* Dashboard
+* Learning Path
+* Focus Timer
+* Notes
+* PDFs
+* Quizzes
+* Notifications
+* Profile
+
+### Admin Dashboard
+
+* User Management
+* Content Editor
+* Quiz Editor
+* Access Control
+* Settings
+
+### Shared Components
+
+* Cards
+* Buttons
+* Inputs
+* Modals
+* Tables
+* Tooltips
+* Dropdowns
+* Navigation bars
+* Sidebars
+
+Prevent:
+
+* White flashes
+* Mixed theme states
+* Unstyled components
+
+---
+
+## 4. Update Appearance Settings UI
+
+Add Full Black Theme card/button.
+
+Display alongside:
+
+* Light
+* Ebony
+* Carbon
+* Monokai
+
+Ensure:
+
+* Theme preview accurately reflects colors.
+* Current theme remains highlighted.
+* Theme cards remain responsive.
+
+---
+
+## 5. Theme Persistence
+
+Persist selected theme in:
+
+### Local Storage
+
+Ensure:
+
+* Theme survives page refresh.
+* Theme survives browser restart.
+
+### Supabase Profile
+
+Store selected theme.
+
+Ensure:
+
+* Theme syncs across devices.
+* Theme restores after login.
+* Theme restores after logout/login cycle.
+
+---
+
+## 6. Mobile Optimization
+
+Verify:
+
+### Mobile
+
+* Theme cards remain touch-friendly.
+* No overflow occurs.
+* Appearance section remains responsive.
+
+Test:
+
+* Small screens
+* Tablets
+* PWA mode
+
+---
+
+## 7. Desktop Optimization
+
+Verify:
+
+* Theme previews display correctly.
+* Layout remains balanced.
+* Desktop appearance settings remain professional.
+
+---
+
+## 8. Accessibility Validation
+
+Ensure:
+
+### Contrast Ratios
+
+Meet accessibility standards.
+
+Verify:
+
+* Text readability
+* Button visibility
+* Input visibility
+* Focus indicators
+* Hover states
+
+Prevent:
+
+* Invisible borders
+* Hidden controls
+* Low-contrast text
+
+---
+
+## 9. Performance Validation
+
+Ensure:
+
+* Theme switching is instant.
+* No unnecessary re-renders.
+* No visual flickering.
+* No layout shifts.
+
+Verify:
+
+* Theme changes occur without page reload.
+
+---
+
+## 10. Preserve Existing Functionality
+
+Ensure implementation does NOT break:
+
+* Existing Light Theme
+* Ebony Theme
+* Carbon Theme
+* Monokai Theme
+* Theme persistence
+* Authentication
+* Profile settings
+* Mobile responsiveness
+* PWA functionality
+
+---
+
+## 11. Testing & Validation
+
+Test:
+
+### Theme Switching
+
+Light → Full Black
+
+Carbon → Full Black
+
+Monokai → Full Black
+
+Ebony → Full Black
+
+### Persistence
+
+* Refresh page
+* Logout/Login
+* New device login
+
+### Modules
+
+* Student Dashboard
+* Learning Path
+* Focus Timer
+* Notes
+* PDFs
+* Notifications
+* Admin Dashboard
+* Content Editor
+* Quiz Editor
+
+Verify:
+
+* Theme applies everywhere.
+* No visual inconsistencies.
+* No console errors.
+* No runtime errors.
+
+---
+
+## 12. Backend / Database / SQL Review
+
+### Determine Whether SQL Changes Are Required
+
+Analyze:
+
+* Existing profile theme column
+* Existing theme storage implementation
+
+### If Theme Field Already Exists
+
+No SQL changes required.
+
+### If Theme Enum/Validation Exists
+
+Provide:
+
+* SQL migration
+* Rollback script
+* Updated allowed theme values
+
+Example:
+
+Add:
+
+* full_black
+
+to supported theme options.
+
+Explicitly explain:
+
+* Why SQL change is needed
+* Which table is affected
+* Whether existing users are impacted
+
+If not required, explicitly state:
+
+**"No Supabase SQL changes are required for this feature."**
+
+---
+
+## 13. Post-Implementation Verification
+
+Verify:
+
+### Appearance Section
+
+Displays:
+
+* Light
+* Ebony
+* Carbon
+* Monokai
+* Full Black
+
+### Theme Selection
+
+* Applies instantly.
+* Persists correctly.
+
+### Application
+
+* Uses pure black backgrounds.
+* Maintains readability.
+
+Capture screenshots:
+
+* Mobile
+* Tablet
+* Desktop
+
+for verification.
+
+---
+
+## 14. Implementation Summary
+
+After completion provide:
+
+### Files Modified
+
+List all modified files.
+
+### Theme Changes
+
+* New Full Black theme
+* Updated theme selector
+* Updated persistence logic
+
+### Responsive Improvements
+
+* Mobile support
+* Desktop support
+
+### Database Changes
+
+State clearly:
+
+* SQL required OR not required
+
+### Remaining Limitations
+
+Document any known limitations.
+
+---
+
+## 15. Checkpoint Requirement
+
+After successful implementation and validation:
+
+Create a checkpoint/commit immediately.
+
+### Checkpoint Name
+
+**"Full Black AMOLED Theme Integration & Cross-Device Theme Persistence"**
+
+Provide final verification results confirming all acceptance criteria have been met.
+
+---
+
+# Acceptance Criteria
+
+* [ ] A new Full Black (AMOLED) theme is available in Appearance settings.
+* [ ] Theme uses true black backgrounds where appropriate.
+* [ ] Theme applies across the entire application.
+* [ ] Theme switches instantly without reload.
+* [ ] Theme persists in localStorage.
+* [ ] Theme persists in Supabase Profile data.
+* [ ] Theme synchronizes across devices.
+* [ ] Active theme is clearly highlighted.
+* [ ] Mobile and desktop layouts remain responsive.
+* [ ] Existing themes continue functioning correctly.
+* [ ] Accessibility and contrast standards remain acceptable.
+* [ ] No visual inconsistencies occur.
+* [ ] No console/runtime errors occur.
+* [ ] SQL requirements are documented (or confirmed unnecessary).
+* [ ] Checkpoint/commit is created after successful testing and validation.

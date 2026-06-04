@@ -302,6 +302,52 @@
   --error: 335 82% 60%;
 }
 
+/* ── AMOLED Black Theme — pure black for OLED displays ───────────────────── */
+[data-theme="amoled"] {
+  --background: 0 0% 0%;
+  --foreground: 0 0% 96%;
+
+  --card: 0 0% 5%;
+  --card-foreground: 0 0% 96%;
+  --card-border: 0 0% 14%;
+
+  --popover: 0 0% 5%;
+  --popover-foreground: 0 0% 96%;
+  --popover-border: 0 0% 14%;
+
+  --primary: 238.7 83.5% 66.7%;
+  --primary-foreground: 0 0% 98%;
+
+  --secondary: 173.4 80.4% 40%;
+  --secondary-foreground: 0 0% 98%;
+
+  --muted: 0 0% 9%;
+  --muted-foreground: 0 0% 56%;
+
+  --accent: 270.7 91% 65.1%;
+  --accent-foreground: 0 0% 98%;
+
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+
+  --border: 0 0% 14%;
+  --input: 0 0% 14%;
+  --ring: 238.7 83.5% 66.7%;
+
+  --sidebar: 0 0% 0%;
+  --sidebar-foreground: 0 0% 96%;
+  --sidebar-border: 0 0% 12%;
+  --sidebar-primary: 238.7 83.5% 66.7%;
+  --sidebar-primary-foreground: 0 0% 98%;
+  --sidebar-accent: 0 0% 7%;
+  --sidebar-accent-foreground: 0 0% 96%;
+  --sidebar-ring: 238.7 83.5% 66.7%;
+
+  --success: 160.1 84.1% 39.4%;
+  --warning: 37.7 92.1% 50.2%;
+  --error: 0 84.2% 60.2%;
+}
+
 @layer base {
   * {
     @apply border-border;
