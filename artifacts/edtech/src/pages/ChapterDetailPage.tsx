@@ -298,20 +298,20 @@ export default function ChapterDetailPage() {
             <p>No topics in this chapter yet.</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-1">
             {topicsWithStatus.map((topic, idx) => (
               <Card
                 key={topic.id}
-                className={`bg-card transition-colors ${
+                className={`bg-card transition-colors h-full ${
                   topic.isLocked
                     ? "opacity-60 cursor-not-allowed"
                     : "hover:border-primary cursor-pointer group"
                 }`}
               >
                 <Link href={topic.isLocked ? "#" : `/topics/${topic.id}`}>
-                  <CardContent className="p-4 flex items-center space-x-4">
+                  <CardContent className="p-3 md:p-4 flex items-center space-x-2 md:space-x-4">
                     <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                      className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center shrink-0 ${
                         topic.isCompleted
                           ? "bg-success/10 text-success"
                           : topic.isLocked
@@ -320,23 +320,29 @@ export default function ChapterDetailPage() {
                       }`}
                     >
                       {topic.isCompleted ? (
-                        <CheckCircle className="w-5 h-5" />
+                        <CheckCircle className="w-4 h-4 md:w-5 md:h-5" />
                       ) : topic.isLocked ? (
-                        <Lock className="w-5 h-5" />
+                        <Lock className="w-4 h-4 md:w-5 md:h-5" />
                       ) : (
-                        <PlayCircle className="w-5 h-5" />
+                        <PlayCircle className="w-4 h-4 md:w-5 md:h-5" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-foreground">{topic.title}</h3>
-                      <p className="text-sm text-muted-foreground mt-0.5">
-                        Topic {idx + 1}
-                        {topic.isCompleted && " · Completed"}
-                        {topic.isLocked && " · Complete previous topic first"}
+                      <h3 className="font-semibold text-sm md:text-base text-foreground leading-tight">{topic.title}</h3>
+                      {/* Full label on desktop; compact on mobile */}
+                      <p className="text-xs md:text-sm text-muted-foreground mt-0.5">
+                        <span className="hidden md:inline">
+                          Topic {idx + 1}
+                          {topic.isCompleted && " · Completed"}
+                          {topic.isLocked && " · Complete previous topic first"}
+                        </span>
+                        <span className="md:hidden">
+                          {topic.isCompleted ? "Done" : topic.isLocked ? "Locked" : `#${idx + 1}`}
+                        </span>
                       </p>
                     </div>
                     {!topic.isLocked && (
-                      <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                      <ChevronRight className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
                     )}
                   </CardContent>
                 </Link>

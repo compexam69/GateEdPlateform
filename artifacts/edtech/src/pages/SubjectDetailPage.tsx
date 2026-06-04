@@ -210,7 +210,7 @@ export default function SubjectDetailPage() {
             <p>No chapters available yet.</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-1">
             {chapters.map((chapter: { id: string; title: string; description?: string | null }, idx: number) => {
               const prog = progressMap.get(chapter.id);
               const counts = topicCounts[chapter.id] ?? { total: 0, complete: 0 };
@@ -220,10 +220,10 @@ export default function SubjectDetailPage() {
 
               return (
                 <Link key={chapter.id} href={`/chapters/${chapter.id}`}>
-                  <Card className="hover:border-primary transition-colors cursor-pointer bg-card group">
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-4">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
+                  <Card className="hover:border-primary transition-colors cursor-pointer bg-card group h-full">
+                    <CardContent className="p-3 md:p-4">
+                      <div className="flex items-start gap-2 md:gap-4">
+                        <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
                           isComplete
                             ? "bg-success/10 text-success"
                             : hasProgress
@@ -231,48 +231,51 @@ export default function SubjectDetailPage() {
                             : "bg-secondary/10 text-secondary"
                         }`}>
                           {isComplete
-                            ? <CheckCircle className="w-5 h-5" />
+                            ? <CheckCircle className="w-4 h-4 md:w-5 md:h-5" />
                             : hasProgress
-                            ? <BookMarked className="w-5 h-5" />
-                            : <span className="font-bold text-sm">{idx + 1}</span>}
+                            ? <BookMarked className="w-4 h-4 md:w-5 md:h-5" />
+                            : <span className="font-bold text-xs md:text-sm">{idx + 1}</span>}
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="font-semibold truncate">{chapter.title}</h3>
+                          <div className="flex items-center gap-1 md:gap-2 flex-wrap">
+                            <h3 className="font-semibold text-sm md:text-base truncate leading-tight">{chapter.title}</h3>
                             {isComplete && (
-                              <Badge variant="outline" className="text-[10px] h-4 px-1.5 border-success/40 text-success bg-success/5">
-                                Complete
+                              <Badge variant="outline" className="text-[9px] md:text-[10px] h-4 px-1 md:px-1.5 border-success/40 text-success bg-success/5 shrink-0">
+                                Done
                               </Badge>
                             )}
+                            {/* Test Attempted and Notes Unlocked badges — desktop only */}
                             {prog?.chapter_test_attempted && !prog?.chapter_test_passed && (
-                              <Badge variant="outline" className="text-[10px] h-4 px-1.5 border-warning/40 text-warning bg-warning/5">
+                              <Badge variant="outline" className="hidden md:inline-flex text-[10px] h-4 px-1.5 border-warning/40 text-warning bg-warning/5">
                                 Test Attempted
                               </Badge>
                             )}
                             {prog?.pdf_upload_unlocked && (
-                              <Badge variant="outline" className="text-[10px] h-4 px-1.5 border-accent/40 text-accent bg-accent/5">
+                              <Badge variant="outline" className="hidden md:inline-flex text-[10px] h-4 px-1.5 border-accent/40 text-accent bg-accent/5">
                                 Notes Unlocked
                               </Badge>
                             )}
                           </div>
 
+                          {/* Description — desktop only */}
                           {chapter.description && (
-                            <p className="text-sm text-muted-foreground truncate mt-0.5">{chapter.description}</p>
+                            <p className="hidden md:block text-sm text-muted-foreground truncate mt-0.5">{chapter.description}</p>
                           )}
 
                           {counts.total > 0 && (
-                            <div className="mt-2 space-y-1">
+                            <div className="mt-1.5 md:mt-2 space-y-1">
                               <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                <span>{counts.complete}/{counts.total} topics complete</span>
+                                <span className="hidden md:inline">{counts.complete}/{counts.total} topics</span>
+                                <span className="md:hidden">{counts.complete}/{counts.total}</span>
                                 <span>{pct}%</span>
                               </div>
-                              <Progress value={pct} className="h-1.5" />
+                              <Progress value={pct} className="h-1 md:h-1.5" />
                             </div>
                           )}
                         </div>
 
-                        <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0 mt-2" />
+                        <ChevronRight className="hidden md:block w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0 mt-2" />
                       </div>
                     </CardContent>
                   </Card>
