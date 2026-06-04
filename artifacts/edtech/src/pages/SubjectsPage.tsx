@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useGetSubjects, getGetSubjectsQueryKey } from "@workspace/api-client-react";
 import type { Subject } from "@workspace/api-client-react";
@@ -5,6 +6,7 @@ import { Link } from "wouter";
 import { BookOpen, ChevronRight, Lock, Trophy, Zap } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
@@ -21,6 +23,11 @@ interface GrandTestQuiz {
   type: string;
   duration_minutes: number | null;
   passing_score: number | null;
+}
+
+interface ChapterRow {
+  id: string;
+  subject_id: string;
 }
 
 export default function SubjectsPage() {
@@ -57,6 +64,46 @@ export default function SubjectsPage() {
     },
   });
 
+  const { data: allChapters = [] } = useQuery<ChapterRow[]>({
+    queryKey: ["all-chapters-by-subject"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("chapters")
+        .select("id, subject_id")
+        .eq("is_active", true);
+      return data ?? [];
+    },
+  });
+
+  const { data: passedChapterIds = [] } = useQuery<string[]>({
+    queryKey: ["passed-chapter-ids", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data } = await supabase
+        .from("user_chapter_progress")
+        .select("chapter_id")
+        .eq("user_id", user.id)
+        .eq("chapter_test_passed", true);
+      return (data ?? []).map((r: { chapter_id: string }) => r.chapter_id);
+    },
+    enabled: !!user?.id,
+  });
+
+  const subjectChapterCounts = useMemo(() => {
+    const passedSet = new Set(passedChapterIds);
+    const result: Record<string, { total: number; completed: number }> = {};
+    for (const chapter of allChapters) {
+      if (!result[chapter.subject_id]) {
+        result[chapter.subject_id] = { total: 0, completed: 0 };
+      }
+      result[chapter.subject_id].total++;
+      if (passedSet.has(chapter.id)) {
+        result[chapter.subject_id].completed++;
+      }
+    }
+    return result;
+  }, [allChapters, passedChapterIds]);
+
   const passedSubjectCount = subjectProgress.filter(p => p.subject_test_passed).length;
   const allSubjectsPassed = totalSubjects > 0 && passedSubjectCount >= totalSubjects;
   const multiSubjectUnlocked = passedSubjectCount >= 2;
@@ -78,11 +125,13 @@ export default function SubjectsPage() {
             {subjects?.map((subject: Subject) => {
               const prog = subjectProgress.find(p => p.subject_id === subject.id);
               const isPassed = !!prog?.subject_test_passed;
+              const counts = subjectChapterCounts[subject.id] ?? { total: 0, completed: 0 };
+              const pct = counts.total > 0
+                ? Math.min(100, Math.round((counts.completed / counts.total) * 100))
+                : 0;
               return (
                 <Link key={subject.id} href={`/subjects/${subject.id}`}>
                   <Card className="hover:border-primary transition-colors cursor-pointer bg-card group h-full">
-                    {/* Mobile: compact horizontal layout, no description, no chevron */}
-                    {/* Desktop: full layout with description and chevron */}
                     <CardContent className="p-3 md:p-6 flex items-start space-x-2 md:space-x-4">
                       <div className="w-9 h-9 md:w-12 md:h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/20 transition-colors">
                         <BookOpen className="w-4 h-4 md:w-6 md:h-6 text-primary" />
@@ -102,6 +151,17 @@ export default function SubjectsPage() {
                         <p className="hidden md:block text-sm text-muted-foreground line-clamp-2 mt-1">
                           {subject.description || "Start learning " + subject.title}
                         </p>
+
+                        {/* Chapter progress summary — same row: count + bar */}
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="text-xs text-muted-foreground tabular-nums shrink-0">
+                            {counts.completed}/{counts.total}
+                          </span>
+                          <Progress
+                            value={pct}
+                            className="h-1 md:h-1.5 flex-1"
+                          />
+                        </div>
                       </div>
                       {/* Chevron visible on md+ only */}
                       <ChevronRight className="hidden md:block w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
@@ -171,7 +231,7 @@ export default function SubjectsPage() {
                             <Trophy className="w-5 h-5 text-warning" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <p className="font-semibold truncate">{quiz.title}</p>
                               <Badge variant="outline" className="text-[10px] border-warning text-warning shrink-0">
                                 {quiz.type === "grand_test" ? "Grand Test" : "Multi-Subject"}

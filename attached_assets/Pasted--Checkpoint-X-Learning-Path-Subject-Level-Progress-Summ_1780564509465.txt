@@ -1,0 +1,491 @@
+# 🟢 Checkpoint X: Learning Path Subject-Level Progress Summary & Dynamic Chapter Completion Tracking
+
+## Goal
+
+Enhance the **Learning Path** module by adding a **Subject-level Progress Summary** below each Subject card that displays:
+
+* The number of **completed chapters out of total chapters** (e.g., **5/12**)
+* A **visual progress bar** positioned on the same row to indicate completion percentage
+
+The progress summary must update dynamically based on the user's actual chapter completion status and remain responsive, compact, and visually consistent across mobile and desktop devices without disrupting the existing Subject card design.
+
+---
+
+## Context
+
+Currently:
+
+* Subject cards display subject information.
+* Users can track progress at the chapter/topic level.
+* There is no quick subject-level overview showing overall chapter completion.
+
+This makes it difficult for users to:
+
+* Quickly assess progress within a subject.
+* Compare completion status across multiple subjects.
+* Identify which subjects need attention.
+
+The new progress summary should provide an at-a-glance view of subject completion while maintaining the existing Learning Path UI.
+
+---
+
+# Requirements Analysis
+
+The requirement is not merely adding a progress bar.
+
+The implementation must:
+
+### Display Chapter Completion Summary
+
+Show:
+
+* Completed Chapters
+* Total Chapters
+
+Example:
+
+* 0/12
+* 3/12
+* 12/12
+
+### Display Dynamic Progress Bar
+
+Calculate:
+
+Progress % = (Completed Chapters ÷ Total Chapters) × 100
+
+Examples:
+
+* 0/12 = 0%
+* 3/12 = 25%
+* 6/12 = 50%
+* 12/12 = 100%
+
+The visual bar must always reflect actual progress.
+
+---
+
+# Instructions
+
+## 1. Analyze Existing Learning Path Progress Logic
+
+Review:
+
+* Learning Path module
+* Subject card component
+* Subject data structure
+* Chapter completion tracking
+* Topic completion tracking
+* Progress calculation utilities
+* Existing progress indicators
+* Student progress database structure
+
+Identify:
+
+* How chapter completion is currently determined
+* Whether completion is stored or calculated
+* Existing APIs/hooks used for progress tracking
+* Current subject-card rendering logic
+
+Verify:
+
+* Progress values are accurate
+* Existing progress calculations can be reused
+
+---
+
+## 2. Add Subject-Level Progress Summary
+
+Below each Subject card:
+
+Add a dedicated progress summary section.
+
+Example structure:
+
+Subject Card Content
+
+Progress Summary:
+
+5/12  ███████████░░░░░░░░░
+
+Where:
+
+* Left side = completed chapters / total chapters
+* Right side = progress bar
+
+Ensure:
+
+* Compact design
+* Proper alignment
+* No visual clutter
+
+---
+
+## 3. Layout Requirements
+
+### Same Row Layout
+
+Display:
+
+Left:
+
+Completed/Total Count
+
+Example:
+
+5/12
+
+Right:
+
+Progress Bar
+
+Example:
+
+[████████░░░░░░]
+
+Layout:
+
+5/12    [████████░░░░░░]
+
+Ensure:
+
+* Horizontal alignment
+* Consistent spacing
+* Proper responsiveness
+
+---
+
+## 4. Dynamic Progress Calculation
+
+Determine:
+
+### Total Chapters
+
+Count all chapters belonging to the subject.
+
+### Completed Chapters
+
+Count chapters that satisfy existing completion criteria.
+
+Verify:
+
+* Existing completion rules remain unchanged.
+* No duplicate counting occurs.
+* Hidden/inaccessible chapters are handled correctly.
+
+---
+
+## 5. Progress Bar Implementation
+
+Display:
+
+### Empty State
+
+0%
+
+### Partial Completion
+
+1–99%
+
+### Complete State
+
+100%
+
+Ensure:
+
+* Smooth visual updates.
+* Consistent sizing.
+* Clear progress visibility.
+
+Optional:
+
+* Animated width transition.
+* Framer Motion integration if already used.
+
+Prevent:
+
+* Layout shifts.
+* Jumpy rendering.
+* Progress exceeding 100%.
+
+---
+
+## 6. Mobile Responsiveness
+
+Optimize for:
+
+### Mobile
+
+* Two-column Subject card layout (existing optimization)
+* Compact progress section
+* Readable count text
+* Responsive progress bar width
+
+Ensure:
+
+* No overflow.
+* No text wrapping issues.
+* No horizontal scrolling.
+
+---
+
+## 7. Desktop Responsiveness
+
+Ensure:
+
+* Existing Subject card design remains intact.
+* Progress summary integrates naturally.
+* Proper spacing and alignment.
+
+Prevent:
+
+* Card stretching.
+* Visual imbalance.
+* Layout regressions.
+
+---
+
+## 8. Preserve Existing Functionality
+
+Ensure implementation does NOT break:
+
+* Subject navigation
+* Chapter navigation
+* Topic navigation
+* Learning Path progression
+* Completion tracking
+* Subject filtering/search
+* Analytics
+* User permissions
+* PWA functionality
+
+---
+
+## 9. Edge Cases
+
+Handle:
+
+### No Chapters
+
+Display:
+
+0/0
+
+Progress Bar:
+
+0%
+
+### New Subject
+
+Display:
+
+0/Total
+
+### Fully Completed Subject
+
+Display:
+
+Total/Total
+
+Progress Bar:
+
+100%
+
+### Inconsistent Data
+
+Prevent:
+
+* NaN values
+* Negative percentages
+* Division-by-zero errors
+
+---
+
+## 10. Performance Validation
+
+Ensure:
+
+* No excessive recalculations.
+* No unnecessary re-renders.
+* Progress calculations are memoized where appropriate.
+* Subject lists remain performant with large datasets.
+
+---
+
+## 11. Testing & Validation
+
+Test:
+
+### Progress States
+
+* 0%
+* 25%
+* 50%
+* 75%
+* 100%
+
+### Data Scenarios
+
+* Subject with no chapters
+* Subject with many chapters
+* Partially completed subject
+* Fully completed subject
+
+### Devices
+
+* Mobile
+* Tablet
+* Desktop
+* PWA mode
+
+Verify:
+
+* Count is accurate.
+* Progress bar is accurate.
+* Layout remains responsive.
+* No console errors.
+* No runtime errors.
+
+---
+
+## 12. Backend / Database / SQL Review
+
+### Determine Whether SQL Changes Are Required
+
+First analyze:
+
+* Whether chapter completion data already exists.
+* Whether current APIs already provide chapter progress.
+
+### If Existing Progress Data Exists
+
+No database changes required.
+
+### If Chapter Completion Cannot Be Calculated Efficiently
+
+Provide separately:
+
+* Required schema updates
+* SQL migration scripts
+* Rollback scripts
+* Performance considerations
+
+Before making any database changes:
+
+Explicitly explain:
+
+* Why the change is required
+* Which tables are affected
+* Whether existing data is impacted
+
+If not required, explicitly state:
+
+**"No Supabase SQL changes are required for this feature."**
+
+---
+
+## 13. Post-Implementation Verification
+
+Verify:
+
+### Subject Card
+
+Displays:
+
+Completed Chapters / Total Chapters
+
+Example:
+
+5/12
+
+### Progress Bar
+
+Displays:
+
+Correct percentage
+
+### Dynamic Updates
+
+When chapter completion changes:
+
+* Count updates immediately.
+* Progress bar updates immediately.
+
+### Responsive Layout
+
+Works correctly on:
+
+* Mobile
+* Tablet
+* Desktop
+
+Capture screenshots for verification.
+
+---
+
+## 14. Implementation Summary
+
+After completion provide:
+
+### Files Modified
+
+List all modified files.
+
+### Progress Features Added
+
+* Subject-level completion summary
+* Progress bar implementation
+* Dynamic calculation logic
+
+### Responsive Improvements
+
+* Mobile behavior
+* Desktop behavior
+
+### Performance Considerations
+
+* Calculation optimizations
+* Rendering optimizations
+
+### Database Changes
+
+Clearly state:
+
+* SQL required OR not required
+
+### Remaining Limitations
+
+Document any known limitations.
+
+---
+
+## 15. Checkpoint Requirement
+
+After successful implementation and validation:
+
+Create a checkpoint/commit immediately.
+
+### Checkpoint Name
+
+**"Subject-Level Progress Summary & Dynamic Chapter Progress Tracking"**
+
+Provide final verification results confirming all acceptance criteria have been met.
+
+---
+
+# Acceptance Criteria
+
+* [ ] Every Subject card displays a subject-level progress summary.
+* [ ] Completed chapters and total chapters are shown (e.g., 5/12).
+* [ ] Progress summary appears below the Subject card content.
+* [ ] Completion count appears on the left.
+* [ ] Progress bar appears on the right in the same row.
+* [ ] Progress bar accurately reflects chapter completion percentage.
+* [ ] Progress updates dynamically based on actual chapter completion status.
+* [ ] Mobile layout remains compact and responsive.
+* [ ] Desktop layout remains visually balanced.
+* [ ] No horizontal scrolling or overflow occurs.
+* [ ] Existing Learning Path functionality remains unaffected.
+* [ ] No console/runtime errors occur.
+* [ ] SQL requirements are explicitly documented (or confirmed unnecessary).
+* [ ] Checkpoint/commit is created after successful testing and validation.
