@@ -58,11 +58,11 @@ function SortableTaskCard({ task, onStatusChange, onDelete, today }: {
   return (
     <div ref={setNodeRef} style={style} className={cn(isDragging && "opacity-50 z-50")}>
       <Card className={cn("bg-card transition-opacity", (task.status === "completed" || task.status === "skipped") && "opacity-60")}>
-        <CardContent className="p-4 flex items-start gap-2">
+        <CardContent className="p-2.5 sm:p-4 flex items-start gap-1.5 sm:gap-2">
           <button
             {...attributes}
             {...listeners}
-            className="mt-1 p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-grab active:cursor-grabbing shrink-0 touch-none"
+            className="mt-0.5 sm:mt-1 p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-grab active:cursor-grabbing shrink-0 touch-none"
             title="Drag to reorder"
           >
             <GripVertical className="w-4 h-4" />
@@ -71,10 +71,12 @@ function SortableTaskCard({ task, onStatusChange, onDelete, today }: {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className={cn(
-                "mt-0.5 px-2 py-0.5 rounded-full text-xs font-medium border shrink-0 flex items-center gap-1 transition-colors hover:opacity-80",
+                "mt-0.5 px-1.5 sm:px-2 py-0.5 rounded-full text-xs font-medium border shrink-0 flex items-center gap-1 transition-colors hover:opacity-80",
                 statusCfg.color
               )}>
-                {statusCfg.label}<ChevronDown className="w-3 h-3" />
+                <span className="hidden sm:inline">{statusCfg.label}</span>
+                <span className="sm:hidden">{statusCfg.label.split(" ")[0]}</span>
+                <ChevronDown className="w-3 h-3" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
@@ -87,11 +89,15 @@ function SortableTaskCard({ task, onStatusChange, onDelete, today }: {
           </DropdownMenu>
 
           <div className="flex-1 min-w-0">
-            <p className={cn("font-medium text-sm", (task.status === "completed" || task.status === "skipped") && "line-through text-muted-foreground")}>
+            <p className={cn("font-medium text-sm leading-snug", (task.status === "completed" || task.status === "skipped") && "line-through text-muted-foreground")}>
               {task.title}
             </p>
-            {task.description && <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{task.description}</p>}
-            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+            {task.description && (
+              <p className="text-xs text-muted-foreground mt-0.5 leading-snug line-clamp-1 sm:line-clamp-none">
+                {task.description}
+              </p>
+            )}
+            <div className="flex items-center gap-1.5 sm:gap-2 mt-1 sm:mt-1.5 flex-wrap">
               {task.source === "auto" && (
                 <span className="flex items-center gap-1 text-[10px] font-medium text-accent bg-accent/10 px-1.5 py-0.5 rounded-full">
                   <Sparkles className="w-2.5 h-2.5" /> Auto
@@ -116,7 +122,7 @@ function SortableTaskCard({ task, onStatusChange, onDelete, today }: {
 
           <Button
             size="icon" variant="ghost"
-            className="text-muted-foreground hover:text-destructive h-7 w-7 shrink-0"
+            className="text-muted-foreground hover:text-destructive h-7 w-7 shrink-0 mt-0 sm:mt-0"
             onClick={() => onDelete(task.id)}
           >
             <Trash2 className="w-3.5 h-3.5" />
@@ -258,7 +264,7 @@ export default function TasksPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-6 max-w-3xl mx-auto">
+      <div className="space-y-4 sm:space-y-6 max-w-3xl mx-auto">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Study Planner</h1>
@@ -303,7 +309,7 @@ export default function TasksPage() {
         </div>
 
         {filter === "all" && (
-          <p className="text-xs text-muted-foreground -mt-3 flex items-center gap-1">
+          <p className="text-xs text-muted-foreground -mt-2 sm:-mt-3 flex items-center gap-1">
             <GripVertical className="w-3 h-3" /> Drag tasks to reorder
           </p>
         )}
@@ -313,14 +319,14 @@ export default function TasksPage() {
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">
+          <div className="text-center py-8 sm:py-12 text-muted-foreground">
             <Sparkles className="w-10 h-10 mx-auto mb-3 opacity-20" />
             <p className="text-sm">{filter === "completed" ? "No completed tasks yet." : "No tasks here. Add one or generate a smart plan!"}</p>
           </div>
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={filtered.map(t => t.id)} strategy={verticalListSortingStrategy}>
-              <div className="space-y-2">
+              <div className="space-y-1.5 sm:space-y-2">
                 {filtered.map((task) => (
                   <SortableTaskCard
                     key={task.id}

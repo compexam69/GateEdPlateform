@@ -1,0 +1,310 @@
+🟢 Checkpoint XX: Planner Module Mobile-First Responsiveness & Task Card Optimization
+
+Goal:
+
+Optimize the Planner module for mobile devices while preserving the existing desktop experience. The current Planner layout works well on desktop screens and should remain unchanged. However, task cards appear oversized on mobile devices, causing excessive scrolling and inefficient use of screen space.
+
+Implement a mobile-first responsive redesign that reduces task card size, improves information density, and enhances usability without sacrificing readability or touch accessibility.
+
+Context:
+
+Currently:
+
+• Planner task cards are appropriately sized for desktop screens.
+• Mobile users must scroll excessively because task cards consume too much vertical space.
+• Important planner information is spread across multiple screens.
+• The desktop experience should remain unchanged.
+
+New Requirement:
+
+• Keep the existing desktop layout exactly as-is unless a change is required to support responsiveness.
+• Optimize only the mobile experience.
+• Reduce task card height and spacing.
+• Display more tasks within the visible viewport.
+• Improve mobile usability and information density.
+• Maintain touch-friendly interactions and accessibility.
+• Preserve all existing Planner functionality.
+
+Instructions:
+
+1. Analyze Existing Planner Module
+
+Review:
+
+• Planner page layout
+• Task card components
+• Mobile responsive styles
+• Card spacing and sizing
+• Task status indicators
+• Priority indicators
+• Due date display
+• Action buttons
+• Empty states
+• Loading states
+
+Identify:
+
+• Which elements contribute most to excessive card height
+• Unnecessary spacing or padding
+• Opportunities for compact layouts
+• Mobile-specific responsiveness issues
+
+2. Mobile-First Task Card Optimization
+
+On mobile screens:
+
+• Reduce task card height
+• Reduce excessive vertical padding
+• Reduce unnecessary margins between cards
+• Optimize typography scale
+• Improve content density
+• Ensure important information remains visible
+
+Preserve:
+
+• Task title visibility
+• Status visibility
+• Priority indicators
+• Due dates
+• Completion state
+• Quick actions
+
+Prevent:
+
+• Cramped layouts
+• Text truncation issues
+• Accessibility regressions
+• Touch target violations
+
+3. Compact Mobile Layout
+
+Refactor mobile cards to use space efficiently:
+
+Possible improvements:
+
+• Single-row metadata layout
+• Compact badge styling
+• Reduced icon spacing
+• Smaller but accessible buttons
+• Inline task details where appropriate
+
+Ensure:
+
+• Readability remains high
+• Information hierarchy remains clear
+• Cards remain visually distinct
+
+4. Responsive Breakpoint Strategy
+
+Mobile (<768px):
+
+• Use compact card layout
+• Reduce spacing
+• Maximize visible tasks
+
+Tablet (768px–1023px):
+
+• Balanced responsive layout
+• Maintain usability and readability
+
+Desktop (≥1024px):
+
+• Preserve current layout
+• No unnecessary visual changes
+
+5. Preserve Existing Functionality
+
+Ensure optimization does NOT break:
+
+• Task creation
+• Task editing
+• Task deletion
+• Task completion
+• Drag-and-drop functionality (if applicable)
+• Filters
+• Search
+• Categories
+• Priorities
+• Due dates
+• Notifications
+• Planner analytics
+• Offline/PWA functionality
+
+6. Mobile UX Improvements
+
+Ensure:
+
+• Touch targets remain accessible
+• Gestures remain functional
+• Cards remain easy to tap
+• No accidental action triggering
+• Improved scrolling efficiency
+
+Consider:
+
+• Better spacing ratios
+• Mobile-friendly button placement
+• Improved content grouping
+
+7. Performance Validation
+
+Verify:
+
+• No excessive re-renders
+• No layout shifts
+• No animation jank
+• Smooth scrolling on low-end devices
+• Stable performance with large task lists
+
+8. Responsive Testing
+
+Test:
+
+Mobile devices:
+
+• Small phones
+• Large phones
+• Portrait mode
+• Landscape mode
+
+Tablets:
+
+• Portrait
+• Landscape
+
+Desktop:
+
+• Standard screens
+• Large screens
+
+PWA:
+
+• Installed app mode
+• Browser mode
+
+Verify:
+
+• No horizontal overflow
+• No clipped content
+• No overlapping UI
+• Consistent spacing
+
+9. Accessibility Validation
+
+Ensure:
+
+• Touch targets meet minimum accessibility guidelines
+• Text remains readable
+• Contrast remains compliant
+• Keyboard navigation still works
+• Screen reader compatibility remains intact
+
+10. Error Handling & Edge Cases
+
+Test:
+
+• Long task titles
+• Large task descriptions
+• Large numbers of tasks
+• Empty planner states
+• Loading states
+• Offline mode
+• Network interruptions
+
+Verify:
+
+• Layout remains stable
+• No visual breaking occurs
+
+11. Backend / Database / SQL Review
+
+Determine whether any backend changes are required.
+
+Expected Result:
+
+• This should be a frontend-only responsive optimization.
+
+If true, explicitly confirm:
+
+"No Supabase SQL changes are required."
+"No database schema changes are required."
+"No RLS policy changes are required."
+"No API changes are required."
+
+Only provide SQL scripts if implementation genuinely requires them.
+
+12. Implementation Verification
+
+After implementation verify:
+
+• Desktop layout remains unchanged.
+• Mobile task cards are significantly more compact.
+• More tasks are visible without scrolling.
+• Readability remains good.
+• Touch interactions remain accessible.
+• No responsiveness regressions exist.
+• No console warnings/errors occur.
+• No runtime errors occur.
+
+13. Final Implementation Report
+
+Provide:
+
+A. Files Modified
+
+• Components updated
+• Pages updated
+• Responsive style files updated
+
+B. Mobile Optimization Summary
+
+• Card size reductions
+• Layout improvements
+• Spacing improvements
+
+C. Responsiveness Summary
+
+• Mobile improvements
+• Tablet behavior
+• Desktop preservation
+
+D. SQL Review Result
+
+Explicitly state whether SQL changes are required.
+
+E. Remaining Issues
+
+List any known limitations.
+
+14. Checkpoint Requirement
+
+After implementation and validation:
+
+Create a checkpoint/commit immediately.
+
+Checkpoint Name:
+
+"Planner Mobile Responsiveness & Task Card Optimization"
+
+Do NOT mark the task complete until:
+
+• Implementation is finished.
+• Mobile responsiveness is verified.
+• Desktop layout is verified unchanged.
+• Testing is completed.
+• Final report is generated.
+
+Acceptance Criteria:
+
+[ ] Desktop Planner layout remains unchanged.
+[ ] Mobile task cards are smaller and more space-efficient.
+[ ] Excessive scrolling is significantly reduced.
+[ ] Mobile-first responsive design is implemented.
+[ ] Readability remains clear.
+[ ] Touch accessibility remains intact.
+[ ] No horizontal overflow exists.
+[ ] No overlapping or clipped UI exists.
+[ ] Planner functionality remains fully operational.
+[ ] No console/runtime errors occur.
+[ ] No database functionality is affected.
+[ ] Checkpoint/commit is created after successful validation.
