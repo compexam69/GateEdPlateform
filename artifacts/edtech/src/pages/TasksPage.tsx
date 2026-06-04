@@ -376,16 +376,30 @@ export default function TasksPage() {
   return (
     <AppLayout>
       <div className="space-y-4 sm:space-y-6 max-w-3xl mx-auto">
-        <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center justify-between flex-wrap gap-2 sm:gap-3">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Study Planner</h1>
-            <p className="text-muted-foreground mt-1">{counts.pending + counts.in_progress} active · {counts.completed} completed</p>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">Study Planner</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">
+              {counts.pending + counts.in_progress} active · {counts.completed} completed
+            </p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleGenerate} disabled={generating} className="gap-2">
-              {generating ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</> : <><Sparkles className="w-4 h-4 text-accent" /> Smart Plan</>}
+          <div className="flex gap-1.5 sm:gap-2 shrink-0">
+            <Button
+              variant="outline"
+              onClick={handleGenerate}
+              disabled={generating}
+              className="gap-1.5 px-2.5 sm:px-4"
+              title="Generate Smart Plan"
+            >
+              {generating
+                ? <><Loader2 className="w-4 h-4 animate-spin" /><span className="hidden sm:inline">Generating...</span></>
+                : <><Sparkles className="w-4 h-4 text-accent" /><span className="hidden sm:inline">Smart Plan</span></>
+              }
             </Button>
-            <Button onClick={() => setShowAdd(true)}><Plus className="w-4 h-4 mr-2" /> Add Task</Button>
+            <Button onClick={() => setShowAdd(true)} className="px-2.5 sm:px-4 gap-1.5">
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">Add Task</span>
+            </Button>
           </div>
         </div>
 
@@ -437,7 +451,7 @@ export default function TasksPage() {
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={filtered.map(t => t.id)} strategy={verticalListSortingStrategy}>
-              <div className="space-y-1.5 sm:space-y-2">
+              <div className="space-y-1.5 sm:space-y-2 mx-1.5 sm:mx-0">
                 {filtered.map((task) => (
                   <SortableTaskCard
                     key={task.id}
