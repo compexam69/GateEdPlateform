@@ -375,7 +375,7 @@ export default function TasksPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-4 sm:space-y-6 max-w-3xl mx-auto">
+      <div className="space-y-4 sm:space-y-6 max-w-3xl mx-auto px-4 sm:px-0">
         <div className="flex items-center justify-between flex-wrap gap-2 sm:gap-3">
           <div>
             <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">Study Planner</h1>
@@ -451,7 +451,7 @@ export default function TasksPage() {
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={filtered.map(t => t.id)} strategy={verticalListSortingStrategy}>
-              <div className="space-y-1.5 sm:space-y-2 mx-1.5 sm:mx-0">
+              <div className="space-y-1.5 sm:space-y-2">
                 {filtered.map((task) => (
                   <SortableTaskCard
                     key={task.id}
