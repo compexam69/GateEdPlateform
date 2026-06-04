@@ -4,11 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Sparkles, Trash2, ChevronDown, Loader2, AlertTriangle, Calendar, GripVertical } from "lucide-react";
+import { Plus, Sparkles, Trash2, ChevronDown, Loader2, AlertTriangle, Calendar, GripVertical, CheckCircle2 } from "lucide-react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { getTasks, getGetTasksUrl, useUpdateTask, useDeleteTask } from "@workspace/api-client-react";
 import type { StudyTask } from "@workspace/api-client-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -42,6 +42,8 @@ function priorityColor(p: number) {
   return "bg-muted text-muted-foreground border-border";
 }
 
+const SWIPE_REVEAL_WIDTH = 80;
+
 function SortableTaskCard({ task, onStatusChange, onDelete, today }: {
   task: StudyTask;
   onStatusChange: (task: StudyTask, status: string) => void;
@@ -55,80 +57,189 @@ function SortableTaskCard({ task, onStatusChange, onDelete, today }: {
   const dueDate = (task as unknown as { due_date?: string }).due_date;
   const isOverdue = dueDate && dueDate < today && task.status !== "completed" && task.status !== "skipped";
 
+  // Swipe-to-complete state — only for active (non-completed/skipped) tasks on mobile
+  const canSwipe = task.status !== "completed" && task.status !== "skipped";
+  const [isSwiped, setIsSwiped] = useState(false);
+  const slideRef = useRef<HTMLDivElement>(null);
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
+  const isHorizSwipe = useRef(false);
+  // Mirror isSwiped in a ref so the non-passive touchmove handler (set up in useEffect) can read it
+  const isSwipedRef = useRef(false);
+  useEffect(() => { isSwipedRef.current = isSwiped; }, [isSwiped]);
+
+  const closeSwiped = useCallback(() => {
+    setIsSwiped(false);
+    isSwipedRef.current = false;
+    const el = slideRef.current;
+    if (el) { el.style.transition = "transform 0.2s ease"; el.style.transform = "translateX(0)"; }
+  }, []);
+
+  // Attach touchmove as { passive: false } so we can call preventDefault() to
+  // block vertical scroll during a horizontal swipe gesture.
+  useEffect(() => {
+    const el = slideRef.current;
+    if (!el || !canSwipe) return;
+    const onMove = (e: TouchEvent) => {
+      const dx = touchStartX.current - e.touches[0].clientX; // positive = left swipe
+      const dy = Math.abs(e.touches[0].clientY - touchStartY.current);
+      // Classify the gesture direction once, on the first 4px of movement
+      if (!isHorizSwipe.current && (Math.abs(dx) > 4 || dy > 4)) {
+        isHorizSwipe.current = Math.abs(dx) > dy;
+      }
+      if (!isHorizSwipe.current) return;
+      e.preventDefault(); // prevent page scroll during horizontal swipe
+      const base = isSwipedRef.current ? SWIPE_REVEAL_WIDTH : 0;
+      const offset = Math.min(SWIPE_REVEAL_WIDTH, Math.max(0, base + dx));
+      el.style.transform = `translateX(-${offset}px)`;
+    };
+    el.addEventListener("touchmove", onMove, { passive: false });
+    return () => el.removeEventListener("touchmove", onMove);
+  }, [canSwipe]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // When card is open, a single tap anywhere outside it closes it
+  useEffect(() => {
+    if (!isSwiped) return;
+    const onOutside = () => closeSwiped();
+    // Delay by one tick so the touchend that opened it doesn't immediately close it
+    const id = setTimeout(() => document.addEventListener("touchstart", onOutside, { once: true, passive: true }), 50);
+    return () => { clearTimeout(id); document.removeEventListener("touchstart", onOutside); };
+  }, [isSwiped, closeSwiped]);
+
+  function handleTouchStart(e: React.TouchEvent) {
+    if (!canSwipe) return;
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+    isHorizSwipe.current = false;
+    if (slideRef.current) slideRef.current.style.transition = "none";
+  }
+
+  function handleTouchEnd(e: React.TouchEvent) {
+    if (!canSwipe || !isHorizSwipe.current) return;
+    const dx = touchStartX.current - e.changedTouches[0].clientX;
+    const el = slideRef.current;
+    if (!el) return;
+    el.style.transition = "transform 0.2s ease";
+    const threshold = SWIPE_REVEAL_WIDTH * 0.35;
+    if (!isSwiped && dx > threshold) {
+      setIsSwiped(true);
+      isSwipedRef.current = true;
+      el.style.transform = `translateX(-${SWIPE_REVEAL_WIDTH}px)`;
+    } else if (isSwiped && dx < -threshold) {
+      closeSwiped();
+    } else {
+      // Snap back to whichever state we were in
+      el.style.transform = isSwiped ? `translateX(-${SWIPE_REVEAL_WIDTH}px)` : "translateX(0)";
+    }
+  }
+
+  function handleComplete() {
+    onStatusChange(task, "completed");
+    closeSwiped();
+  }
+
   return (
     <div ref={setNodeRef} style={style} className={cn(isDragging && "opacity-50 z-50")}>
-      <Card className={cn("bg-card transition-opacity", (task.status === "completed" || task.status === "skipped") && "opacity-60")}>
-        <CardContent className="p-2.5 sm:p-4 flex items-start gap-1.5 sm:gap-2">
-          <button
-            {...attributes}
-            {...listeners}
-            className="mt-0.5 sm:mt-1 p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-grab active:cursor-grabbing shrink-0 touch-none"
-            title="Drag to reorder"
+      {/* Wrapper clips the sliding card and shows the reveal layer underneath */}
+      <div className="relative overflow-hidden rounded-lg">
+
+        {/* ── Swipe-reveal action — mobile only, non-completed tasks only ── */}
+        {canSwipe && (
+          <div
+            className="sm:hidden absolute inset-y-0 right-0 flex items-center justify-center bg-success/15 border border-success/30 rounded-r-lg"
+            style={{ width: SWIPE_REVEAL_WIDTH }}
           >
-            <GripVertical className="w-4 h-4" />
-          </button>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className={cn(
-                "mt-0.5 px-1.5 sm:px-2 py-0.5 rounded-full text-xs font-medium border shrink-0 flex items-center gap-1 transition-colors hover:opacity-80",
-                statusCfg.color
-              )}>
-                <span className="hidden sm:inline">{statusCfg.label}</span>
-                <span className="sm:hidden">{statusCfg.label.split(" ")[0]}</span>
-                <ChevronDown className="w-3 h-3" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
-                <DropdownMenuItem key={key} onClick={() => onStatusChange(task, key)} className={task.status === key ? "font-medium" : ""}>
-                  {cfg.label}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <div className="flex-1 min-w-0">
-            <p className={cn("font-medium text-sm leading-snug", (task.status === "completed" || task.status === "skipped") && "line-through text-muted-foreground")}>
-              {task.title}
-            </p>
-            {task.description && (
-              <p className="text-xs text-muted-foreground mt-0.5 leading-snug line-clamp-1 sm:line-clamp-none">
-                {task.description}
-              </p>
-            )}
-            <div className="flex items-center gap-1.5 sm:gap-2 mt-1 sm:mt-1.5 flex-wrap">
-              {task.source === "auto" && (
-                <span className="flex items-center gap-1 text-[10px] font-medium text-accent bg-accent/10 px-1.5 py-0.5 rounded-full">
-                  <Sparkles className="w-2.5 h-2.5" /> Auto
-                </span>
-              )}
-              {priority > 0 && (
-                <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 h-4", priorityColor(priority))}>
-                  {PRIORITY_LABELS[priority] || "Low"}
-                </Badge>
-              )}
-              {dueDate && (
-                <span className={cn(
-                  "flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border",
-                  isOverdue ? "text-destructive border-destructive/30 bg-destructive/5" : "text-muted-foreground border-border bg-muted/30"
-                )}>
-                  <Calendar className="w-2.5 h-2.5" />
-                  {isOverdue ? "Overdue · " : ""}{format(new Date(dueDate), "MMM d")}
-                </span>
-              )}
-            </div>
+            <button
+              className="flex flex-col items-center gap-1 text-success px-3 py-2 w-full h-full justify-center"
+              onClick={handleComplete}
+              aria-label="Mark task as completed"
+            >
+              <CheckCircle2 className="w-5 h-5" />
+              <span className="text-[10px] font-semibold">Done</span>
+            </button>
           </div>
+        )}
 
-          <Button
-            size="icon" variant="ghost"
-            className="text-muted-foreground hover:text-destructive h-7 w-7 shrink-0 mt-0 sm:mt-0"
-            onClick={() => onDelete(task.id)}
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </Button>
-        </CardContent>
-      </Card>
+        {/* ── Sliding card surface ── */}
+        <div
+          ref={slideRef}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
+          <Card className={cn("bg-card transition-opacity", (task.status === "completed" || task.status === "skipped") && "opacity-60")}>
+            <CardContent className="p-2.5 sm:p-4 flex items-start gap-1.5 sm:gap-2">
+              <button
+                {...attributes}
+                {...listeners}
+                className="mt-0.5 sm:mt-1 p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-grab active:cursor-grabbing shrink-0 touch-none"
+                title="Drag to reorder"
+              >
+                <GripVertical className="w-4 h-4" />
+              </button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className={cn(
+                    "mt-0.5 px-1.5 sm:px-2 py-0.5 rounded-full text-xs font-medium border shrink-0 flex items-center gap-1 transition-colors hover:opacity-80",
+                    statusCfg.color
+                  )}>
+                    <span className="hidden sm:inline">{statusCfg.label}</span>
+                    <span className="sm:hidden">{statusCfg.label.split(" ")[0]}</span>
+                    <ChevronDown className="w-3 h-3" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
+                    <DropdownMenuItem key={key} onClick={() => onStatusChange(task, key)} className={task.status === key ? "font-medium" : ""}>
+                      {cfg.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <div className="flex-1 min-w-0">
+                <p className={cn("font-medium text-sm leading-snug", (task.status === "completed" || task.status === "skipped") && "line-through text-muted-foreground")}>
+                  {task.title}
+                </p>
+                {task.description && (
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-snug line-clamp-1 sm:line-clamp-none">
+                    {task.description}
+                  </p>
+                )}
+                <div className="flex items-center gap-1.5 sm:gap-2 mt-1 sm:mt-1.5 flex-wrap">
+                  {task.source === "auto" && (
+                    <span className="flex items-center gap-1 text-[10px] font-medium text-accent bg-accent/10 px-1.5 py-0.5 rounded-full">
+                      <Sparkles className="w-2.5 h-2.5" /> Auto
+                    </span>
+                  )}
+                  {priority > 0 && (
+                    <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 h-4", priorityColor(priority))}>
+                      {PRIORITY_LABELS[priority] || "Low"}
+                    </Badge>
+                  )}
+                  {dueDate && (
+                    <span className={cn(
+                      "flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border",
+                      isOverdue ? "text-destructive border-destructive/30 bg-destructive/5" : "text-muted-foreground border-border bg-muted/30"
+                    )}>
+                      <Calendar className="w-2.5 h-2.5" />
+                      {isOverdue ? "Overdue · " : ""}{format(new Date(dueDate), "MMM d")}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <Button
+                size="icon" variant="ghost"
+                className="text-muted-foreground hover:text-destructive h-7 w-7 shrink-0"
+                onClick={() => onDelete(task.id)}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
