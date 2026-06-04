@@ -9,6 +9,11 @@ import { getTopics, getGetTopicsUrl } from "@workspace/api-client-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useEffect } from "react";
+import { motion, useMotionValue, useTransform, animate } from "framer-motion";
+
+const RING_RADIUS = 52;
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
 export default function ChapterDetailPage() {
   const { chapterId } = useParams<{ chapterId: string }>();
@@ -104,6 +109,15 @@ export default function ChapterDetailPage() {
     ? Math.round((completedSet.size / topics.length) * 100)
     : 0;
 
+  // ── Framer Motion animated counter for the ring centre ───────────────────
+  const countMV = useMotionValue(0);
+  const displayPct = useTransform(countMV, (v) => String(Math.round(v)));
+
+  useEffect(() => {
+    const controls = animate(countMV, completionPct, { duration: 1.2, ease: "easeOut" });
+    return controls.stop;
+  }, [completionPct]); // eslint-disable-line react-hooks/exhaustive-deps
+
   function handleStartChapterTest() {
     if (!chapterTest) {
       toast({ title: "No chapter test available", description: "Ask your admin to create a Chapter Test for this chapter.", variant: "destructive" });
@@ -127,17 +141,98 @@ export default function ChapterDetailPage() {
           </div>
         </div>
 
-        {/* Progress summary */}
-        {topics && topics.length > 0 && (
-          <div className="flex items-center gap-3 text-sm text-muted-foreground">
-            <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+        {/* ── Chapter Progress Ring ── */}
+        {topics && topics.length > 0 && !isLoading && (
+          <Card>
+            <CardContent className="p-4 sm:p-5">
               <div
-                className="h-full bg-primary rounded-full transition-all"
-                style={{ width: `${completionPct}%` }}
-              />
-            </div>
-            <span className="shrink-0 tabular-nums">{completedSet.size}/{topics.length} topics</span>
-          </div>
+                className="flex items-center gap-5 sm:gap-7"
+                role="region"
+                aria-label={`Chapter Progress: ${completionPct} percent complete. ${completedSet.size} of ${topics.length} topics completed.`}
+              >
+                {/* SVG ring */}
+                <div className="relative shrink-0 w-24 h-24 sm:w-28 sm:h-28" aria-hidden="true">
+                  <svg
+                    className="w-full h-full -rotate-90"
+                    viewBox="0 0 128 128"
+                  >
+                    {/* Track */}
+                    <circle
+                      cx="64" cy="64"
+                      r={RING_RADIUS}
+                      fill="none"
+                      stroke="hsl(var(--muted))"
+                      strokeWidth="10"
+                    />
+                    {/* Progress arc */}
+                    <motion.circle
+                      cx="64" cy="64"
+                      r={RING_RADIUS}
+                      fill="none"
+                      stroke={completionPct === 100 ? "hsl(var(--success, 142 76% 36%))" : "hsl(var(--primary))"}
+                      strokeWidth="10"
+                      strokeLinecap="round"
+                      strokeDasharray={RING_CIRCUMFERENCE}
+                      initial={{ strokeDashoffset: RING_CIRCUMFERENCE }}
+                      animate={{
+                        strokeDashoffset:
+                          RING_CIRCUMFERENCE - (completionPct / 100) * RING_CIRCUMFERENCE,
+                      }}
+                      transition={{ duration: 1.2, ease: "easeOut" }}
+                    />
+                  </svg>
+
+                  {/* Centred percentage overlay (unrotated) */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <div className="flex items-baseline gap-0.5 leading-none">
+                      <motion.span className="text-xl sm:text-2xl font-bold tabular-nums">
+                        {displayPct}
+                      </motion.span>
+                      <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground">%</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right-side text */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-1 select-none">
+                    Chapter Progress
+                  </p>
+                  <p className="text-2xl sm:text-3xl font-bold leading-none tabular-nums">
+                    {completedSet.size}
+                    <span className="text-muted-foreground font-normal text-lg sm:text-xl">
+                      /{topics.length}
+                    </span>
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {completedSet.size === topics.length
+                      ? "All topics mastered!"
+                      : `Topic${completedSet.size === 1 ? "" : "s"} completed`}
+                  </p>
+
+                  {completionPct === 100 && (
+                    <div className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-success bg-success/10 border border-success/20 rounded-full px-2.5 py-0.5">
+                      <CheckCircle className="w-3.5 h-3.5 shrink-0" />
+                      Chapter Mastered
+                    </div>
+                  )}
+
+                  {completionPct > 0 && completionPct < 100 && (
+                    <div className="mt-2 w-full max-w-[160px]">
+                      <div className="h-1 bg-muted rounded-full overflow-hidden">
+                        <motion.div
+                          className="h-full bg-primary rounded-full"
+                          initial={{ width: "0%" }}
+                          animate={{ width: `${completionPct}%` }}
+                          transition={{ duration: 1.2, ease: "easeOut" }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Chapter Test Card */}
