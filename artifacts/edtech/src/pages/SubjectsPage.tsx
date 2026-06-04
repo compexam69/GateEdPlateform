@@ -74,31 +74,37 @@ export default function SubjectsPage() {
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
           </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-2 md:gap-4 lg:grid-cols-3">
             {subjects?.map((subject: Subject) => {
               const prog = subjectProgress.find(p => p.subject_id === subject.id);
               const isPassed = !!prog?.subject_test_passed;
               return (
                 <Link key={subject.id} href={`/subjects/${subject.id}`}>
                   <Card className="hover:border-primary transition-colors cursor-pointer bg-card group h-full">
-                    <CardContent className="p-6 flex items-start space-x-4">
-                      <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/20 transition-colors">
-                        <BookOpen className="w-6 h-6 text-primary" />
+                    {/* Mobile: compact horizontal layout, no description, no chevron */}
+                    {/* Desktop: full layout with description and chevron */}
+                    <CardContent className="p-3 md:p-6 flex items-start space-x-2 md:space-x-4">
+                      <div className="w-9 h-9 md:w-12 md:h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/20 transition-colors">
+                        <BookOpen className="w-4 h-4 md:w-6 md:h-6 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-lg truncate">{subject.title}</h3>
+                        <div className="flex items-start gap-1 md:gap-2">
+                          <h3 className="font-semibold text-sm md:text-lg leading-tight md:leading-normal truncate">
+                            {subject.title}
+                          </h3>
                           {isPassed && (
-                            <Badge variant="outline" className="text-[10px] shrink-0 border-success text-success">
-                              Mastered
+                            <Badge variant="outline" className="text-[9px] md:text-[10px] shrink-0 border-success text-success mt-0.5 md:mt-0">
+                              ✓
                             </Badge>
                           )}
                         </div>
-                        <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
+                        {/* Description visible on md+ only */}
+                        <p className="hidden md:block text-sm text-muted-foreground line-clamp-2 mt-1">
                           {subject.description || "Start learning " + subject.title}
                         </p>
                       </div>
-                      <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                      {/* Chevron visible on md+ only */}
+                      <ChevronRight className="hidden md:block w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
                     </CardContent>
                   </Card>
                 </Link>
