@@ -5,6 +5,7 @@ import { BottomNav } from "./BottomNav";
 import { MobileHeader } from "./MobileHeader";
 import { MobileDrawer } from "./MobileDrawer";
 import { PomodoroWidget } from "@/components/PomodoroWidget";
+import { OfflineBanner } from "@/components/OfflineBanner";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotificationStore } from "@/store/notificationStore";
 
@@ -116,6 +117,9 @@ export function AppLayout({ children, fullHeight = false }: { children: ReactNod
           ? "flex-1 overflow-hidden flex flex-col pt-14 pb-16 md:pt-0 md:pb-0"
           : "flex-1 overflow-y-auto pt-14 pb-20 md:pt-0 md:pb-0"
       }>
+        {/* Offline indicator — non-intrusive bar, visible on all screen sizes */}
+        <OfflineBanner />
+
         <div className={
           fullHeight
             ? "h-full flex flex-col px-4 md:px-8"
