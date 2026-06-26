@@ -19,6 +19,7 @@ import userRouter from "./user";
 import questionsRouter from "./questions";
 import searchRouter from "./search";
 import announcementsRouter from "./announcements";
+import testManagementRouter from "./test-management";
 
 const router: IRouter = Router();
 
@@ -38,6 +39,7 @@ router.use(pomodoroRouter);
 router.use(tasksRouter);
 router.use(externalTestsRouter);
 router.use(adminRouter);
+router.use(testManagementRouter);
 router.use(notificationsRouter);
 router.use(pushRouter);
 router.use(authEmailRouter);

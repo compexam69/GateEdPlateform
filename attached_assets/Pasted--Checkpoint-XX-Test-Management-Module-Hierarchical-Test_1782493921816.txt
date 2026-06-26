@@ -1,0 +1,747 @@
+🟢 Checkpoint XX: Test Management Module – Hierarchical Test Creation, CSV Import & Role-Based Access Control
+
+## Goal
+
+Implement a new **Test Management Module** within the Admin and Super Admin Dashboard that enables administrators to create tests using the existing academic hierarchy (**Class → Subject → Chapter**) and import questions through CSV files.
+
+The module must integrate seamlessly with the existing Quiz/Test system, Content Editor hierarchy, User Management, Content Access Control, Analytics, and Student application without duplicating data or breaking existing functionality.
+
+Unlike the existing Quiz & Question Editor, this module should focus on **hierarchical test creation**, **bulk question import**, and **role-based access management**, making large-scale test creation significantly faster and easier.
+
+---
+
+## Context
+
+Currently:
+
+* The Quiz & Question Editor allows manual creation and bulk import of questions.
+* The Content Editor already manages:
+
+  * Classes
+  * Subjects
+  * Chapters
+  * Topics
+* Content Access Control already manages visibility permissions.
+* Role-based access already exists for Subjects, Lectures and Exams.
+
+However, there is no dedicated module that allows administrators to:
+
+* Select an existing Class
+* Select a Subject belonging to that Class
+* Select a Chapter
+* Upload a CSV question file
+* Automatically create a complete test
+* Manage who can view the test
+* Manage who can attempt the test
+
+The new module should reuse existing architecture wherever possible.
+
+---
+
+# Instructions
+
+## 1. Analyze Existing Architecture (MANDATORY)
+
+Before implementing anything, analyze the existing project.
+
+Review:
+
+* Quiz & Question Editor
+* Test database schema
+* Question schema
+* Content Editor hierarchy
+* Class hierarchy
+* Subject hierarchy
+* Chapter hierarchy
+* Topic hierarchy
+* CSV Import workflow
+* Existing Bulk Import system
+* Content Access Control
+* Role Permission system
+* Analytics
+* Student Test rendering
+* Progress tracking
+* Existing APIs
+* Existing Supabase tables
+* Existing RLS policies
+
+Identify:
+
+* Existing reusable components
+* Existing import logic
+* Existing validation
+* Existing access management
+* Existing CRUD logic
+
+Reuse existing functionality wherever possible.
+
+Avoid duplicate implementations.
+
+---
+
+# 2. Create New Test Management Module
+
+Create a new Dashboard module named:
+
+**Test Management**
+
+Available to:
+
+* Super Admin
+* Admin
+
+Module responsibilities:
+
+* Create Tests
+* Edit Tests
+* Delete Tests
+* Duplicate Tests
+* Import Questions
+* Manage Test Access
+* Preview Tests
+* View Import Logs
+
+---
+
+# 3. Test Creation Workflow
+
+Implement a guided workflow.
+
+Step 1
+
+Select Class
+
+↓
+
+Step 2
+
+Select Subject
+
+↓
+
+Step 3
+
+Select Chapter
+
+↓
+
+Step 4
+
+Enter Test Details
+
+Including:
+
+* Test Name
+* Description
+* Duration
+* Total Marks
+* Passing Marks
+* Difficulty
+* Test Type
+* Instructions
+
+↓
+
+Step 5
+
+Upload CSV
+
+↓
+
+Step 6
+
+Validate
+
+↓
+
+Step 7
+
+Preview
+
+↓
+
+Step 8
+
+Create Test
+
+---
+
+# 4. CSV Import System
+
+Reuse the existing Bulk Import architecture.
+
+Support:
+
+* CSV
+* XLSX (if already supported)
+
+Validate:
+
+Question
+
+Option A
+
+Option B
+
+Option C
+
+Option D
+
+Correct Answer
+
+Explanation
+
+Optional Video URL
+
+Optional QR
+
+Difficulty
+
+Marks
+
+Negative Marks (if supported)
+
+Topic Mapping (optional)
+
+Reject:
+
+* Missing required fields
+* Duplicate questions
+* Invalid options
+* Invalid answers
+* Empty rows
+* Corrupted files
+
+Show:
+
+* Import summary
+* Validation report
+* Error report
+
+Do not partially import unless explicitly supported.
+
+---
+
+# 5. Downloadable CSV Template
+
+Provide a downloadable sample CSV template identical to the existing Bulk Import workflow.
+
+Include:
+
+Required Columns
+
+Optional Columns
+
+Sample Questions
+
+Formatting Instructions
+
+Validation Notes
+
+Common Errors
+
+Import Guidelines
+
+---
+
+# 6. Hierarchy Mapping
+
+Every imported question must automatically map to:
+
+Class
+
+↓
+
+Subject
+
+↓
+
+Chapter
+
+↓
+
+Test
+
+If Topic mapping exists:
+
+↓
+
+Topic
+
+Verify hierarchy consistency before saving.
+
+---
+
+# 7. Test Access Management
+
+Integrate with the existing Content Access Control system.
+
+Allow administrators to configure:
+
+Who can VIEW the test.
+
+Who can ATTEMPT the test.
+
+Support multi-selection.
+
+Examples:
+
+✓ Creator Only
+
+✓ Selected Admins
+
+✓ Selected Students
+
+✓ Entire Class
+
+✓ Selected Classes
+
+✓ Role-Based
+
+✓ Custom User Selection
+
+Reuse the same permission model already implemented for:
+
+* Subjects
+* Lectures
+* Exams
+
+Do NOT create a separate permission system.
+
+---
+
+# 8. Permission Rules
+
+Maintain existing ownership rules.
+
+Super Admin
+
+* Can view all tests.
+* Cannot edit another Super Admin's test unless granted permission.
+* Can manage own tests.
+
+Admin
+
+* Can manage own tests.
+* Can access shared tests.
+* Cannot edit tests without permission.
+
+Students
+
+* Can only see tests they have permission to view.
+* Can only attempt tests they have permission to attempt.
+
+Respect all existing RLS policies.
+
+---
+
+# 9. Student Experience
+
+Students should:
+
+View available tests
+
+Open test
+
+Attempt test
+
+View results
+
+View explanations
+
+View video solutions (if available)
+
+Hide unavailable sections automatically.
+
+---
+
+# 10. Test Preview
+
+Before saving:
+
+Display:
+
+Hierarchy
+
+Question Count
+
+Marks
+
+Duration
+
+Difficulty
+
+CSV Summary
+
+Validation Status
+
+Allow administrators to return and edit.
+
+---
+
+# 11. Import Logs
+
+Maintain history of:
+
+Import Date
+
+User
+
+Questions Imported
+
+Skipped Questions
+
+Failed Questions
+
+Import Errors
+
+Status
+
+Allow download of error reports.
+
+---
+
+# 12. Preserve Existing Functionality
+
+Do NOT break:
+
+Quiz Editor
+
+Question Editor
+
+Bulk Import
+
+Content Editor
+
+Learning Path
+
+Progress Tracking
+
+Analytics
+
+Notifications
+
+User Management
+
+Content Access Control
+
+PWA
+
+Offline Support
+
+Telegram Integration
+
+---
+
+# 13. Responsive Design
+
+Optimize for:
+
+Desktop
+
+Tablet
+
+Mobile
+
+Installed PWA
+
+Ensure:
+
+No overflow
+
+Touch-friendly controls
+
+Responsive tables
+
+Responsive import dialogs
+
+Responsive access management
+
+---
+
+# 14. Error Handling
+
+Handle:
+
+Invalid CSV
+
+Missing hierarchy
+
+Duplicate tests
+
+Duplicate questions
+
+Network failures
+
+Permission failures
+
+Database conflicts
+
+Large imports
+
+Import cancellation
+
+Unexpected errors
+
+Display meaningful messages.
+
+---
+
+# 15. Performance
+
+Optimize:
+
+Large CSV imports
+
+Batch database inserts
+
+Database queries
+
+Rendering
+
+Search
+
+Pagination
+
+Avoid unnecessary re-renders.
+
+---
+
+# 16. Database & SQL Analysis (MANDATORY)
+
+Before making any database changes:
+
+Analyze the existing schema.
+
+Determine whether:
+
+New tables
+
+New columns
+
+New indexes
+
+New foreign keys
+
+New RLS policies
+
+New functions
+
+New triggers
+
+are required.
+
+Reuse existing tables wherever possible.
+
+If SQL changes are required:
+
+Provide separately:
+
+A. SQL Migration
+
+B. Rollback Script
+
+C. Index Creation
+
+D. RLS Policies
+
+E. Trigger Updates
+
+F. Constraint Updates
+
+Explain:
+
+Why each change is required.
+
+Risk level.
+
+Backward compatibility.
+
+Migration impact.
+
+Downtime required.
+
+If SQL is NOT required, explicitly state:
+
+**"No Supabase SQL changes are required."**
+
+---
+
+# 17. API Review
+
+Review existing APIs.
+
+Reuse wherever possible.
+
+Only create new APIs when necessary.
+
+Validate:
+
+Authentication
+
+Authorization
+
+Ownership
+
+Error handling
+
+Input validation
+
+---
+
+# 18. Testing & Validation
+
+Test:
+
+Test Creation
+
+CSV Import
+
+Hierarchy Selection
+
+Access Control
+
+Permissions
+
+Student Attempt
+
+Import Errors
+
+Large CSV
+
+Mobile
+
+Desktop
+
+Tablet
+
+PWA
+
+Verify:
+
+No runtime errors
+
+No console errors
+
+No permission leaks
+
+No duplicate imports
+
+No broken hierarchy
+
+---
+
+# 19. Final Implementation Report
+
+Provide:
+
+A. Files Modified
+
+B. Components Added
+
+C. Database Changes
+
+D. SQL Scripts
+
+E. API Changes
+
+F. Access Control Changes
+
+G. CSV Import Improvements
+
+H. Performance Optimizations
+
+I. Mobile Improvements
+
+J. Remaining Limitations
+
+---
+
+# 20. User Guidance (Post-Implementation)
+
+After implementation, clearly tell me:
+
+### A. Supabase SQL Editor
+
+Whether I need to execute SQL.
+
+If yes:
+
+Provide:
+
+* SQL scripts
+* Execution order
+* Rollback scripts
+
+If no:
+
+Explicitly state:
+
+**"No SQL execution is required in the Supabase SQL Editor."**
+
+### B. Storage
+
+State whether any new Storage buckets or policies are required.
+
+### C. Environment Variables
+
+Mention whether any new `.env` variables are required.
+
+### D. CSV Template
+
+Explain:
+
+* Where to download it
+* Required columns
+* Optional columns
+* Import workflow
+
+### E. Permissions
+
+Explain how to configure:
+
+* View permissions
+* Attempt permissions
+
+---
+
+# 21. Checkpoint Requirement
+
+After implementation and successful verification:
+
+Immediately create a checkpoint/commit.
+
+Checkpoint Name:
+
+**"Hierarchical Test Management Module with CSV Import & Access Control"**
+
+Do NOT mark the implementation complete until:
+
+* Analysis is finished.
+* SQL review is completed.
+* Access Control is implemented.
+* CSV Import is working.
+* Student access is verified.
+* Testing is completed.
+* Final implementation report is generated.
+
+---
+
+# Acceptance Criteria
+
+* [ ] New Test Management module created.
+* [ ] Tests can be created using Class → Subject → Chapter hierarchy.
+* [ ] CSV question import works correctly.
+* [ ] Downloadable CSV template is available.
+* [ ] Imported questions are mapped correctly.
+* [ ] View and Attempt access control is implemented.
+* [ ] Existing Content Access Control system is reused.
+* [ ] Existing Quiz system remains functional.
+* [ ] Student permissions work correctly.
+* [ ] Mobile, Tablet, Desktop and PWA layouts are responsive.
+* [ ] Large CSV imports perform efficiently.
+* [ ] Proper validation and error reporting are implemented.
+* [ ] SQL requirements are fully documented.
+* [ ] No existing functionality is broken.
+* [ ] No console/runtime errors remain.
+* [ ] Checkpoint/commit is created after successful implementation and validation.

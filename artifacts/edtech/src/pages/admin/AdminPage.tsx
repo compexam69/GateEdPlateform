@@ -1,6 +1,6 @@
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Link } from "wouter";
-import { Users, BookOpen, BarChart3, HelpCircle, Settings2, ShieldAlert, KeyRound, Megaphone } from "lucide-react";
+import { Users, BookOpen, BarChart3, HelpCircle, Settings2, ShieldAlert, KeyRound, Megaphone, ClipboardList } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function AdminPage() {
@@ -15,6 +15,7 @@ export default function AdminPage() {
     { title: "Analytics & Storage", desc: "View platform usage, performance stats, and B2 storage monitor.", href: "/admin/analytics", icon: BarChart3, superAdminOnly: false },
     { title: "Rate Limit Monitor", desc: "Live view of active rate-limit windows and throttled users.", href: "/admin/rate-limits", icon: ShieldAlert, superAdminOnly: false },
     { title: "Announcements", desc: "Post platform-wide banners visible on every student's dashboard.", href: "/admin/announcements", icon: Megaphone, superAdminOnly: false },
+    { title: "Test Management", desc: "Create tests from hierarchy, bulk import questions via CSV, manage access.", href: "/admin/test-management", icon: ClipboardList, superAdminOnly: false },
     { title: "Content Access Control", desc: "Manage exam visibility per role and grant super admin access.", href: "/admin/content-access", icon: KeyRound, superAdminOnly: true },
   ].filter(s => !s.superAdminOnly || isSuperAdmin);
 
