@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { BookOpen, Home, Timer, CheckSquare } from "lucide-react";
+import { BookOpen, Home, Timer, CheckSquare, BookOpenCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 const PRIMARY_LINKS = [
   { href: "/dashboard", label: "Home",  icon: Home },
   { href: "/subjects",  label: "Learn", icon: BookOpen },
+  { href: "/tests",     label: "Tests", icon: BookOpenCheck },
   { href: "/tasks",     label: "Tasks", icon: CheckSquare },
   { href: "/pomodoro",  label: "Focus", icon: Timer },
 ];

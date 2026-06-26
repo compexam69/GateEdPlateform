@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { BookOpen, Home, Settings, Timer, CheckSquare, LineChart, FileText, ShieldCheck } from "lucide-react";
+import { BookOpen, Home, Settings, Timer, CheckSquare, LineChart, FileText, ShieldCheck, BookOpenCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -18,6 +18,7 @@ export function Sidebar() {
     { href: "/subjects", label: "Learning Path", icon: BookOpen },
     { href: "/tasks", label: "Planner", icon: CheckSquare },
     { href: "/pomodoro", label: "Focus Timer", icon: Timer },
+    { href: "/tests", label: "Tests", icon: BookOpenCheck },
     { href: "/notes", label: "Notes", icon: FileText },
     { href: "/tracker", label: "Tracker", icon: LineChart },
     { href: "/profile", label: "Profile", icon: Settings },
