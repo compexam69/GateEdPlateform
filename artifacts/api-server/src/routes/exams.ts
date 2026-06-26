@@ -609,6 +609,72 @@ router.post("/qr/generate", requireAdmin, async (req: AuthRequest, res) => {
   res.json({ qr_code_url, youtube_url });
 });
 
+// Resume an existing in-progress attempt (returns same shape as /exam/start)
+router.get("/exam/resume/:attemptId", requireAuth, async (req: AuthRequest, res) => {
+  const { attemptId } = req.params as { attemptId: string };
+  if (!isValidUuid(attemptId)) { res.status(400).json({ error: "Invalid attempt ID" }); return; }
+
+  const userId = req.user!.id;
+
+  const { data: attempt } = await supabase
+    .from("user_attempts")
+    .select("id, quiz_id, started_at, quizzes(duration_minutes)")
+    .eq("id", attemptId)
+    .eq("user_id", userId)
+    .eq("status", "in_progress")
+    .single();
+
+  if (!attempt) {
+    res.status(404).json({ error: "In-progress attempt not found" });
+    return;
+  }
+
+  const { data: questions, error: qErr } = await supabase
+    .from("quiz_questions")
+    .select("id, quiz_id, question_text, options, difficulty, order_index, video_solution_url, qr_code_url")
+    .eq("quiz_id", attempt.quiz_id as string)
+    .order("order_index");
+  if (qErr) { res.status(500).json({ error: qErr.message }); return; }
+
+  const quiz = attempt.quizzes as unknown as { duration_minutes: number };
+
+  res.json({
+    attempt_id: attempt.id,
+    quiz_id: attempt.quiz_id,
+    started_at: attempt.started_at,
+    duration_minutes: quiz?.duration_minutes ?? 30,
+    questions: questions ?? [],
+  });
+});
+
+// Abandon an in-progress attempt so the student can start fresh
+router.post("/exam/abandon/:attemptId", requireAuth, async (req: AuthRequest, res) => {
+  const { attemptId } = req.params as { attemptId: string };
+  if (!isValidUuid(attemptId)) { res.status(400).json({ error: "Invalid attempt ID" }); return; }
+
+  const userId = req.user!.id;
+
+  const { data: attempt } = await supabase
+    .from("user_attempts")
+    .select("id")
+    .eq("id", attemptId)
+    .eq("user_id", userId)
+    .eq("status", "in_progress")
+    .single();
+
+  if (!attempt) {
+    res.status(404).json({ error: "In-progress attempt not found" });
+    return;
+  }
+
+  await supabase
+    .from("user_attempts")
+    .update({ status: "abandoned", submitted_at: new Date().toISOString() })
+    .eq("id", attemptId);
+
+  res.json({ success: true });
+});
+
 // Server-time sync: returns authoritative remaining seconds for an in-progress attempt
 router.get("/exam/time-remaining/:attemptId", requireAuth, async (req: AuthRequest, res) => {
   const { attemptId } = req.params as { attemptId: string };

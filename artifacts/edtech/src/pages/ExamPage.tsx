@@ -3,7 +3,7 @@ import { useParams, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Pause, Play, ChevronLeft, ChevronRight, AlertTriangle, RotateCcw, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useStartExam, useSubmitExam } from "@workspace/api-client-react";
+import { useStartExam, useSubmitExam, ApiError } from "@workspace/api-client-react";
 import type { ExamSession, Question } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { MathText } from "@/components/MathText";
@@ -36,6 +36,8 @@ export default function ExamPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [conflictAttemptId, setConflictAttemptId] = useState<string | null>(null);
+  const [conflictLoading, setConflictLoading] = useState(false);
   const [showWarning, setShowWarning] = useState<string | null>(null);
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
@@ -161,6 +163,21 @@ export default function ExamPage() {
     questionStartTime.current = Date.now();
   }
 
+  function handleStartError(err: unknown) {
+    const apiErr = err instanceof ApiError ? err : null;
+    if (apiErr && apiErr.status === 409) {
+      const body = apiErr.data as { code?: string; attempt_id?: string } | null;
+      if (body?.code === "ATTEMPT_IN_PROGRESS" && body?.attempt_id) {
+        setConflictAttemptId(body.attempt_id);
+        setLoading(false);
+        return;
+      }
+    }
+    const msg = err instanceof Error ? err.message : "Failed to start exam";
+    setError(msg);
+    setLoading(false);
+  }
+
   function startFreshExam() {
     if (!quizId) return;
     void clearDraftIdb(quizId);
@@ -170,10 +187,7 @@ export default function ExamPage() {
       { data: { quiz_id: quizId } },
       {
         onSuccess: (data: ExamSession) => initExam(data),
-        onError: (err: unknown) => {
-          setError((err as Error)?.message || "Failed to start exam");
-          setLoading(false);
-        },
+        onError: handleStartError,
       }
     );
   }
@@ -185,12 +199,49 @@ export default function ExamPage() {
       { data: { quiz_id: quizId } },
       {
         onSuccess: (data: ExamSession) => initExam(data, draft),
-        onError: (err: unknown) => {
-          setError((err as Error)?.message || "Failed to start exam");
-          setLoading(false);
-        },
+        onError: handleStartError,
       }
     );
+  }
+
+  async function resumeConflictAttempt() {
+    if (!conflictAttemptId || !quizId) return;
+    setConflictLoading(true);
+    try {
+      const data = await apiFetch(`/exam/resume/${conflictAttemptId}`) as ExamSession;
+      const savedDraft = await loadDraftIdb(quizId);
+      setConflictAttemptId(null);
+      initExam(data, savedDraft ?? undefined);
+    } catch (err) {
+      setConflictAttemptId(null);
+      setError((err as Error)?.message || "Failed to resume exam");
+    } finally {
+      setConflictLoading(false);
+    }
+  }
+
+  async function abandonAndStartFresh() {
+    if (!conflictAttemptId || !quizId) return;
+    setConflictLoading(true);
+    try {
+      await apiFetch(`/exam/abandon/${conflictAttemptId}`, { method: "POST", body: JSON.stringify({}) });
+      void clearDraftIdb(quizId);
+      setConflictAttemptId(null);
+      setDraft(null);
+      setLoading(true);
+      startExam.mutate(
+        { data: { quiz_id: quizId } },
+        {
+          onSuccess: (data: ExamSession) => initExam(data),
+          onError: handleStartError,
+        }
+      );
+    } catch (err) {
+      setConflictAttemptId(null);
+      setError((err as Error)?.message || "Failed to start exam");
+    } finally {
+      setConflictLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -202,10 +253,7 @@ export default function ExamPage() {
           { data: { quiz_id: quizId } },
           {
             onSuccess: (data: ExamSession) => initExam(data),
-            onError: (err: unknown) => {
-              setError((err as Error)?.message || "Failed to start exam");
-              setLoading(false);
-            },
+            onError: handleStartError,
           }
         );
       }
@@ -433,6 +481,32 @@ export default function ExamPage() {
             </Button>
             <Button onClick={resumeFromDraft}>
               Resume Exam
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (conflictAttemptId) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background px-4">
+        <div className="w-full max-w-md space-y-6 text-center">
+          <div className="w-16 h-16 rounded-full bg-warning/10 flex items-center justify-center mx-auto">
+            <AlertTriangle className="w-8 h-8 text-warning" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold">Exam In Progress</h2>
+            <p className="text-muted-foreground mt-2 text-sm">
+              You already have an unfinished attempt for this exam. You can pick up where you left off, or discard it and start fresh.
+            </p>
+          </div>
+          <div className="flex gap-3 justify-center">
+            <Button variant="outline" disabled={conflictLoading} onClick={() => void abandonAndStartFresh()}>
+              Start Fresh
+            </Button>
+            <Button disabled={conflictLoading} onClick={() => void resumeConflictAttempt()}>
+              {conflictLoading ? "Loading..." : "Resume Attempt"}
             </Button>
           </div>
         </div>
