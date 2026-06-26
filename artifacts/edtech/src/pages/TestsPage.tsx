@@ -6,12 +6,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   BookOpenCheck, Clock, Target, ChevronRight, Search,
-  Loader2, FileQuestion, BookOpen,
+  Loader2, FileQuestion, BookOpen, CheckCircle, XCircle,
+  RotateCcw, Trophy, History,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { apiFetch } from "@/lib/api";
 import { useLocation } from "wouter";
 import { useState, useMemo } from "react";
+import { cn } from "@/lib/utils";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -26,6 +29,25 @@ interface Quiz {
   max_attempts: number;
   is_active: boolean;
   quiz_questions: { count: number }[];
+}
+
+interface AttemptHistory {
+  attempt_id: string;
+  quiz_id: string;
+  quiz_title: string;
+  score: number;
+  total_marks: number;
+  accuracy: number;
+  passed: boolean;
+  submitted_at: string;
+}
+
+interface QuizHistory {
+  bestAccuracy: number;
+  passed: boolean;
+  attempts: number;
+  bestAttemptId: string;
+  lastSubmittedAt: string;
 }
 
 interface Subject { id: string; title: string; }
@@ -91,6 +113,35 @@ export default function TestsPage() {
     },
   });
 
+  const { data: historyRaw = [] } = useQuery<AttemptHistory[]>({
+    queryKey: ["tests-page-history"],
+    queryFn: async () => (await apiFetch("/exam/history")) as AttemptHistory[],
+    staleTime: 30_000,
+  });
+
+  // Build per-quiz history summary (best accuracy, attempt count, etc.)
+  const historyMap = useMemo<Record<string, QuizHistory>>(() => {
+    const map: Record<string, QuizHistory> = {};
+    for (const a of historyRaw) {
+      const existing = map[a.quiz_id];
+      if (!existing || a.accuracy > existing.bestAccuracy) {
+        map[a.quiz_id] = {
+          bestAccuracy: a.accuracy,
+          passed: a.passed,
+          attempts: (existing?.attempts ?? 0) + 1,
+          bestAttemptId: a.attempt_id,
+          lastSubmittedAt: a.submitted_at,
+        };
+      } else {
+        existing.attempts++;
+        if (new Date(a.submitted_at) > new Date(existing.lastSubmittedAt)) {
+          existing.lastSubmittedAt = a.submitted_at;
+        }
+      }
+    }
+    return map;
+  }, [historyRaw]);
+
   // ── Derived data ─────────────────────────────────────────────────────────────
 
   const subjectMap = useMemo(
@@ -119,7 +170,6 @@ export default function TestsPage() {
   // Group by subject → chapter
   const grouped = useMemo(() => {
     const groups: Record<string, { subject: string; chapters: Record<string, { chapter: string; quizzes: Quiz[] }> }> = {};
-    const ungrouped: Quiz[] = [];
 
     for (const q of filtered) {
       const sid = q.subject_id ?? "__none__";
@@ -136,10 +186,12 @@ export default function TestsPage() {
       groups[sid].chapters[cid].quizzes.push(q);
     }
 
-    return { groups, ungrouped };
+    return groups;
   }, [filtered, subjectMap, chapterMap]);
 
   const totalAvailable = quizzes.length;
+  const totalAttempted = Object.keys(historyMap).length;
+  const totalPassed = Object.values(historyMap).filter(h => h.passed).length;
   const uniqueTypes = useMemo(() => [...new Set(quizzes.map(q => q.type))], [quizzes]);
 
   // ── Render ────────────────────────────────────────────────────────────────────
@@ -157,6 +209,27 @@ export default function TestsPage() {
             {totalAvailable} test{totalAvailable !== 1 ? "s" : ""} available — attempt anytime, no prerequisites.
           </p>
         </div>
+
+        {/* Progress summary strip */}
+        {historyRaw.length > 0 && (
+          <div className="flex gap-3 flex-wrap">
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm">
+              <History className="w-4 h-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Attempted</span>
+              <span className="font-semibold text-foreground">{totalAttempted}</span>
+            </div>
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm">
+              <Trophy className="w-4 h-4 text-amber-400" />
+              <span className="text-muted-foreground">Passed</span>
+              <span className="font-semibold text-foreground">{totalPassed}</span>
+            </div>
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm">
+              <Target className="w-4 h-4 text-primary" />
+              <span className="text-muted-foreground">Total attempts</span>
+              <span className="font-semibold text-foreground">{historyRaw.length}</span>
+            </div>
+          </div>
+        )}
 
         {/* Filters */}
         <div className="flex gap-2 flex-wrap">
@@ -203,12 +276,14 @@ export default function TestsPage() {
           </div>
         ) : (
           <div className="space-y-8">
-            {Object.entries(grouped.groups).map(([sid, group]) => (
+            {Object.entries(grouped).map(([sid, group]) => (
               <SubjectGroup
                 key={sid}
                 subjectName={group.subject}
                 chapters={group.chapters}
+                historyMap={historyMap}
                 onStart={id => setLocation(`/exam/${id}`)}
+                onViewResult={attemptId => setLocation(`/exam/results/${attemptId}`)}
               />
             ))}
           </div>
@@ -223,11 +298,15 @@ export default function TestsPage() {
 function SubjectGroup({
   subjectName,
   chapters,
+  historyMap,
   onStart,
+  onViewResult,
 }: {
   subjectName: string;
   chapters: Record<string, { chapter: string; quizzes: Quiz[] }>;
+  historyMap: Record<string, QuizHistory>;
   onStart: (id: string) => void;
+  onViewResult: (attemptId: string) => void;
 }) {
   return (
     <section className="space-y-4">
@@ -242,7 +321,9 @@ function SubjectGroup({
             key={cid}
             chapterName={group.chapter}
             quizzes={group.quizzes}
+            historyMap={historyMap}
             onStart={onStart}
+            onViewResult={onViewResult}
           />
         ))}
       </div>
@@ -255,11 +336,15 @@ function SubjectGroup({
 function ChapterGroup({
   chapterName,
   quizzes,
+  historyMap,
   onStart,
+  onViewResult,
 }: {
   chapterName: string;
   quizzes: Quiz[];
+  historyMap: Record<string, QuizHistory>;
   onStart: (id: string) => void;
+  onViewResult: (attemptId: string) => void;
 }) {
   const isSubjectLevel = chapterName === "Subject Level";
 
@@ -272,7 +357,13 @@ function ChapterGroup({
       )}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {quizzes.map(q => (
-          <TestCard key={q.id} quiz={q} onStart={onStart} />
+          <TestCard
+            key={q.id}
+            quiz={q}
+            history={historyMap[q.id] ?? null}
+            onStart={onStart}
+            onViewResult={onViewResult}
+          />
         ))}
       </div>
     </div>
@@ -281,18 +372,46 @@ function ChapterGroup({
 
 // ── Test Card ─────────────────────────────────────────────────────────────────
 
-function TestCard({ quiz, onStart }: { quiz: Quiz; onStart: (id: string) => void }) {
+function TestCard({
+  quiz,
+  history,
+  onStart,
+  onViewResult,
+}: {
+  quiz: Quiz;
+  history: QuizHistory | null;
+  onStart: (id: string) => void;
+  onViewResult: (attemptId: string) => void;
+}) {
   const typeLabel = TYPE_LABELS[quiz.type] ?? quiz.type;
   const typeColor = TYPE_COLORS[quiz.type] ?? "bg-muted text-muted-foreground";
   const questionCount = quiz.quiz_questions?.[0]?.count ?? 0;
+  const hasHistory = !!history;
+  const isPassed = hasHistory && history.passed;
 
   return (
-    <Card className="bg-card hover:bg-muted/30 transition-colors group border-border">
+    <Card className={cn(
+      "bg-card hover:bg-muted/30 transition-colors group border-border flex flex-col",
+      isPassed && "border-success/30",
+    )}>
       <CardContent className="p-4 flex flex-col gap-3 h-full">
-        {/* Type badge */}
-        <Badge className={`self-start text-xs border ${typeColor}`}>
-          {typeLabel}
-        </Badge>
+        {/* Top row: type badge + pass indicator */}
+        <div className="flex items-center justify-between gap-2">
+          <Badge className={`self-start text-xs border ${typeColor}`}>
+            {typeLabel}
+          </Badge>
+          {hasHistory && (
+            <span className={cn(
+              "flex items-center gap-1 text-xs font-medium",
+              isPassed ? "text-success" : "text-destructive",
+            )}>
+              {isPassed
+                ? <CheckCircle className="w-3.5 h-3.5" />
+                : <XCircle className="w-3.5 h-3.5" />}
+              {isPassed ? "Passed" : "Failed"}
+            </span>
+          )}
+        </div>
 
         {/* Title */}
         <p className="font-semibold text-sm leading-snug flex-1 group-hover:text-primary transition-colors">
@@ -317,14 +436,45 @@ function TestCard({ quiz, onStart }: { quiz: Quiz; onStart: (id: string) => void
           )}
         </div>
 
-        {/* Start button */}
-        <Button
-          size="sm"
-          className="w-full mt-auto"
-          onClick={() => onStart(quiz.id)}
-        >
-          Start Test <ChevronRight className="w-3.5 h-3.5 ml-1" />
-        </Button>
+        {/* History strip */}
+        {hasHistory && (
+          <div className="rounded-md bg-muted/40 border border-border px-3 py-2 space-y-1">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">Best score</span>
+              <span className={cn(
+                "font-semibold",
+                history.bestAccuracy >= quiz.passing_score ? "text-success" : "text-destructive",
+              )}>
+                {Math.round(history.bestAccuracy)}%
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>{history.attempts} attempt{history.attempts !== 1 ? "s" : ""}</span>
+              <button
+                className="underline underline-offset-2 hover:text-foreground transition-colors"
+                onClick={() => onViewResult(history.bestAttemptId)}
+              >
+                View results
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Action buttons */}
+        <div className={cn("flex gap-2 mt-auto", hasHistory && "flex-col sm:flex-row")}>
+          <Button
+            size="sm"
+            variant={hasHistory ? "outline" : "default"}
+            className="flex-1"
+            onClick={() => onStart(quiz.id)}
+          >
+            {hasHistory ? (
+              <><RotateCcw className="w-3.5 h-3.5 mr-1.5" /> Retake</>
+            ) : (
+              <>Start Test <ChevronRight className="w-3.5 h-3.5 ml-1" /></>
+            )}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
