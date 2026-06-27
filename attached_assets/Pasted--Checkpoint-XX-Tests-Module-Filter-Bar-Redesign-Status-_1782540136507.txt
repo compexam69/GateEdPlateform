@@ -1,0 +1,499 @@
+🟢 Checkpoint XX: Tests Module Filter Bar Redesign, Status Filtering & Responsive Search Enhancement
+
+## Goal
+
+Redesign the top filter bar of the **Tests** module to provide a cleaner, faster, and more intuitive filtering experience while preserving all existing functionality.
+
+The new filter bar should include:
+
+* **Test Type** dropdown on the left (default: current selected test type)
+* **Status** dropdown in the center (default: **All**) with filtering options
+* **Search** icon on the right that expands into a search field when tapped/clicked
+
+The selected status should instantly filter the test list without requiring additional actions.
+
+The redesign must completely replace the existing status chips while maintaining all existing test functionality, responsiveness, accessibility, and performance.
+
+---
+
+# Context
+
+Currently:
+
+* Test Type filtering already exists.
+* Status filtering is implemented using multiple status chips/buttons.
+* Search functionality may already exist separately.
+* The current layout occupies unnecessary space and is less scalable on mobile devices.
+
+New Requirements:
+
+* Replace status chips with a Status dropdown.
+* Preserve Test Type filtering.
+* Add an expandable Search control.
+* Maintain responsive behavior.
+* Preserve all existing filtering functionality.
+* Do not introduce regressions.
+
+---
+
+# Instructions
+
+## 1. Analyze Existing Tests Module
+
+Review:
+
+* Tests page layout
+* Filter bar component
+* Test Type dropdown
+* Existing status chips
+* Search implementation
+* Test list rendering
+* Filtering logic
+* State management
+* URL/query parameter handling (if applicable)
+* Mobile responsiveness
+* Desktop responsiveness
+
+Identify:
+
+* Current filtering architecture
+* Current search implementation
+* Existing status values
+* How filters interact
+* Whether filtering is client-side or server-side
+* Any duplicated filtering logic
+
+Provide findings before implementation.
+
+---
+
+## 2. Redesign the Filter Bar Layout
+
+Replace the current top filter layout with:
+
+### Left
+
+**Test Type Dropdown**
+
+Default:
+
+Current selected Test Type.
+
+Examples:
+
+* All Tests
+* Subject Tests
+* Chapter Tests
+* Topic Tests
+* Mock Tests
+
+Keep all existing Test Type functionality unchanged.
+
+---
+
+### Center
+
+**Status Dropdown**
+
+Default:
+
+**All**
+
+Options:
+
+* All
+* Attempted
+* Passed
+* Failed
+* Total Attempts
+
+Selecting any option must immediately filter the displayed tests.
+
+No Apply button should be required.
+
+---
+
+### Right
+
+**Expandable Search**
+
+Initially display:
+
+Search icon only.
+
+When tapped/clicked:
+
+* Expand smoothly into a search field.
+* Automatically focus the input.
+* Collapse when cleared or closed (if appropriate).
+
+Search should continue supporting all existing search behavior.
+
+---
+
+## 3. Remove Existing Status Chips
+
+Remove:
+
+* All status chips/buttons
+* Chip containers
+* Related unused styling
+
+Ensure:
+
+* No empty placeholders remain.
+* Layout remains balanced.
+* Filtering functionality is preserved entirely through the new dropdown.
+
+---
+
+## 4. Filtering Logic
+
+Verify filtering works correctly for:
+
+### Test Type
+
+Current functionality must remain unchanged.
+
+### Status
+
+Selecting a status should instantly update the test list.
+
+Supported filters:
+
+* All
+* Attempted
+* Passed
+* Failed
+* Total Attempts
+
+If "Total Attempts" represents a metric rather than a filter, determine the correct implementation and preserve existing behavior.
+
+Filtering should work correctly with:
+
+* Test Type
+* Search
+* Existing sorting
+* Pagination
+* Infinite scrolling (if applicable)
+
+---
+
+## 5. Search Functionality
+
+Ensure the expandable search:
+
+Supports searching by:
+
+* Test name
+* Subject
+* Chapter
+* Topic
+* Keywords
+* Existing searchable fields
+
+Maintain:
+
+* Existing debounce logic
+* Existing search performance
+* Existing search API behavior
+
+Prevent:
+
+* Duplicate filtering
+* Lost filter state
+* UI flickering
+
+---
+
+## 6. State Management
+
+Ensure filter state remains synchronized.
+
+Verify:
+
+* Test Type
+* Status
+* Search query
+
+remain synchronized during:
+
+* Refresh
+* Navigation
+* Returning to page
+* Mobile rotation
+* PWA mode
+
+If filter persistence already exists, preserve it.
+
+---
+
+## 7. Preserve Existing Functionality
+
+Do NOT break:
+
+* Test opening
+* Test attempts
+* Test history
+* Results
+* Score calculation
+* Analytics
+* Pagination
+* Sorting
+* Notifications
+* User progress
+* Offline mode
+* PWA functionality
+
+---
+
+## 8. UI / UX Improvements
+
+Design requirements:
+
+* Clean
+* Modern
+* Compact
+* Professional
+
+Ensure:
+
+* Proper spacing
+* Consistent alignment
+* Responsive layout
+* Smooth animations
+* Consistent dropdown sizing
+* Proper touch targets
+
+Prevent:
+
+* Overflow
+* Clipped controls
+* Misalignment
+* Layout shifting
+
+---
+
+## 9. Mobile-First Responsiveness
+
+Mobile (<768px)
+
+Ensure:
+
+* All controls fit on one row where possible.
+* Search expands smoothly.
+* Dropdowns remain touch-friendly.
+* No horizontal scrolling.
+
+Tablet
+
+Maintain balanced spacing.
+
+Desktop
+
+Provide a polished desktop experience with proper alignment.
+
+---
+
+## 10. Accessibility Validation
+
+Ensure:
+
+* Keyboard navigation works.
+* Search field receives focus automatically.
+* Dropdowns are keyboard accessible.
+* Screen readers announce filters correctly.
+* Focus indicators remain visible.
+* Proper ARIA labels are applied.
+
+---
+
+## 11. Performance Validation
+
+Verify:
+
+* No unnecessary re-renders.
+* No duplicate API calls.
+* No filtering lag.
+* Efficient state updates.
+* Smooth animations.
+* Stable rendering with large test lists.
+
+---
+
+## 12. Error Handling & Edge Cases
+
+Handle:
+
+* No matching tests
+* Empty search results
+* Network failures
+* Slow responses
+* Invalid filter combinations
+* Large datasets
+
+Ensure:
+
+* User-friendly empty states.
+* Stable UI under failures.
+
+---
+
+## 13. Responsive Testing
+
+Test on:
+
+### Mobile
+
+* Small phones
+* Large phones
+* Portrait
+* Landscape
+
+### Tablet
+
+### Desktop
+
+### Installed PWA
+
+Verify:
+
+* Proper alignment
+* No overflow
+* Search expansion
+* Dropdown usability
+* Consistent spacing
+
+---
+
+## 14. Backend / Database / SQL Review
+
+Analyze whether backend changes are required.
+
+Review:
+
+* Test status calculations
+* Filtering APIs
+* Search APIs
+* Existing database schema
+
+If the current backend already supports these filters:
+
+Explicitly state:
+
+* **No Supabase SQL changes are required.**
+* **No database schema changes are required.**
+* **No RLS policy changes are required.**
+* **No API modifications are required unless optimization is necessary.**
+
+Only provide SQL scripts if:
+
+* A new filter requires additional database support.
+* Existing APIs cannot support the required functionality.
+* Database optimization is genuinely necessary.
+
+If SQL changes are required, provide separately:
+
+* Migration SQL
+* Rollback SQL
+* Purpose
+* Risk assessment
+* Data compatibility notes
+
+---
+
+## 15. Regression Testing
+
+Verify implementation does NOT affect:
+
+* Test attempts
+* Test results
+* Leaderboards
+* Progress tracking
+* Notifications
+* Analytics
+* Dashboard statistics
+* Existing filters
+* Search behavior
+* Responsive layouts
+
+Ensure:
+
+* No console warnings.
+* No runtime errors.
+* No UI regressions.
+
+---
+
+## 16. Final Implementation Report
+
+Provide:
+
+### A. Files Modified
+
+* Components
+* Hooks
+* Services
+* Styles
+* APIs
+
+### B. UI Redesign Summary
+
+* Filter bar redesign
+* Status dropdown
+* Search expansion
+* Removed status chips
+
+### C. Filtering Improvements
+
+* Test Type
+* Status
+* Search
+* State synchronization
+
+### D. SQL Review
+
+Explicitly state whether SQL changes are required.
+
+### E. Remaining Limitations
+
+List any known issues.
+
+---
+
+## 17. Checkpoint Requirement
+
+After successful implementation and validation:
+
+Create a checkpoint/commit immediately.
+
+### Checkpoint Name
+
+**"Tests Module Filter Bar Redesign & Responsive Search Enhancement"**
+
+Do NOT mark the task complete until:
+
+* Filter bar redesign is complete.
+* Status dropdown functions correctly.
+* Search expansion is verified.
+* Mobile responsiveness is verified.
+* Regression testing is completed.
+* SQL review is completed.
+* Final implementation report is generated.
+
+---
+
+# Acceptance Criteria
+
+* [ ] Test Type dropdown remains fully functional.
+* [ ] Status dropdown replaces existing status chips.
+* [ ] Status options include All, Attempted, Passed, Failed, and Total Attempts.
+* [ ] Selecting a status instantly filters the test list.
+* [ ] Search icon expands into a search field with smooth animation.
+* [ ] Search functionality remains fully operational.
+* [ ] Existing filtering, pagination, and sorting remain unaffected.
+* [ ] Mobile and desktop layouts are fully responsive.
+* [ ] Accessibility requirements are met.
+* [ ] No console or runtime errors occur.
+* [ ] No unnecessary SQL or database changes are introduced.
+* [ ] Checkpoint/commit is created after successful implementation and validation.

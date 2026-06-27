@@ -8,7 +8,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  BookOpenCheck, Clock, Target, ChevronRight, Search,
+  BookOpenCheck, Clock, Target, ChevronRight, Search, X,
   Loader2, FileQuestion, BookOpen, CheckCircle, XCircle,
   RotateCcw, Trophy, History, Medal, Users,
 } from "lucide-react";
@@ -16,7 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { apiFetch } from "@/lib/api";
 import { useLocation } from "wouter";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { cn } from "@/lib/utils";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -104,7 +104,10 @@ export default function TestsPage() {
   const [, setLocation] = useLocation();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [searchOpen, setSearchOpen] = useState(false);
   const [leaderboardQuiz, setLeaderboardQuiz] = useState<{ id: string; title: string } | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const { data: subjects = [] } = useQuery<Subject[]>({
     queryKey: ["tests-page-subjects"],
@@ -186,6 +189,10 @@ export default function TestsPage() {
   const filtered = useMemo(() => {
     let list = quizzes;
     if (typeFilter !== "all") list = list.filter(q => q.type === typeFilter);
+    if (statusFilter === "attempted") list = list.filter(q => !!historyMap[q.id]);
+    else if (statusFilter === "passed") list = list.filter(q => historyMap[q.id]?.passed === true);
+    else if (statusFilter === "failed") list = list.filter(q => !!historyMap[q.id] && !historyMap[q.id].passed);
+    else if (statusFilter === "multi_attempt") list = list.filter(q => (historyMap[q.id]?.attempts ?? 0) > 1);
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(t =>
@@ -195,7 +202,7 @@ export default function TestsPage() {
       );
     }
     return list;
-  }, [quizzes, typeFilter, search, subjectMap, chapterMap]);
+  }, [quizzes, typeFilter, statusFilter, search, subjectMap, chapterMap, historyMap]);
 
   const grouped = useMemo(() => {
     const groups: Record<string, { subject: string; chapters: Record<string, { chapter: string; quizzes: Quiz[] }> }> = {};
@@ -253,30 +260,76 @@ export default function TestsPage() {
           </div>
         )}
 
-        {/* Filters */}
-        <div className="flex gap-2 flex-wrap">
-          <div className="relative flex-1 min-w-[180px] max-w-xs">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search tests…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="pl-9"
-            />
+        {/* Filter bar: [Type LEFT] [Status CENTER] [Search RIGHT] */}
+        <div className="flex items-center gap-2">
+          {/* Test Type dropdown */}
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="h-9 w-[130px] sm:w-[150px] text-xs shrink-0" aria-label="Filter by test type">
+              <SelectValue placeholder="All types" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="text-xs">All types</SelectItem>
+              {uniqueTypes.map(t => (
+                <SelectItem key={t} value={t} className="text-xs">{TYPE_LABELS[t] ?? t}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Status dropdown */}
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="h-9 w-[120px] sm:w-[140px] text-xs shrink-0" aria-label="Filter by status">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="text-xs">All</SelectItem>
+              <SelectItem value="attempted" className="text-xs">Attempted</SelectItem>
+              <SelectItem value="passed" className="text-xs">Passed</SelectItem>
+              <SelectItem value="failed" className="text-xs">Failed</SelectItem>
+              <SelectItem value="multi_attempt" className="text-xs">Total Attempts</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Expandable search — icon collapses to full input */}
+          <div className="flex items-center gap-1 ml-auto">
+            {searchOpen ? (
+              <>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+                  <Input
+                    ref={searchInputRef}
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder="Search tests…"
+                    className="pl-8 h-9 w-[160px] sm:w-[220px] text-xs"
+                    aria-label="Search tests"
+                    onKeyDown={e => {
+                      if (e.key === "Escape") { setSearch(""); setSearchOpen(false); }
+                    }}
+                  />
+                </div>
+                <Button
+                  size="icon" variant="ghost"
+                  className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground"
+                  onClick={() => { setSearch(""); setSearchOpen(false); }}
+                  aria-label="Close search"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </>
+            ) : (
+              <Button
+                size="icon" variant="ghost"
+                className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground"
+                onClick={() => {
+                  setSearchOpen(true);
+                  setTimeout(() => searchInputRef.current?.focus(), 30);
+                }}
+                aria-label="Search tests"
+              >
+                <Search className="w-4 h-4" />
+              </Button>
+            )}
           </div>
-          {uniqueTypes.length > 1 && (
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-44">
-                <SelectValue placeholder="All types" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All types</SelectItem>
-                {uniqueTypes.map(t => (
-                  <SelectItem key={t} value={t}>{TYPE_LABELS[t] ?? t}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
         </div>
 
         {/* Content */}
