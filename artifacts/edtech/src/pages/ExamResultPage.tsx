@@ -42,9 +42,22 @@ export default function ExamResultPage() {
     );
   }
 
-  const correct = result.answers?.filter((a: unknown) => (a as { is_correct: boolean }).is_correct).length ?? 0;
-  const incorrect = result.answers?.filter((a: unknown) => { const r = a as { is_correct: boolean; selected_option?: string | null }; return !r.is_correct && r.selected_option; }).length ?? 0;
-  const skipped = result.answers?.filter((a: unknown) => !(a as { selected_option?: string | null }).selected_option).length ?? 0;
+  // Prefer per-answer derived counts; fall back to server-computed summary values
+  // for attempts where user_answers rows couldn't be saved (e.g. null correct_answer).
+  const r = result as {
+    correct_count?: number; incorrect_count?: number; skipped_count?: number;
+    is_correct_summary?: { correct?: number; incorrect?: number; skipped?: number };
+  };
+  const answersArr = result.answers ?? [];
+  const correct = answersArr.length > 0
+    ? answersArr.filter((a: unknown) => (a as { is_correct: boolean }).is_correct).length
+    : (r.correct_count ?? r.is_correct_summary?.correct ?? 0);
+  const incorrect = answersArr.length > 0
+    ? answersArr.filter((a: unknown) => { const x = a as { is_correct: boolean; selected_option?: string | null }; return !x.is_correct && x.selected_option; }).length
+    : (r.incorrect_count ?? r.is_correct_summary?.incorrect ?? 0);
+  const skipped = answersArr.length > 0
+    ? answersArr.filter((a: unknown) => !(a as { selected_option?: string | null }).selected_option).length
+    : (r.skipped_count ?? r.is_correct_summary?.skipped ?? 0);
   const score = result.score ?? 0;
   const totalMarks = result.total_marks ?? 1;
   const accuracy = result.accuracy ?? 0;
@@ -63,7 +76,7 @@ export default function ExamResultPage() {
     { name: "Skipped", value: skipped, color: "hsl(var(--muted-foreground))" },
   ].filter(d => d.value > 0);
 
-  const answers = (result.answers ?? []) as Array<{
+  const answers = answersArr as Array<{
     question_id: string;
     selected_option: string | null;
     correct_answer?: string;

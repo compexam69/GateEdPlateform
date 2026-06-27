@@ -168,9 +168,18 @@ router.post("/exam/submit", requireAuth, async (req: AuthRequest, res) => {
   const passed = accuracy >= passingScore;
   const timeTaken = answers.reduce((sum, a) => sum + Math.max(0, Math.floor(Number(a.time_spent_ms) || 0)), 0);
 
-  await supabase.from("user_answers").insert(
-    answerResults.map((a) => ({ attempt_id, ...a }))
-  );
+  // Filter out any rows whose correct_answer is null (violates NOT NULL constraint).
+  // Scores are already computed above so no accuracy impact from filtering.
+  const safeAnswers = (answerResults as NonNullable<typeof answerResults[number]>[])
+    .filter(a => a.correct_answer != null)
+    .map(a => ({ attempt_id, ...a }));
+
+  if (safeAnswers.length > 0) {
+    const { error: insertErr } = await supabase
+      .from("user_answers")
+      .insert(safeAnswers);
+    if (insertErr) logger.error({ err: insertErr, attempt_id }, "user_answers insert failed");
+  }
 
   await supabase
     .from("user_attempts")
@@ -478,10 +487,30 @@ router.get("/exam/results/:resultId", requireAuth, async (req: AuthRequest, res)
     ? Math.round(((totalAttempts - rank) / (totalAttempts - 1)) * 100)
     : 100;
 
+  // is_correct_summary is stored at submit time as { correct, incorrect, skipped }.
+  // Use it as authoritative fallback when user_answers rows are missing.
+  const summary = attempt.is_correct_summary as { correct?: number; incorrect?: number; skipped?: number } | null;
+  const fetchedAnswers = answersRes.data ?? [];
+
+  // Compute per-answer counts from fetched rows; fall back to summary if empty.
+  const correctCount = fetchedAnswers.length > 0
+    ? fetchedAnswers.filter((a: { is_correct: boolean }) => a.is_correct).length
+    : (summary?.correct ?? 0);
+  const incorrectCount = fetchedAnswers.length > 0
+    ? fetchedAnswers.filter((a: { is_correct: boolean; selected_option?: string | null }) => !a.is_correct && a.selected_option).length
+    : (summary?.incorrect ?? 0);
+  const skippedCount = fetchedAnswers.length > 0
+    ? fetchedAnswers.filter((a: { selected_option?: string | null }) => !a.selected_option).length
+    : (summary?.skipped ?? 0);
+
   res.json({
     ...attempt,
     passed,
-    answers: answersRes.data ?? [],
+    answers: fetchedAnswers,
+    // Always include pre-computed counts so the frontend never has to re-derive them.
+    correct_count: correctCount,
+    incorrect_count: incorrectCount,
+    skipped_count: skippedCount,
     rank,
     percentile,
     total_attempts: totalAttempts,
