@@ -10,7 +10,7 @@ import {
 import {
   BookOpenCheck, Clock, Target, ChevronRight, Search, X,
   Loader2, FileQuestion, BookOpen, CheckCircle, XCircle,
-  RotateCcw, Trophy, History, Medal, Users,
+  RotateCcw, Trophy, Medal, Users,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -241,8 +241,6 @@ export default function TestsPage() {
   }, [filtered, subjectMap, chapterMap]);
 
   const totalAvailable = quizzes.length;
-  const totalAttempted = Object.keys(historyMap).length;
-  const totalPassed = Object.values(historyMap).filter(h => h.passed).length;
   const uniqueTypes = useMemo(() => [...new Set(quizzes.map(q => q.type))], [quizzes]);
 
   return (
@@ -258,27 +256,6 @@ export default function TestsPage() {
             {totalAvailable} test{totalAvailable !== 1 ? "s" : ""} available — attempt anytime, no prerequisites.
           </p>
         </div>
-
-        {/* Progress summary strip */}
-        {historyRaw.length > 0 && (
-          <div className="flex gap-3 flex-wrap">
-            <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm">
-              <History className="w-4 h-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Attempted</span>
-              <span className="font-semibold text-foreground">{totalAttempted}</span>
-            </div>
-            <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm">
-              <Trophy className="w-4 h-4 text-amber-400" />
-              <span className="text-muted-foreground">Passed</span>
-              <span className="font-semibold text-foreground">{totalPassed}</span>
-            </div>
-            <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm">
-              <Target className="w-4 h-4 text-primary" />
-              <span className="text-muted-foreground">Total attempts</span>
-              <span className="font-semibold text-foreground">{historyRaw.length}</span>
-            </div>
-          </div>
-        )}
 
         {/* Filter bar: [Type LEFT] [Status CENTER] [Search icon RIGHT] */}
         <div className="relative">
