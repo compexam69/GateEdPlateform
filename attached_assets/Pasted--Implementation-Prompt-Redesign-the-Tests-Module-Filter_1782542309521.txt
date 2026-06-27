@@ -1,0 +1,351 @@
+# Implementation Prompt: Redesign the Tests Module Filter Bar (Responsive, Functional & Production-Ready)
+
+## Objective
+
+Redesign the **top filter bar** in the **Tests** module while preserving all existing functionality. Replace the current status chips with a more compact and responsive filtering system that works seamlessly on both mobile and desktop devices.
+
+The implementation must maintain the existing test data, business logic, APIs, filtering behavior, and performance while improving usability and screen utilization.
+
+---
+
+# Functional Requirements
+
+## 1. Redesign the Top Filter Bar
+
+Replace the current filter layout with the following responsive arrangement:
+
+**Left**
+
+* **Test Type** dropdown
+* Default value: currently selected Test Type
+* Preserve all existing Test Type options and behavior.
+
+**Center**
+
+* **Status** dropdown
+* Default value: **All**
+* Options:
+
+  * All
+  * Attempted
+  * Passed
+  * Failed
+  * Total Attempts
+
+**Right**
+
+* Search icon only.
+
+The filter bar should remain clean, modern, compact, and responsive.
+
+---
+
+## 2. Search Overlay
+
+When the Search icon is tapped:
+
+Open an **inline search popup/overlay inside the current page**.
+
+Requirements:
+
+* Do NOT expand the header.
+* Do NOT push existing content downward.
+* Do NOT resize the page.
+* Do NOT overflow outside the viewport.
+* Do NOT create horizontal scrolling.
+* Do NOT shift surrounding UI elements.
+
+Instead:
+
+* Display a floating search field within the current page.
+* Auto-focus the input.
+* Allow searching by test name.
+* Close via:
+
+  * Close icon
+  * Escape key (desktop)
+  * Outside click/tap
+* Preserve existing search functionality.
+
+---
+
+## 3. Status Dropdown Functionality
+
+Move all existing chip functionality into the new Status dropdown.
+
+Selecting an option should immediately filter the displayed tests without requiring additional actions.
+
+Supported filters:
+
+* All
+* Attempted
+* Passed
+* Failed
+* Total Attempts
+
+The filtering logic must exactly match the previous chip behavior.
+
+---
+
+## 4. Remove Existing Status Chips
+
+Completely remove the existing chips:
+
+* Attempted
+* Passed
+* Failed
+* Total Attempts
+
+Requirements:
+
+* Remove from UI.
+* Remove unused styling.
+* Remove unused state.
+* Remove unused rendering logic.
+* Remove obsolete event handlers.
+
+Ensure no dead code remains after removal.
+
+---
+
+## 5. Preserve Existing Functionality
+
+The redesign must NOT affect:
+
+* Test loading
+* Pagination
+* Infinite scrolling (if applicable)
+* Search logic
+* Test Type filtering
+* Attempt history
+* Results
+* Navigation
+* API calls
+* Performance
+* Authentication
+* Authorization
+
+Only the UI presentation should change.
+
+---
+
+# Responsive Design Requirements
+
+## Mobile
+
+* Compact filter bar
+* Touch-friendly controls
+* No overflow
+* No clipped elements
+* No horizontal scrolling
+* Search overlay fully visible
+* Proper spacing
+* Accessible tap targets
+
+---
+
+## Desktop
+
+* Balanced layout
+* Proper alignment
+* Consistent spacing
+* Search overlay positioned correctly
+* Professional appearance
+
+---
+
+# Accessibility Requirements
+
+Ensure:
+
+* Keyboard navigation works.
+* Dropdowns are accessible.
+* Search field receives focus automatically.
+* Escape closes the search overlay.
+* Screen reader labels exist.
+* Proper ARIA attributes are used.
+
+---
+
+# Performance Requirements
+
+Ensure:
+
+* No unnecessary re-renders.
+* No duplicate filtering.
+* Search is debounced if already implemented.
+* No redundant API calls.
+* Existing performance remains unchanged.
+
+---
+
+# Code Quality Requirements
+
+After implementation:
+
+Remove:
+
+* Dead code
+* Unused imports
+* Unused components
+* Unused hooks
+* Unused state
+* Unused CSS classes
+* Obsolete helper functions
+
+Ensure the implementation follows existing project architecture and coding standards.
+
+---
+
+# Testing Requirements
+
+Verify all of the following:
+
+### Filter Bar
+
+* Test Type dropdown works.
+* Current selection is preserved.
+* Status dropdown appears correctly.
+* Default value is **All**.
+* Search icon opens overlay.
+
+---
+
+### Status Filtering
+
+Verify:
+
+* All works.
+* Attempted works.
+* Passed works.
+* Failed works.
+* Total Attempts works.
+
+Confirm the displayed tests exactly match the expected filter.
+
+---
+
+### Search
+
+Verify:
+
+* Overlay opens correctly.
+* Auto-focus works.
+* Search results update correctly.
+* Closing the overlay restores the normal UI.
+* No layout shift occurs.
+
+---
+
+### Responsive Testing
+
+Verify on:
+
+Desktop
+
+Tablet
+
+Mobile
+
+Ensure:
+
+* No overflow
+* No clipping
+* No horizontal scrolling
+* Proper alignment
+* Touch-friendly controls
+
+---
+
+### Regression Testing
+
+Confirm:
+
+* Existing APIs still work.
+* Test data loads correctly.
+* Authentication remains unchanged.
+* Navigation works.
+* Attempt history works.
+* Results work.
+* No console errors.
+* No runtime errors.
+
+---
+
+# SQL Editor Guidance
+
+Analyze whether database changes are required.
+
+If SQL changes are required:
+
+Provide separately:
+
+* SQL migration scripts
+* Rollback scripts
+* Index recommendations
+* Constraint changes
+* RLS updates (if needed)
+
+Explain:
+
+* Why each SQL change is required.
+* Risk level.
+* Whether existing data is affected.
+
+If SQL changes are NOT required, explicitly state:
+
+**"No Supabase SQL Editor changes are required for this implementation."**
+
+Do NOT recommend SQL changes unless they are genuinely necessary.
+
+---
+
+# Implementation Report
+
+After implementation provide:
+
+* Files modified
+* Components modified
+* Functions updated
+* Removed dead code
+* Responsive improvements
+* Search overlay implementation details
+* Status dropdown implementation details
+* Performance considerations
+* SQL requirements (if any)
+
+---
+
+# Checkpoint Requirement
+
+Only after ALL implementation and verification steps have completed successfully:
+
+Create a checkpoint/commit.
+
+**Checkpoint Name:**
+
+`Tests Module - Responsive Filter Bar, Search Overlay & Status Dropdown`
+
+---
+
+# Final Verification Checklist
+
+* [ ] Test Type dropdown works correctly.
+* [ ] Status dropdown replaces all existing status chips.
+* [ ] Existing chips are completely removed.
+* [ ] Search icon opens an inline overlay without changing page layout.
+* [ ] Search functionality works correctly.
+* [ ] Status filtering works for every option.
+* [ ] No layout overflow on mobile.
+* [ ] Desktop layout remains balanced.
+* [ ] No horizontal scrolling.
+* [ ] Accessibility requirements satisfied.
+* [ ] Dead code removed.
+* [ ] No console errors.
+* [ ] No runtime errors.
+* [ ] Existing functionality remains unchanged.
+* [ ] SQL requirements analyzed and documented.
+* [ ] If SQL is required, safe migration and rollback scripts are provided.
+* [ ] All identified issues related to this feature are fixed.
+* [ ] Production-ready validation completed.
+* [ ] Checkpoint created only after successful implementation and verification.
