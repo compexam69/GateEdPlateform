@@ -1,0 +1,449 @@
+# Implementation Prompt: Complete Root Cause Analysis & Permanent Fix for "Failed to Post Announcement"
+
+## Objective
+
+The **"Failed to post announcement"** error indicates that one or more issues exist within the announcement creation workflow. **Do NOT apply temporary fixes, bypasses, or workarounds.** Instead, perform a complete production-level root cause analysis of the entire announcement feature and permanently resolve every issue preventing announcements from being posted successfully.
+
+The goal is to identify the exact point(s) of failure, explain the root cause(s), implement the correct solution(s), and ensure the announcement system is fully functional, secure, production-ready, and free of regressions.
+
+---
+
+# Root Cause Analysis Requirements
+
+Perform a complete end-to-end analysis of the announcement flow.
+
+Trace execution from:
+
+**Post Announcement Button**
+↓
+
+Frontend Validation
+
+↓
+
+Form State Management
+
+↓
+
+API/Service Layer
+
+↓
+
+Request Payload
+
+↓
+
+Authentication
+
+↓
+
+Authorization
+
+↓
+
+Backend Endpoint
+
+↓
+
+Controller
+
+↓
+
+Business Logic
+
+↓
+
+Database Query
+
+↓
+
+Database Constraints
+
+↓
+
+RLS Policies
+
+↓
+
+Final Database Insert
+
+↓
+
+Response Handling
+
+↓
+
+UI Success State
+
+Identify the exact step where the failure occurs.
+
+Do **NOT** stop after identifying the first issue.
+
+If multiple problems exist, identify and permanently fix **all** of them.
+
+---
+
+# Frontend Analysis
+
+Inspect the complete frontend implementation.
+
+Verify:
+
+* Form validation
+* Required fields
+* Input sanitization
+* Form state
+* Loading state
+* Button state
+* Duplicate submission prevention
+* API request generation
+* Request payload
+* Authentication token
+* Error handling
+* Success handling
+* State updates
+* UI refresh
+* Announcement list refresh
+
+Identify:
+
+* Invalid payloads
+* Missing fields
+* Incorrect data mapping
+* State synchronization issues
+* Race conditions
+* Undefined values
+* Runtime exceptions
+
+Fix every issue found.
+
+---
+
+# API / Service Layer Analysis
+
+Inspect:
+
+* API service methods
+* Request body
+* Headers
+* Authorization headers
+* Content-Type
+* Error parsing
+* Response parsing
+* Retry logic
+* Timeout handling
+
+Verify:
+
+* Correct endpoint
+* Correct HTTP method
+* Correct payload
+* Correct authentication
+* Proper error propagation
+
+Fix all issues.
+
+---
+
+# Backend Analysis
+
+Inspect:
+
+* API endpoint
+* Route configuration
+* Middleware
+* Controller
+* Business logic
+* Validation
+* Permission checks
+* Transaction handling
+* Database insert logic
+* Exception handling
+* Response generation
+
+Verify:
+
+* Endpoint receives request correctly.
+* Payload is parsed correctly.
+* Validation passes.
+* Authorization succeeds.
+* Database write executes.
+* Success response returns correctly.
+
+Fix every identified issue.
+
+---
+
+# Authentication & Authorization Audit
+
+Verify:
+
+* User authentication
+* Session validity
+* JWT/token validation
+* Role verification
+* Admin permissions
+* Super Admin permissions
+* Announcement creation permissions
+
+Ensure:
+
+* Authorized users can create announcements.
+* Unauthorized users cannot.
+* No permission bypass exists.
+* No broken access control exists.
+
+---
+
+# Database Analysis
+
+Review:
+
+* Announcement table
+* Columns
+* Constraints
+* Foreign keys
+* Default values
+* Required fields
+* Relationships
+* Triggers
+* Functions
+* Views
+* RLS policies
+* Insert permissions
+
+Verify:
+
+* Schema matches application expectations.
+* Insert succeeds.
+* Constraints are valid.
+* Required columns exist.
+* Foreign keys are valid.
+* No conflicting trigger prevents insertion.
+
+Fix every issue found.
+
+---
+
+# RLS & Permission Audit
+
+Review:
+
+* INSERT policies
+* SELECT policies
+* UPDATE policies
+* DELETE policies
+
+Verify:
+
+* Authorized users can insert announcements.
+* Announcement visibility works correctly.
+* Ownership validation is correct.
+* No RLS policy blocks valid inserts.
+
+If RLS changes are required:
+
+Provide updated policies with explanation.
+
+---
+
+# Error Handling Improvements
+
+Replace the generic error:
+
+**"Failed to post announcement"**
+
+with meaningful messages based on the actual failure.
+
+Examples:
+
+* Permission denied
+* Validation failed
+* Network unavailable
+* Authentication expired
+* Database constraint violation
+* Duplicate announcement
+* Server unavailable
+* Unknown server error
+
+Ensure sensitive backend information is **not** exposed to users.
+
+---
+
+# Logging & Debugging
+
+Verify:
+
+* Frontend logs
+* Backend logs
+* Network responses
+* API responses
+* Database errors
+
+Ensure:
+
+* Useful logs exist for debugging.
+* Production logs do not expose sensitive information.
+
+---
+
+# Code Quality Review
+
+After fixing the issue:
+
+Remove:
+
+* Dead code
+* Unused imports
+* Unused services
+* Unused API methods
+* Obsolete validation logic
+* Redundant error handling
+* Duplicate functions
+
+Ensure the implementation follows existing project architecture and coding standards.
+
+---
+
+# Regression Testing
+
+Verify:
+
+Announcement Creation
+
+* Announcement posts successfully.
+* Success notification appears.
+* Announcement is stored in the database.
+* Announcement appears immediately in the announcements list.
+* No duplicate announcements are created.
+
+Announcement Viewing
+
+* Existing announcements remain visible.
+* Sorting still works.
+* Filtering still works (if applicable).
+
+Permissions
+
+* Super Admin works.
+* Admin works.
+* Unauthorized users are blocked correctly.
+
+Error Handling
+
+* Meaningful errors appear.
+* No generic failures remain.
+
+Performance
+
+* No unnecessary API requests.
+* No duplicate database writes.
+* No memory leaks.
+* No infinite renders.
+
+Console
+
+* No JavaScript errors.
+* No warnings related to announcements.
+
+Network
+
+* No failed requests.
+* Correct HTTP responses returned.
+
+Backend
+
+* No unhandled exceptions.
+* No server crashes.
+
+---
+
+# SQL Editor Guidance
+
+Analyze whether Supabase database changes are required.
+
+If SQL changes are required:
+
+Provide separately:
+
+### SQL Migration Script
+
+### Rollback Script
+
+### RLS Policy Updates
+
+### Constraint Changes
+
+### Index Recommendations
+
+Explain:
+
+* Why each SQL change is required.
+* Risk level.
+* Impact on existing data.
+* Whether downtime is required.
+
+If SQL changes are **NOT** required, explicitly state:
+
+**"No Supabase SQL Editor changes are required for this implementation."**
+
+Do **NOT** recommend SQL changes unless they are genuinely necessary.
+
+---
+
+# Implementation Report
+
+After implementation provide:
+
+* Root cause(s) identified
+* Exact failure point(s)
+* Files modified
+* Components updated
+* API changes
+* Backend changes
+* Database changes
+* RLS changes
+* Error handling improvements
+* Performance improvements
+* Dead code removed
+* SQL requirements (if any)
+
+---
+
+# Checkpoint Requirement
+
+Only after **all identified issues have been permanently fixed**, fully tested, and verified:
+
+Create a checkpoint/commit.
+
+**Checkpoint Name:**
+
+`Announcement Module - Root Cause Analysis, Permanent Fix & Production Stabilization`
+
+---
+
+# Final Verification Checklist
+
+* [ ] Entire announcement workflow analyzed end-to-end.
+* [ ] Exact root cause(s) identified and documented.
+* [ ] All identified issues permanently fixed.
+* [ ] No temporary fixes or workarounds used.
+* [ ] Frontend validation works correctly.
+* [ ] API request is correct.
+* [ ] Backend endpoint works correctly.
+* [ ] Authentication verified.
+* [ ] Authorization verified.
+* [ ] Database insert succeeds.
+* [ ] RLS policies verified.
+* [ ] Announcement appears immediately after posting.
+* [ ] Meaningful error messages implemented.
+* [ ] No console errors.
+* [ ] No network errors.
+* [ ] No backend exceptions.
+* [ ] No dead code remains.
+* [ ] Existing announcement functionality remains unchanged.
+* [ ] No regressions introduced into other modules.
+* [ ] SQL requirements analyzed and documented.
+* [ ] If SQL changes are required, safe migration and rollback scripts are provided.
+* [ ] Production-ready validation completed successfully.
+* [ ] Checkpoint created only after successful implementation and verification.

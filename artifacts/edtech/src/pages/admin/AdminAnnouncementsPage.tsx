@@ -12,10 +12,11 @@ import {
   useAdminCreateAnnouncement,
   useAdminUpdateAnnouncement,
   useAdminDeleteAnnouncement,
+  ApiError,
 } from "@workspace/api-client-react";
 import type { Announcement } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Eye, EyeOff, Info, AlertTriangle, CheckCircle2, Megaphone } from "lucide-react";
+import { Plus, Trash2, Eye, EyeOff, Info, AlertTriangle, CheckCircle2, Megaphone, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 
 type AnnouncementType = Announcement["type"];
@@ -37,30 +38,61 @@ function TypeBadge({ type }: { type: AnnouncementType }) {
   );
 }
 
-const QUERY_KEY = ["admin-announcements"];
+/**
+ * Extracts a user-friendly error message from any thrown value.
+ * Never exposes raw server internals to the UI.
+ */
+function resolveErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof ApiError) {
+    if (err.status === 401) return "Session expired — please log in again.";
+    if (err.status === 403) return "You don't have permission to perform this action.";
+    if (err.status === 400) {
+      const detail =
+        (err.data as { error?: string } | null)?.error ?? "";
+      return detail ? `Validation error: ${detail}` : "Invalid request — check your inputs.";
+    }
+    if (err.status === 404) return "Announcement not found.";
+    if (err.status >= 500) return "Server error — please try again in a moment.";
+    const msg = (err.data as { error?: string } | null)?.error ?? err.message;
+    return msg || fallback;
+  }
+  if (err instanceof TypeError && err.message.toLowerCase().includes("fetch")) {
+    return "Network unavailable — check your connection.";
+  }
+  return fallback;
+}
+
+const ADMIN_QUERY_KEY = ["admin-announcements"];
+const ACTIVE_QUERY_KEY = ["announcements-active"];
 
 export default function AdminAnnouncementsPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
 
   const { data: announcements = [], isLoading } = useAdminListAnnouncements({
-    query: { queryKey: QUERY_KEY },
+    query: { queryKey: ADMIN_QUERY_KEY },
   });
 
   const { mutateAsync: create, isPending: creating } = useAdminCreateAnnouncement();
-  const { mutateAsync: update } = useAdminUpdateAnnouncement();
-  const { mutateAsync: remove } = useAdminDeleteAnnouncement();
+  const { mutateAsync: update, isPending: updating } = useAdminUpdateAnnouncement();
+  const { mutateAsync: remove, isPending: removing } = useAdminDeleteAnnouncement();
 
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [type, setType] = useState<AnnouncementType>("info");
   const [expiresAt, setExpiresAt] = useState("");
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const invalidate = () => qc.invalidateQueries({ queryKey: QUERY_KEY });
+  const invalidateAll = () =>
+    Promise.all([
+      qc.invalidateQueries({ queryKey: ADMIN_QUERY_KEY }),
+      qc.invalidateQueries({ queryKey: ACTIVE_QUERY_KEY }),
+    ]);
 
   const handleCreate = async () => {
     if (!title.trim()) { toast({ title: "Title is required", variant: "destructive" }); return; }
-    if (!body.trim()) { toast({ title: "Body is required", variant: "destructive" }); return; }
+    if (!body.trim()) { toast({ title: "Message body is required", variant: "destructive" }); return; }
     try {
       await create({
         data: {
@@ -70,33 +102,44 @@ export default function AdminAnnouncementsPage() {
           expires_at: expiresAt || null,
         },
       });
-      toast({ title: "Announcement posted" });
+      toast({ title: "Announcement posted successfully" });
       setTitle("");
       setBody("");
       setType("info");
       setExpiresAt("");
-      await invalidate();
-    } catch {
-      toast({ title: "Failed to post announcement", variant: "destructive" });
+      await invalidateAll();
+    } catch (err) {
+      console.error("[announcement] create failed:", err);
+      toast({ title: resolveErrorMessage(err, "Failed to post announcement"), variant: "destructive" });
     }
   };
 
   const handleToggleActive = async (a: Announcement) => {
+    if (togglingId || updating) return;
+    setTogglingId(a.id);
     try {
       await update({ id: a.id, data: { is_active: !a.is_active } });
-      await invalidate();
-    } catch {
-      toast({ title: "Failed to update announcement", variant: "destructive" });
+      await invalidateAll();
+    } catch (err) {
+      console.error("[announcement] toggle failed:", err);
+      toast({ title: resolveErrorMessage(err, "Failed to update announcement"), variant: "destructive" });
+    } finally {
+      setTogglingId(null);
     }
   };
 
   const handleDelete = async (id: string) => {
+    if (deletingId || removing) return;
+    setDeletingId(id);
     try {
       await remove({ id });
       toast({ title: "Announcement deleted" });
-      await invalidate();
-    } catch {
-      toast({ title: "Failed to delete announcement", variant: "destructive" });
+      await invalidateAll();
+    } catch (err) {
+      console.error("[announcement] delete failed:", err);
+      toast({ title: resolveErrorMessage(err, "Failed to delete announcement"), variant: "destructive" });
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -129,6 +172,7 @@ export default function AdminAnnouncementsPage() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 maxLength={300}
+                disabled={creating}
               />
             </div>
 
@@ -140,6 +184,7 @@ export default function AdminAnnouncementsPage() {
                 onChange={(e) => setBody(e.target.value)}
                 rows={3}
                 maxLength={2000}
+                disabled={creating}
               />
             </div>
 
@@ -153,7 +198,8 @@ export default function AdminAnnouncementsPage() {
                       <button
                         key={opt.value}
                         onClick={() => setType(opt.value)}
-                        className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all ${
+                        disabled={creating}
+                        className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all disabled:opacity-50 ${
                           type === opt.value
                             ? opt.badge + " ring-2 ring-offset-1 ring-current"
                             : "border-border text-muted-foreground hover:border-primary/50"
@@ -176,13 +222,17 @@ export default function AdminAnnouncementsPage() {
                   value={expiresAt}
                   onChange={(e) => setExpiresAt(e.target.value)}
                   className="w-auto"
+                  disabled={creating}
                 />
               </div>
             </div>
 
             <Button onClick={handleCreate} disabled={creating} className="gap-2">
-              <Plus className="h-4 w-4" />
-              {creating ? "Posting…" : "Post Announcement"}
+              {creating ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Posting…</>
+              ) : (
+                <><Plus className="h-4 w-4" /> Post Announcement</>
+              )}
             </Button>
           </CardContent>
         </Card>
@@ -195,6 +245,7 @@ export default function AdminAnnouncementsPage() {
 
           {isLoading ? (
             <div className="flex h-24 items-center justify-center text-muted-foreground text-sm">
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
               Loading…
             </div>
           ) : announcements.length === 0 ? (
@@ -203,58 +254,69 @@ export default function AdminAnnouncementsPage() {
               <p>No announcements yet</p>
             </div>
           ) : (
-            announcements.map((a) => (
-              <div
-                key={a.id}
-                className={`rounded-lg border p-4 flex items-start gap-4 transition-opacity ${
-                  a.is_active ? "" : "opacity-50"
-                }`}
-              >
-                <div className="flex-1 min-w-0 space-y-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <TypeBadge type={a.type} />
-                    {!a.is_active && (
-                      <Badge variant="secondary" className="text-xs">Inactive</Badge>
-                    )}
-                    {a.expires_at && (
-                      <span className="text-xs text-muted-foreground">
-                        Expires {format(new Date(a.expires_at), "MMM d, yyyy HH:mm")}
-                      </span>
-                    )}
+            announcements.map((a) => {
+              const isToggling = togglingId === a.id;
+              const isDeleting = deletingId === a.id;
+              return (
+                <div
+                  key={a.id}
+                  className={`rounded-lg border p-4 flex items-start gap-4 transition-opacity ${
+                    a.is_active ? "" : "opacity-50"
+                  }`}
+                >
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <TypeBadge type={a.type} />
+                      {!a.is_active && (
+                        <Badge variant="secondary" className="text-xs">Inactive</Badge>
+                      )}
+                      {a.expires_at && (
+                        <span className="text-xs text-muted-foreground">
+                          Expires {format(new Date(a.expires_at), "MMM d, yyyy HH:mm")}
+                        </span>
+                      )}
+                    </div>
+                    <p className="font-semibold text-sm leading-snug">{a.title}</p>
+                    <p className="text-sm text-muted-foreground leading-snug">{a.body}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Posted {format(new Date(a.created_at), "MMM d, yyyy 'at' HH:mm")}
+                    </p>
                   </div>
-                  <p className="font-semibold text-sm leading-snug">{a.title}</p>
-                  <p className="text-sm text-muted-foreground leading-snug">{a.body}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Posted {format(new Date(a.created_at), "MMM d, yyyy 'at' HH:mm")}
-                  </p>
-                </div>
 
-                <div className="flex items-center gap-2 shrink-0">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleToggleActive(a)}
-                    className="gap-1.5 text-xs"
-                    title={a.is_active ? "Deactivate" : "Activate"}
-                  >
-                    {a.is_active ? (
-                      <><EyeOff className="h-3.5 w-3.5" /> Hide</>
-                    ) : (
-                      <><Eye className="h-3.5 w-3.5" /> Show</>
-                    )}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDelete(a.id)}
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5 text-xs"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    Delete
-                  </Button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleToggleActive(a)}
+                      disabled={isToggling || isDeleting || !!togglingId || !!deletingId}
+                      className="gap-1.5 text-xs"
+                      title={a.is_active ? "Deactivate" : "Activate"}
+                    >
+                      {isToggling ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : a.is_active ? (
+                        <><EyeOff className="h-3.5 w-3.5" /> Hide</>
+                      ) : (
+                        <><Eye className="h-3.5 w-3.5" /> Show</>
+                      )}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDelete(a.id)}
+                      disabled={isToggling || isDeleting || !!togglingId || !!deletingId}
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5 text-xs"
+                    >
+                      {isDeleting ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <><Trash2 className="h-3.5 w-3.5" /> Delete</>
+                      )}
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
