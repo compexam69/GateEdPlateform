@@ -247,7 +247,8 @@ export default function TasksPage() {
 
   const reorderTasks = useMutation({
     mutationFn: async (orderedIds: string[]) => {
-      return apiFetch("/tasks/reorder", { method: "POST", body: JSON.stringify({ orderedIds }) });
+      const tasks = orderedIds.map((id, index) => ({ id, order_index: index }));
+      return apiFetch("/tasks/reorder", { method: "POST", body: JSON.stringify({ tasks }) });
     },
     onError: () => {
       queryClient.invalidateQueries({ queryKey: [getGetTasksUrl()] });
