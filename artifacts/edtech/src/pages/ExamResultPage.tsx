@@ -100,7 +100,11 @@ export default function ExamResultPage() {
   const sorted = [...withTime].sort((a, b) => (b.time_spent_ms ?? 0) - (a.time_spent_ms ?? 0));
   const slowest = sorted.slice(0, 3);
   const fastest = [...withTime].sort((a, b) => (a.time_spent_ms ?? 0) - (b.time_spent_ms ?? 0)).slice(0, 3);
-  const avgTimeMs = withTime.length ? withTime.reduce((s, a) => s + (a.time_spent_ms ?? 0), 0) / withTime.length : 0;
+  // When per-question answer rows are missing, fall back to total time ÷ total questions.
+  const totalQuestionsForTime = correct + incorrect + skipped || totalMarks;
+  const avgTimeMs = withTime.length
+    ? withTime.reduce((s, a) => s + (a.time_spent_ms ?? 0), 0) / withTime.length
+    : (timeTakenMs > 0 && totalQuestionsForTime > 0 ? timeTakenMs / totalQuestionsForTime : 0);
 
   // Time distribution bar chart
   const timeDistData = answers.map((a, i) => ({
