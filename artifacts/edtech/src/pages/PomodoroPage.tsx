@@ -136,7 +136,6 @@ export default function PomodoroPage() {
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
   const streakDays = stats?.streak_days ?? 0;
-  const pctRemaining = Math.ceil((timeLeft / totalDuration) * 100);
 
   return (
     <AppLayout fullHeight>
@@ -305,11 +304,6 @@ export default function PomodoroPage() {
                 <div className={`text-[11px] font-semibold uppercase tracking-widest mt-1 md:text-xs ${MODE_COLOR[mode]}`}>
                   {POMODORO_LABELS[mode]}
                 </div>
-                {totalDuration > 0 && (
-                  <div className="text-[10px] text-muted-foreground/60 tabular-nums">
-                    {pctRemaining}% left
-                  </div>
-                )}
                 {selectedTopicTitle && mode === "focus" && (
                   <div className="text-[10px] text-muted-foreground max-w-[110px] truncate mt-0.5">
                     {selectedTopicTitle}
