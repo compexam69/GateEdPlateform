@@ -12,7 +12,6 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import {
@@ -25,7 +24,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-import { getApiBase } from "@/lib/api";
+import { apiFetch, getApiBase } from "@/lib/api";
 
 const STATUS_CONFIG = {
   pending: { label: "Pending", color: "border-border text-muted-foreground bg-muted/30" },
@@ -275,17 +274,9 @@ export default function TasksPage() {
 
   const createTask = useMutation({
     mutationFn: async (data: { title: string; priority: number; due_date?: string }) => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
       const body: Record<string, unknown> = { title: data.title, priority: data.priority, target_type: "free_text" };
       if (data.due_date) body.due_date = data.due_date;
-      const res = await fetch(`${getApiBase()}/tasks`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) throw new Error("Failed to add task");
-      return res.json();
+      return apiFetch("/tasks", { method: "POST", body: JSON.stringify(body) });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [getGetTasksUrl()] });
@@ -297,14 +288,7 @@ export default function TasksPage() {
 
   const reorderTasks = useMutation({
     mutationFn: async (orderedIds: string[]) => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      const res = await fetch(`${getApiBase()}/tasks/reorder`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ orderedIds }),
-      });
-      if (!res.ok) throw new Error("Reorder failed");
+      return apiFetch("/tasks/reorder", { method: "POST", body: JSON.stringify({ orderedIds }) });
     },
     onError: () => {
       queryClient.invalidateQueries({ queryKey: [getGetTasksUrl()] });
@@ -345,13 +329,9 @@ export default function TasksPage() {
   async function handleGenerate() {
     setGenerating(true); setShowWeak(false);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      const res = await fetch(`${getApiBase()}/tasks/generate`, {
-        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({}),
-      });
-      const data = await res.json();
+      const data = await apiFetch("/tasks/generate", { method: "POST", body: JSON.stringify({}) }) as {
+        created: number; message: string; weak_topics?: Array<{ topicId: string; title: string; avg_accuracy: number }>;
+      };
       queryClient.invalidateQueries({ queryKey: [getGetTasksUrl()] });
       if (data.weak_topics) { setWeakTopics(data.weak_topics); setShowWeak(true); }
       toast({ title: data.created > 0 ? "Smart plan generated!" : "You're on track!", description: data.message });
