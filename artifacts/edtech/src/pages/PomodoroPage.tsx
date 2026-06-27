@@ -36,6 +36,22 @@ export default function PomodoroPage() {
   const store = usePomodoroStore();
   const { mode, customMinutes, timeLeft, isRunning, startTime, sessionCount } = store;
   const [customInput, setCustomInput] = useState(String(customMinutes));
+  const [customDialogOpen, setCustomDialogOpen] = useState(false);
+  const [pendingCustomInput, setPendingCustomInput] = useState(String(customMinutes));
+
+  function openCustomDialog() {
+    setPendingCustomInput(String(customMinutes));
+    setCustomDialogOpen(true);
+  }
+
+  function confirmCustomDialog() {
+    const v = parseInt(pendingCustomInput, 10);
+    const clamped = isNaN(v) || v < 1 ? 1 : v > 120 ? 120 : v;
+    store.setCustomMinutes(clamped);
+    setCustomInput(String(clamped));
+    store.setMode("custom");
+    setCustomDialogOpen(false);
+  }
 
   const GOAL_PRESETS = [2, 4, 6, 8];
   const [dailyGoal, setDailyGoal] = useState<number>(() => {
@@ -130,44 +146,15 @@ export default function PomodoroPage() {
                   key={m}
                   variant={mode === m ? "default" : "outline"}
                   size="sm"
-                  onClick={() => switchMode(m)}
+                  onClick={() => m === "custom" ? openCustomDialog() : switchMode(m)}
                   className="gap-1 h-7 text-xs px-2.5 md:h-8 md:text-sm md:px-3"
                 >
                   <Icon className="w-3 h-3 md:w-3.5 md:h-3.5" />
-                  {POMODORO_LABELS[m]}
+                  {m === "custom" && mode === "custom" ? `Custom (${customMinutes}m)` : POMODORO_LABELS[m]}
                 </Button>
               );
             })}
           </div>
-
-          {/* Custom duration input */}
-          {mode === "custom" && (
-            <div className="flex justify-center">
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-muted/30">
-                <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">Duration:</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={120}
-                  value={customInput}
-                  onChange={(e) => {
-                    setCustomInput(e.target.value);
-                    const v = parseInt(e.target.value, 10);
-                    if (!isNaN(v) && v >= 1 && v <= 120) store.setCustomMinutes(v);
-                  }}
-                  onBlur={() => {
-                    const v = parseInt(customInput, 10);
-                    if (isNaN(v) || v < 1) { store.setCustomMinutes(1); setCustomInput("1"); }
-                    else if (v > 120) { store.setCustomMinutes(120); setCustomInput("120"); }
-                  }}
-                  disabled={isRunning}
-                  className="w-14 bg-transparent text-center font-mono font-bold text-sm border-b border-border focus:outline-none focus:border-primary disabled:opacity-50"
-                />
-                <span className="text-xs text-muted-foreground">min</span>
-              </div>
-            </div>
-          )}
 
           {/* Timer — circular progress ring */}
           <div className="flex flex-col items-center flex-1 md:flex-none justify-center min-h-0">
@@ -390,6 +377,45 @@ export default function PomodoroPage() {
           )}
         </div>
       </div>
+      {/* Custom duration dialog */}
+      {customDialogOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => setCustomDialogOpen(false)}
+        >
+          <div
+            className="bg-card border border-border rounded-2xl shadow-2xl p-6 w-72 flex flex-col gap-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-primary" />
+              <h2 className="text-base font-semibold">Set custom duration</h2>
+            </div>
+            <div className="flex items-center gap-3 justify-center">
+              <input
+                type="number"
+                min={1}
+                max={120}
+                value={pendingCustomInput}
+                autoFocus
+                onChange={(e) => setPendingCustomInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && confirmCustomDialog()}
+                className="w-20 text-center font-mono font-bold text-3xl bg-muted/40 border border-border rounded-lg py-2 focus:outline-none focus:border-primary"
+              />
+              <span className="text-sm text-muted-foreground">minutes</span>
+            </div>
+            <p className="text-xs text-muted-foreground text-center">Enter a value between 1 and 120</p>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" size="sm" onClick={() => setCustomDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button size="sm" onClick={confirmCustomDialog}>
+                OK
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppLayout>
   );
 }
