@@ -513,6 +513,80 @@ router.get("/exam/history", requireAuth, async (req: AuthRequest, res) => {
   }));
 });
 
+// ── GET /quizzes/:quizId/leaderboard ─────────────────────────────────────────
+// Returns top-10 ranked by best accuracy + current user's rank (always included).
+router.get("/quizzes/:quizId/leaderboard", requireAuth, async (req: AuthRequest, res) => {
+  const quizId = req.params["quizId"] as string;
+  if (!isValidUuid(quizId)) { res.status(400).json({ error: "Invalid quiz ID" }); return; }
+
+  const currentUserId = req.user!.id;
+
+  const { data: attempts, error: aErr } = await supabase
+    .from("user_attempts")
+    .select("user_id, accuracy, submitted_at")
+    .eq("quiz_id", quizId)
+    .eq("status", "submitted");
+  if (aErr) { res.status(500).json({ error: aErr.message }); return; }
+
+  if (!attempts || attempts.length === 0) {
+    res.json({ leaderboard: [], current_user_rank: null, total_participants: 0 });
+    return;
+  }
+
+  // Best accuracy per user
+  const bestPerUser = new Map<string, { accuracy: number; submitted_at: string }>();
+  for (const a of attempts as { user_id: string; accuracy: number; submitted_at: string }[]) {
+    const existing = bestPerUser.get(a.user_id);
+    if (!existing || a.accuracy > existing.accuracy) {
+      bestPerUser.set(a.user_id, { accuracy: a.accuracy, submitted_at: a.submitted_at });
+    }
+  }
+
+  // Fetch profiles for all participants
+  const userIds = [...bestPerUser.keys()];
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, full_name")
+    .in("id", userIds);
+
+  const profileMap = new Map(
+    (profiles ?? []).map((p: { id: string; full_name: string }) => [p.id, p])
+  );
+
+  // Build ranked list (sorted by best accuracy desc)
+  const ranked = [...bestPerUser.entries()]
+    .map(([uid, { accuracy }]) => {
+      const profile = profileMap.get(uid) as { full_name?: string } | undefined;
+      const fullName = profile?.full_name ?? "Student";
+      const parts = fullName.trim().split(/\s+/);
+      const displayName =
+        parts.length > 1
+          ? `${parts[0]} ${parts[parts.length - 1][0]}.`
+          : parts[0];
+      return { user_id: uid, display_name: displayName, accuracy, is_current_user: uid === currentUserId };
+    })
+    .sort((a, b) => b.accuracy - a.accuracy)
+    .map((entry, i) => ({ ...entry, rank: i + 1 }));
+
+  const currentUserEntry = ranked.find(r => r.is_current_user) ?? null;
+
+  // Always return top 10; if current user is outside top 10, append their row
+  const top10 = ranked.slice(0, 10);
+  const currentInTop10 = top10.some(r => r.is_current_user);
+  const leaderboard =
+    currentUserEntry && !currentInTop10
+      ? [...top10, currentUserEntry]
+      : top10;
+
+  res.json({
+    leaderboard,
+    current_user_rank: currentUserEntry
+      ? { rank: currentUserEntry.rank, accuracy: currentUserEntry.accuracy }
+      : null,
+    total_participants: ranked.length,
+  });
+});
+
 router.get("/quizzes/:quizId/questions", requireAuth, async (req: AuthRequest, res) => {
   const quizId = req.params["quizId"] as string;
   if (!isValidUuid(quizId)) { res.status(400).json({ error: "Invalid quiz ID" }); return; }

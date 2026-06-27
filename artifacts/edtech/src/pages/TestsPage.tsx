@@ -5,9 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import {
   BookOpenCheck, Clock, Target, ChevronRight, Search,
   Loader2, FileQuestion, BookOpen, CheckCircle, XCircle,
-  RotateCcw, Trophy, History,
+  RotateCcw, Trophy, History, Medal, Users,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -50,6 +53,20 @@ interface QuizHistory {
   lastSubmittedAt: string;
 }
 
+interface LeaderboardEntry {
+  user_id: string;
+  display_name: string;
+  accuracy: number;
+  rank: number;
+  is_current_user: boolean;
+}
+
+interface LeaderboardResponse {
+  leaderboard: LeaderboardEntry[];
+  current_user_rank: { rank: number; accuracy: number } | null;
+  total_participants: number;
+}
+
 interface Subject { id: string; title: string; }
 interface Chapter { id: string; title: string; subject_id: string; }
 
@@ -75,12 +92,19 @@ const TYPE_COLORS: Record<string, string> = {
   lecture_quiz: "bg-slate-500/15 text-slate-400 border-slate-800/30",
 };
 
+const RANK_MEDALS: Record<number, { icon: React.ReactNode; color: string }> = {
+  1: { icon: <Medal className="w-4 h-4" />, color: "text-amber-400" },
+  2: { icon: <Medal className="w-4 h-4" />, color: "text-slate-400" },
+  3: { icon: <Medal className="w-4 h-4" />, color: "text-amber-700" },
+};
+
 // ── Page ───────────────────────────────────────────────────────────────────────
 
 export default function TestsPage() {
   const [, setLocation] = useLocation();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [leaderboardQuiz, setLeaderboardQuiz] = useState<{ id: string; title: string } | null>(null);
 
   const { data: subjects = [] } = useQuery<Subject[]>({
     queryKey: ["tests-page-subjects"],
@@ -119,7 +143,15 @@ export default function TestsPage() {
     staleTime: 30_000,
   });
 
-  // Build per-quiz history summary (best accuracy, attempt count, etc.)
+  const { data: leaderboardData, isLoading: leaderboardLoading } = useQuery<LeaderboardResponse>({
+    queryKey: ["leaderboard", leaderboardQuiz?.id],
+    queryFn: async () =>
+      (await apiFetch(`/quizzes/${leaderboardQuiz!.id}/leaderboard`)) as LeaderboardResponse,
+    enabled: !!leaderboardQuiz,
+    staleTime: 60_000,
+  });
+
+  // Build per-quiz history summary
   const historyMap = useMemo<Record<string, QuizHistory>>(() => {
     const map: Record<string, QuizHistory> = {};
     for (const a of historyRaw) {
@@ -141,8 +173,6 @@ export default function TestsPage() {
     }
     return map;
   }, [historyRaw]);
-
-  // ── Derived data ─────────────────────────────────────────────────────────────
 
   const subjectMap = useMemo(
     () => Object.fromEntries(subjects.map(s => [s.id, s.title])),
@@ -167,25 +197,19 @@ export default function TestsPage() {
     return list;
   }, [quizzes, typeFilter, search, subjectMap, chapterMap]);
 
-  // Group by subject → chapter
   const grouped = useMemo(() => {
     const groups: Record<string, { subject: string; chapters: Record<string, { chapter: string; quizzes: Quiz[] }> }> = {};
-
     for (const q of filtered) {
       const sid = q.subject_id ?? "__none__";
       const cid = q.chapter_id ?? "__none__";
       const subjectName = q.subject_id ? (subjectMap[q.subject_id] ?? "Unknown Subject") : "General";
-
-      if (!groups[sid]) {
-        groups[sid] = { subject: subjectName, chapters: {} };
-      }
+      if (!groups[sid]) groups[sid] = { subject: subjectName, chapters: {} };
       if (!groups[sid].chapters[cid]) {
         const chapterName = q.chapter_id ? (chapterMap[q.chapter_id] ?? "Unknown Chapter") : "Subject Level";
         groups[sid].chapters[cid] = { chapter: chapterName, quizzes: [] };
       }
       groups[sid].chapters[cid].quizzes.push(q);
     }
-
     return groups;
   }, [filtered, subjectMap, chapterMap]);
 
@@ -193,8 +217,6 @@ export default function TestsPage() {
   const totalAttempted = Object.keys(historyMap).length;
   const totalPassed = Object.values(historyMap).filter(h => h.passed).length;
   const uniqueTypes = useMemo(() => [...new Set(quizzes.map(q => q.type))], [quizzes]);
-
-  // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
     <AppLayout>
@@ -284,11 +306,107 @@ export default function TestsPage() {
                 historyMap={historyMap}
                 onStart={id => setLocation(`/exam/${id}`)}
                 onViewResult={attemptId => setLocation(`/exam/results/${attemptId}`)}
+                onLeaderboard={(id, title) => setLeaderboardQuiz({ id, title })}
               />
             ))}
           </div>
         )}
       </div>
+
+      {/* Leaderboard modal */}
+      <Dialog open={!!leaderboardQuiz} onOpenChange={open => { if (!open) setLeaderboardQuiz(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-amber-400" />
+              Leaderboard
+            </DialogTitle>
+            {leaderboardQuiz && (
+              <p className="text-sm text-muted-foreground truncate">{leaderboardQuiz.title}</p>
+            )}
+          </DialogHeader>
+
+          {leaderboardLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : !leaderboardData || leaderboardData.total_participants === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground gap-3">
+              <Users className="w-12 h-12 opacity-20" />
+              <p className="text-sm">No one has attempted this test yet. Be the first!</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {/* Participant count */}
+              <p className="text-xs text-muted-foreground text-right">
+                {leaderboardData.total_participants} participant{leaderboardData.total_participants !== 1 ? "s" : ""}
+              </p>
+
+              {/* Your rank (if outside top 10) */}
+              {leaderboardData.current_user_rank &&
+                leaderboardData.leaderboard.filter(r => r.is_current_user).length > 0 &&
+                !leaderboardData.leaderboard.slice(0, 10).some(r => r.is_current_user) && (
+                <div className="rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Your rank</span>
+                  <span className="font-semibold text-primary">
+                    #{leaderboardData.current_user_rank.rank} · {Math.round(leaderboardData.current_user_rank.accuracy)}%
+                  </span>
+                </div>
+              )}
+
+              {/* Ranked list */}
+              <div className="divide-y divide-border rounded-lg border border-border overflow-hidden">
+                {leaderboardData.leaderboard.map((entry, idx) => {
+                  const medal = RANK_MEDALS[entry.rank];
+                  const isSeparator =
+                    !leaderboardData.leaderboard.slice(0, 10).some(r => r.is_current_user) &&
+                    idx === 10;
+                  return (
+                    <div key={entry.user_id}>
+                      {isSeparator && (
+                        <div className="px-3 py-1 text-center text-xs text-muted-foreground bg-muted/30">
+                          · · ·
+                        </div>
+                      )}
+                      <div className={cn(
+                        "flex items-center gap-3 px-3 py-2.5 text-sm",
+                        entry.is_current_user && "bg-primary/8",
+                      )}>
+                        {/* Rank */}
+                        <span className={cn(
+                          "w-8 text-center font-bold shrink-0",
+                          medal ? medal.color : "text-muted-foreground text-xs",
+                        )}>
+                          {medal ? medal.icon : `#${entry.rank}`}
+                        </span>
+
+                        {/* Name */}
+                        <span className={cn(
+                          "flex-1 truncate",
+                          entry.is_current_user ? "font-semibold text-primary" : "text-foreground",
+                        )}>
+                          {entry.display_name}
+                          {entry.is_current_user && (
+                            <span className="ml-1.5 text-xs text-primary/70">(you)</span>
+                          )}
+                        </span>
+
+                        {/* Score */}
+                        <span className={cn(
+                          "font-semibold shrink-0",
+                          entry.accuracy >= 60 ? "text-success" : "text-muted-foreground",
+                        )}>
+                          {Math.round(entry.accuracy)}%
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
@@ -296,17 +414,14 @@ export default function TestsPage() {
 // ── Subject Group ──────────────────────────────────────────────────────────────
 
 function SubjectGroup({
-  subjectName,
-  chapters,
-  historyMap,
-  onStart,
-  onViewResult,
+  subjectName, chapters, historyMap, onStart, onViewResult, onLeaderboard,
 }: {
   subjectName: string;
   chapters: Record<string, { chapter: string; quizzes: Quiz[] }>;
   historyMap: Record<string, QuizHistory>;
   onStart: (id: string) => void;
   onViewResult: (attemptId: string) => void;
+  onLeaderboard: (id: string, title: string) => void;
 }) {
   return (
     <section className="space-y-4">
@@ -324,6 +439,7 @@ function SubjectGroup({
             historyMap={historyMap}
             onStart={onStart}
             onViewResult={onViewResult}
+            onLeaderboard={onLeaderboard}
           />
         ))}
       </div>
@@ -334,20 +450,16 @@ function SubjectGroup({
 // ── Chapter Group ──────────────────────────────────────────────────────────────
 
 function ChapterGroup({
-  chapterName,
-  quizzes,
-  historyMap,
-  onStart,
-  onViewResult,
+  chapterName, quizzes, historyMap, onStart, onViewResult, onLeaderboard,
 }: {
   chapterName: string;
   quizzes: Quiz[];
   historyMap: Record<string, QuizHistory>;
   onStart: (id: string) => void;
   onViewResult: (attemptId: string) => void;
+  onLeaderboard: (id: string, title: string) => void;
 }) {
   const isSubjectLevel = chapterName === "Subject Level";
-
   return (
     <div className="space-y-2">
       {!isSubjectLevel && (
@@ -363,6 +475,7 @@ function ChapterGroup({
             history={historyMap[q.id] ?? null}
             onStart={onStart}
             onViewResult={onViewResult}
+            onLeaderboard={onLeaderboard}
           />
         ))}
       </div>
@@ -373,15 +486,13 @@ function ChapterGroup({
 // ── Test Card ─────────────────────────────────────────────────────────────────
 
 function TestCard({
-  quiz,
-  history,
-  onStart,
-  onViewResult,
+  quiz, history, onStart, onViewResult, onLeaderboard,
 }: {
   quiz: Quiz;
   history: QuizHistory | null;
   onStart: (id: string) => void;
   onViewResult: (attemptId: string) => void;
+  onLeaderboard: (id: string, title: string) => void;
 }) {
   const typeLabel = TYPE_LABELS[quiz.type] ?? quiz.type;
   const typeColor = TYPE_COLORS[quiz.type] ?? "bg-muted text-muted-foreground";
@@ -402,12 +513,10 @@ function TestCard({
           </Badge>
           {hasHistory && (
             <span className={cn(
-              "flex items-center gap-1 text-xs font-medium",
+              "flex items-center gap-1 text-xs font-medium shrink-0",
               isPassed ? "text-success" : "text-destructive",
             )}>
-              {isPassed
-                ? <CheckCircle className="w-3.5 h-3.5" />
-                : <XCircle className="w-3.5 h-3.5" />}
+              {isPassed ? <CheckCircle className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
               {isPassed ? "Passed" : "Failed"}
             </span>
           )}
@@ -421,17 +530,14 @@ function TestCard({
         {/* Stats row */}
         <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
           <span className="flex items-center gap-1">
-            <Clock className="w-3.5 h-3.5" />
-            {quiz.duration_minutes} min
+            <Clock className="w-3.5 h-3.5" />{quiz.duration_minutes} min
           </span>
           <span className="flex items-center gap-1">
-            <Target className="w-3.5 h-3.5" />
-            Pass {quiz.passing_score}%
+            <Target className="w-3.5 h-3.5" />Pass {quiz.passing_score}%
           </span>
           {questionCount > 0 && (
             <span className="flex items-center gap-1">
-              <FileQuestion className="w-3.5 h-3.5" />
-              {questionCount} Q
+              <FileQuestion className="w-3.5 h-3.5" />{questionCount} Q
             </span>
           )}
         </div>
@@ -461,7 +567,7 @@ function TestCard({
         )}
 
         {/* Action buttons */}
-        <div className={cn("flex gap-2 mt-auto", hasHistory && "flex-col sm:flex-row")}>
+        <div className="flex gap-2 mt-auto">
           <Button
             size="sm"
             variant={hasHistory ? "outline" : "default"}
@@ -469,10 +575,19 @@ function TestCard({
             onClick={() => onStart(quiz.id)}
           >
             {hasHistory ? (
-              <><RotateCcw className="w-3.5 h-3.5 mr-1.5" /> Retake</>
+              <><RotateCcw className="w-3.5 h-3.5 mr-1.5" />Retake</>
             ) : (
               <>Start Test <ChevronRight className="w-3.5 h-3.5 ml-1" /></>
             )}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="shrink-0 px-2.5"
+            title="Leaderboard"
+            onClick={() => onLeaderboard(quiz.id, quiz.title)}
+          >
+            <Trophy className="w-4 h-4 text-amber-400" />
           </Button>
         </div>
       </CardContent>
