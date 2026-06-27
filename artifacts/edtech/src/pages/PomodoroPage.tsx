@@ -1,16 +1,11 @@
 import { AppLayout } from "@/components/layout/AppLayout";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { RotateCcw, Coffee, Brain, Clock, Tag, X, Trophy, Settings, History } from "lucide-react";
+import { RotateCcw, Coffee, Brain, Clock, Trophy, Settings, History } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getPomodoroStats, getGetPomodoroStatsUrl, getPomodoroSessions, getGetPomodoroSessionsUrl } from "@workspace/api-client-react";
 import { formatDistanceToNow } from "date-fns";
-import { useAuth } from "@/hooks/useAuth";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Input } from "@/components/ui/input";
-import { useState } from "react";
-import { supabase } from "@/lib/supabase";
 import {
   usePomodoroStore,
   getDurationForMode,
@@ -37,20 +32,10 @@ const MODE_BG: Record<PomodoroMode, string> = {
   custom: "hsl(var(--primary))",
 };
 
-interface TopicOption {
-  id: string;
-  title: string;
-  chapter_title: string;
-}
-
 export default function PomodoroPage() {
-  const { user } = useAuth();
   const store = usePomodoroStore();
-  const { mode, customMinutes, timeLeft, isRunning, startTime, sessionCount, selectedTopicId, selectedTopicTitle } = store;
+  const { mode, customMinutes, timeLeft, isRunning, startTime, sessionCount } = store;
   const [customInput, setCustomInput] = useState(String(customMinutes));
-
-  const [topicSearch, setTopicSearch] = useState("");
-  const [topicPickerOpen, setTopicPickerOpen] = useState(false);
 
   const GOAL_PRESETS = [2, 4, 6, 8];
   const [dailyGoal, setDailyGoal] = useState<number>(() => {
@@ -92,25 +77,6 @@ export default function PomodoroPage() {
     refetchStats();
     refetchSessions();
   }, [store.sessionCount]);
-
-  const { data: topicOptions = [] } = useQuery<TopicOption[]>({
-    queryKey: ["topics-for-pomodoro", user?.id, topicSearch],
-    queryFn: async () => {
-      const query = supabase
-        .from("topics")
-        .select("id, title, chapters!inner(title)")
-        .eq("is_active", true)
-        .limit(8);
-      if (topicSearch.trim()) query.ilike("title", `%${topicSearch.trim()}%`);
-      const { data } = await query;
-      return (data ?? []).map((t: { id: string; title: string; chapters: { title: string } | { title: string }[] }) => ({
-        id: t.id,
-        title: t.title,
-        chapter_title: Array.isArray(t.chapters) ? (t.chapters[0]?.title ?? "") : (t.chapters as { title: string }).title,
-      }));
-    },
-    enabled: topicPickerOpen,
-  });
 
   function handleToggle() {
     if (isRunning) {
@@ -203,57 +169,6 @@ export default function PomodoroPage() {
             </div>
           )}
 
-          {/* Topic tagger — focus mode only */}
-          {mode === "focus" && (
-            <div className="flex justify-center">
-              <Popover open={topicPickerOpen} onOpenChange={setTopicPickerOpen}>
-                <PopoverTrigger asChild>
-                  <button className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-border text-xs text-muted-foreground hover:border-primary hover:text-foreground transition-colors md:text-sm">
-                    <Tag className="w-3 h-3 md:w-3.5 md:h-3.5" />
-                    {selectedTopicTitle ? (
-                      <span className="text-foreground font-medium">{selectedTopicTitle}</span>
-                    ) : (
-                      <span>Tag a topic (optional)</span>
-                    )}
-                    {selectedTopicTitle && (
-                      <span
-                        onClick={(e) => { e.stopPropagation(); store.setSelectedTopic(null, null); }}
-                        className="ml-1 hover:text-destructive"
-                      >
-                        <X className="w-3 h-3" />
-                      </span>
-                    )}
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-72 p-2" align="center">
-                  <Input
-                    placeholder="Search topics..."
-                    value={topicSearch}
-                    onChange={(e) => setTopicSearch(e.target.value)}
-                    className="mb-2 h-8 text-sm"
-                    autoFocus
-                  />
-                  <div className="space-y-1 max-h-48 overflow-y-auto">
-                    {topicOptions.length === 0 ? (
-                      <p className="text-xs text-muted-foreground text-center py-3">No topics found</p>
-                    ) : (
-                      topicOptions.map((t) => (
-                        <button
-                          key={t.id}
-                          onClick={() => { store.setSelectedTopic(t.id, t.title); setTopicPickerOpen(false); setTopicSearch(""); }}
-                          className={`w-full text-left px-3 py-2 rounded-md text-sm hover:bg-muted transition-colors ${selectedTopicId === t.id ? "bg-primary/10 text-primary" : ""}`}
-                        >
-                          <div className="font-medium truncate">{t.title}</div>
-                          <div className="text-xs text-muted-foreground truncate">{t.chapter_title}</div>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </div>
-          )}
-
           {/* Timer — circular progress ring */}
           <div className="flex flex-col items-center flex-1 md:flex-none justify-center min-h-0">
             <div
@@ -304,11 +219,6 @@ export default function PomodoroPage() {
                 <div className={`text-[11px] font-semibold uppercase tracking-widest mt-1 md:text-xs ${MODE_COLOR[mode]}`}>
                   {POMODORO_LABELS[mode]}
                 </div>
-                {selectedTopicTitle && mode === "focus" && (
-                  <div className="text-[10px] text-muted-foreground max-w-[110px] truncate mt-0.5">
-                    {selectedTopicTitle}
-                  </div>
-                )}
               </div>
             </div>
 
