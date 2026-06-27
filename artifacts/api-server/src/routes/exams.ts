@@ -471,20 +471,30 @@ router.get("/exam/results/:resultId", requireAuth, async (req: AuthRequest, res)
       .eq("attempt_id", resultId),
     supabase
       .from("user_attempts")
-      .select("accuracy")
+      .select("user_id, accuracy, submitted_at")
       .eq("quiz_id", attempt.quiz_id)
-      .eq("status", "submitted"),
+      .eq("status", "submitted")
+      .order("submitted_at", { ascending: true }),
   ]);
 
   const quiz = attempt.quizzes as { passing_score: number };
   const passed = attempt.accuracy >= (quiz?.passing_score ?? 60);
 
-  // Rank & percentile among all submitted attempts for this quiz
-  const allAccuracies = (allAttemptsRes.data ?? []).map((a: { accuracy: number }) => a.accuracy);
-  const totalAttempts = allAccuracies.length;
-  const rank = allAccuracies.filter((a) => a > attempt.accuracy).length + 1;
-  const percentile = totalAttempts > 1
-    ? Math.round(((totalAttempts - rank) / (totalAttempts - 1)) * 100)
+  // Ranking is based on each student's FIRST attempt only.
+  // Retakes count only for personal revision — they do not affect rank or participant count.
+  const firstAttemptPerUser = new Map<string, number>(); // user_id → accuracy of their first attempt
+  for (const a of (allAttemptsRes.data ?? []) as { user_id: string; accuracy: number; submitted_at: string }[]) {
+    if (!firstAttemptPerUser.has(a.user_id)) {
+      firstAttemptPerUser.set(a.user_id, a.accuracy);
+    }
+  }
+
+  const totalParticipants = firstAttemptPerUser.size;
+  // Use the current user's first-attempt accuracy for their rank (even if this result is a retake).
+  const currentUserFirstAccuracy = firstAttemptPerUser.get(req.user!.id) ?? attempt.accuracy;
+  const rank = [...firstAttemptPerUser.values()].filter(acc => acc > currentUserFirstAccuracy).length + 1;
+  const percentile = totalParticipants > 1
+    ? Math.round(((totalParticipants - rank) / (totalParticipants - 1)) * 100)
     : 100;
 
   // is_correct_summary is stored at submit time as { correct, incorrect, skipped }.
@@ -513,7 +523,7 @@ router.get("/exam/results/:resultId", requireAuth, async (req: AuthRequest, res)
     skipped_count: skippedCount,
     rank,
     percentile,
-    total_attempts: totalAttempts,
+    total_participants: totalParticipants,
   });
 });
 
@@ -554,7 +564,8 @@ router.get("/quizzes/:quizId/leaderboard", requireAuth, async (req: AuthRequest,
     .from("user_attempts")
     .select("user_id, accuracy, submitted_at")
     .eq("quiz_id", quizId)
-    .eq("status", "submitted");
+    .eq("status", "submitted")
+    .order("submitted_at", { ascending: true }); // earliest first so we can take first-seen per user
   if (aErr) { res.status(500).json({ error: aErr.message }); return; }
 
   if (!attempts || attempts.length === 0) {
@@ -562,17 +573,16 @@ router.get("/quizzes/:quizId/leaderboard", requireAuth, async (req: AuthRequest,
     return;
   }
 
-  // Best accuracy per user
-  const bestPerUser = new Map<string, { accuracy: number; submitted_at: string }>();
+  // Rankings use each student's FIRST attempt only. Retakes are for revision only.
+  const firstPerUser = new Map<string, { accuracy: number; submitted_at: string }>();
   for (const a of attempts as { user_id: string; accuracy: number; submitted_at: string }[]) {
-    const existing = bestPerUser.get(a.user_id);
-    if (!existing || a.accuracy > existing.accuracy) {
-      bestPerUser.set(a.user_id, { accuracy: a.accuracy, submitted_at: a.submitted_at });
+    if (!firstPerUser.has(a.user_id)) {
+      firstPerUser.set(a.user_id, { accuracy: a.accuracy, submitted_at: a.submitted_at });
     }
   }
 
   // Fetch profiles for all participants
-  const userIds = [...bestPerUser.keys()];
+  const userIds = [...firstPerUser.keys()];
   const { data: profiles } = await supabase
     .from("profiles")
     .select("id, full_name")
@@ -582,8 +592,8 @@ router.get("/quizzes/:quizId/leaderboard", requireAuth, async (req: AuthRequest,
     (profiles ?? []).map((p: { id: string; full_name: string }) => [p.id, p])
   );
 
-  // Build ranked list (sorted by best accuracy desc)
-  const ranked = [...bestPerUser.entries()]
+  // Build ranked list (sorted by first-attempt accuracy desc)
+  const ranked = [...firstPerUser.entries()]
     .map(([uid, { accuracy }]) => {
       const profile = profileMap.get(uid) as { full_name?: string } | undefined;
       const fullName = profile?.full_name ?? "Student";
