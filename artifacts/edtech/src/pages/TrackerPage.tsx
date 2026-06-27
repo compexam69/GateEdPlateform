@@ -3,10 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, TrendingUp, TrendingDown, Minus, Pencil, Info } from "lucide-react";
+import { Plus, Trash2, TrendingUp, TrendingDown, Minus, Pencil } from "lucide-react";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Legend,
+  ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, ReferenceLine, Dot,
 } from "recharts";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import {
@@ -20,7 +20,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { format } from "date-fns";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
-
 import { getApiBase } from "@/lib/api";
 
 type TestForm = {
@@ -32,6 +31,78 @@ const EMPTY_FORM: TestForm = {
   exam_name: "", exam_date: "", score_obtained: "", total_marks: "",
   percentile: "", rank: "", notes: "",
 };
+
+type AttemptPoint = {
+  idx: number;
+  label: string;
+  score: number;
+  name: string;
+  type: "platform" | "external";
+  date: string;
+  delta: number | null;
+};
+
+const IMPROVE_COLOR = "#22c55e";
+const DECLINE_COLOR = "#ef4444";
+const NEUTRAL_COLOR = "#6366f1";
+const PLATFORM_FILL = "#6366f1";
+const EXTERNAL_FILL = "#a855f7";
+
+function TrendDot(props: {
+  cx?: number; cy?: number; payload?: AttemptPoint; index?: number;
+}) {
+  const { cx, cy, payload } = props;
+  if (cx === undefined || cy === undefined || !payload) return null;
+  const delta = payload.delta;
+  const fill =
+    delta === null ? NEUTRAL_COLOR :
+    delta > 0 ? IMPROVE_COLOR :
+    delta < 0 ? DECLINE_COLOR :
+    NEUTRAL_COLOR;
+  const outerR = payload.type === "external" ? 7 : 6;
+  return (
+    <g>
+      <circle cx={cx} cy={cy} r={outerR + 3} fill={fill} opacity={0.15} />
+      <circle cx={cx} cy={cy} r={outerR} fill={fill} stroke="hsl(var(--card))" strokeWidth={1.5} />
+      {payload.type === "external" && (
+        <circle cx={cx} cy={cy} r={outerR - 2} fill="none" stroke="hsl(var(--card))" strokeWidth={1} />
+      )}
+    </g>
+  );
+}
+
+function TrendTooltip({ active, payload }: {
+  active?: boolean;
+  payload?: Array<{ payload: AttemptPoint }>;
+}) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload;
+  const deltaAbs = d.delta !== null ? Math.abs(d.delta) : null;
+  return (
+    <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-xl text-sm min-w-[180px]">
+      <p className="font-semibold text-foreground truncate max-w-[200px]">{d.name}</p>
+      <p className="text-xs text-muted-foreground mt-0.5">{d.date}</p>
+      <div className="flex items-center justify-between gap-4 mt-2">
+        <span className="text-lg font-bold text-foreground">{d.score}%</span>
+        {d.delta !== null && (
+          <span
+            className="flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full"
+            style={{
+              color: d.delta > 0 ? IMPROVE_COLOR : d.delta < 0 ? DECLINE_COLOR : "hsl(var(--muted-foreground))",
+              backgroundColor: d.delta > 0 ? "#dcfce7" : d.delta < 0 ? "#fee2e2" : "hsl(var(--muted))",
+            }}
+          >
+            {d.delta > 0 ? <TrendingUp className="w-3 h-3" /> : d.delta < 0 ? <TrendingDown className="w-3 h-3" /> : <Minus className="w-3 h-3" />}
+            {d.delta > 0 ? "+" : ""}{d.delta}%
+          </span>
+        )}
+      </div>
+      <p className="text-xs text-muted-foreground mt-1">
+        {d.type === "platform" ? "Platform test" : "External test"}
+      </p>
+    </div>
+  );
+}
 
 export default function TrackerPage() {
   const queryClient = useQueryClient();
@@ -46,29 +117,23 @@ export default function TrackerPage() {
     queryFn: () => getExternalTests(),
   });
 
-  const { data: internalScores = [] } = useQuery<Array<{ date: string; avg_score: number }>>({
-    queryKey: ["internal-scores-chart", user?.id],
+  const { data: internalAttempts = [] } = useQuery<
+    Array<{ score: number; total_marks: number; accuracy: number; submitted_at: string; quizzes: { title: string } | null }>
+  >({
+    queryKey: ["internal-attempts-chart", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
       const { data } = await supabase
         .from("user_attempts")
-        .select("score, total_marks, submitted_at")
+        .select("score, total_marks, accuracy, submitted_at, quizzes(title)")
         .eq("user_id", user.id)
         .eq("status", "submitted")
         .gt("total_marks", 0)
         .order("submitted_at", { ascending: true });
-
-      const byDate = new Map<string, number[]>();
-      for (const a of (data ?? []) as Array<{ score: number; total_marks: number; submitted_at: string }>) {
-        const date = a.submitted_at.split("T")[0];
-        const pct = Math.round((a.score / a.total_marks) * 100);
-        if (!byDate.has(date)) byDate.set(date, []);
-        byDate.get(date)!.push(pct);
-      }
-      return Array.from(byDate.entries()).map(([date, scores]) => ({
-        date,
-        avg_score: Math.round(scores.reduce((s, v) => s + v, 0) / scores.length),
-      }));
+      return (data ?? []) as unknown as Array<{
+        score: number; total_marks: number; accuracy: number;
+        submitted_at: string; quizzes: { title: string } | null;
+      }>;
     },
     enabled: !!user?.id,
   });
@@ -167,22 +232,44 @@ export default function TrackerPage() {
   );
   const sortedTestsDesc = useMemo(() => [...sortedTests].reverse(), [sortedTests]);
 
-  // Merge external and internal into unified chart dataset
-  const chartData = useMemo(() => {
-    const allDates = new Set<string>([
-      ...sortedTests.map((t: ExternalTest) => t.exam_date),
-      ...internalScores.map(s => s.date),
-    ]);
-    return Array.from(allDates).sort().map(date => {
-      const ext = sortedTests.find((t: ExternalTest) => t.exam_date === date);
-      const int = internalScores.find(s => s.date === date);
+  const chartData = useMemo((): AttemptPoint[] => {
+    const raw: Array<{ isoDate: string; score: number; name: string; type: "platform" | "external" }> = [];
+
+    for (const a of internalAttempts) {
+      const pct = Math.round((a.score / a.total_marks) * 100);
+      raw.push({
+        isoDate: a.submitted_at,
+        score: pct,
+        name: a.quizzes?.title ?? "Platform Test",
+        type: "platform",
+      });
+    }
+    for (const t of sortedTests) {
+      const pct = Math.round((t.score_obtained / t.total_marks) * 100);
+      raw.push({
+        isoDate: t.exam_date + "T12:00:00Z",
+        score: pct,
+        name: t.exam_name,
+        type: "external",
+      });
+    }
+
+    raw.sort((a, b) => a.isoDate.localeCompare(b.isoDate));
+
+    return raw.map((r, i) => {
+      const prev = i > 0 ? raw[i - 1].score : null;
+      const delta = prev !== null ? r.score - prev : null;
       return {
-        label: format(new Date(date), "MMM d"),
-        external: ext ? Math.round((ext.score_obtained / ext.total_marks) * 100) : null,
-        internal: int?.avg_score ?? null,
+        idx: i + 1,
+        label: `#${i + 1}`,
+        score: r.score,
+        name: r.name,
+        type: r.type,
+        date: format(new Date(r.isoDate), "MMM d, yyyy"),
+        delta,
       };
     });
-  }, [sortedTests, internalScores]);
+  }, [internalAttempts, sortedTests]);
 
   const getTrend = (idx: number, arr: ExternalTest[]) => {
     const curr = (arr[idx].score_obtained / arr[idx].total_marks) * 100;
@@ -190,6 +277,13 @@ export default function TrackerPage() {
     const prev = (arr[idx + 1].score_obtained / arr[idx + 1].total_marks) * 100;
     return curr > prev ? "up" : curr < prev ? "down" : "same";
   };
+
+  const bestScore = useMemo(() => chartData.length ? Math.max(...chartData.map(d => d.score)) : null, [chartData]);
+  const latestScore = chartData.length ? chartData[chartData.length - 1].score : null;
+  const firstScore = chartData.length ? chartData[0].score : null;
+  const overallDelta = latestScore !== null && firstScore !== null ? latestScore - firstScore : null;
+  const improvements = chartData.filter(d => d.delta !== null && d.delta > 0).length;
+  const declines = chartData.filter(d => d.delta !== null && d.delta < 0).length;
 
   const FormFields = () => (
     <div className="space-y-4 pt-2">
@@ -220,70 +314,116 @@ export default function TrackerPage() {
     </div>
   );
 
-  const hasChartData = chartData.some(d => d.external !== null || d.internal !== null);
-  const hasInternalData = internalScores.length > 0;
-
   return (
     <AppLayout>
       <div className="space-y-6">
         <div className="flex items-start justify-between flex-wrap gap-3">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Test Tracker</h1>
-            <p className="text-muted-foreground mt-1">Log your external mock tests and track progress.</p>
+            <p className="text-muted-foreground mt-1">Track every attempt and watch your progress grow.</p>
           </div>
           <Button onClick={() => setShowAdd(true)}><Plus className="w-4 h-4 mr-2" /> Log Test</Button>
         </div>
 
-        {hasChartData && (
+        {chartData.length > 0 && (
           <Card className="bg-card">
             <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Performance Trend</span>
-                {hasInternalData && (
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground font-normal">
-                    <span className="flex items-center gap-1.5">
-                      <span className="w-3 h-0.5 bg-primary inline-block rounded" /> Platform Tests
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <span className="w-3 h-0.5 bg-secondary inline-block rounded" /> External Tests
-                    </span>
-                  </div>
-                )}
-              </CardTitle>
+              <div className="flex items-start justify-between flex-wrap gap-3">
+                <div>
+                  <CardTitle>Performance Trend</CardTitle>
+                  <p className="text-xs text-muted-foreground mt-1">Every attempt in chronological order — platform tests and external exams combined.</p>
+                </div>
+                <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: PLATFORM_FILL }} />
+                    Platform
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full inline-block border-2" style={{ background: EXTERNAL_FILL }} />
+                    External
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: IMPROVE_COLOR }} />
+                    Improved
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: DECLINE_COLOR }} />
+                    Declined
+                  </span>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="h-[260px] w-full">
+              {chartData.length >= 2 && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+                  <div className="rounded-lg bg-muted/40 px-3 py-2.5">
+                    <p className="text-xs text-muted-foreground">Total Attempts</p>
+                    <p className="text-xl font-bold mt-0.5">{chartData.length}</p>
+                  </div>
+                  <div className="rounded-lg bg-muted/40 px-3 py-2.5">
+                    <p className="text-xs text-muted-foreground">Best Score</p>
+                    <p className="text-xl font-bold mt-0.5" style={{ color: IMPROVE_COLOR }}>{bestScore}%</p>
+                  </div>
+                  <div className="rounded-lg bg-muted/40 px-3 py-2.5">
+                    <p className="text-xs text-muted-foreground">Overall Change</p>
+                    <p className="text-xl font-bold mt-0.5" style={{
+                      color: overallDelta === null ? undefined : overallDelta > 0 ? IMPROVE_COLOR : overallDelta < 0 ? DECLINE_COLOR : undefined
+                    }}>
+                      {overallDelta === null ? "—" : `${overallDelta > 0 ? "+" : ""}${overallDelta}%`}
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-muted/40 px-3 py-2.5">
+                    <p className="text-xs text-muted-foreground">Up / Down</p>
+                    <p className="text-xl font-bold mt-0.5">
+                      <span style={{ color: IMPROVE_COLOR }}>{improvements}</span>
+                      <span className="text-muted-foreground text-base mx-1">/</span>
+                      <span style={{ color: DECLINE_COLOR }}>{declines}</span>
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div className="h-[280px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartData} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
+                  <ComposedChart data={chartData} margin={{ top: 10, right: 10, bottom: 5, left: -20 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                    <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 11 }} />
-                    <YAxis stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 11 }} domain={[0, 100]} unit="%" />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))", borderRadius: "8px" }}
-                      formatter={(v: number, name: string) => [`${v}%`, name]}
+                    <XAxis
+                      dataKey="label"
+                      stroke="hsl(var(--muted-foreground))"
+                      tick={{ fontSize: 11 }}
+                      interval={chartData.length > 20 ? Math.floor(chartData.length / 10) : 0}
                     />
-                    {hasInternalData && (
-                      <Line
-                        type="monotone" dataKey="internal" name="Platform Tests"
-                        stroke="hsl(var(--primary))" strokeWidth={2}
-                        dot={{ r: 4, fill: "hsl(var(--primary))" }}
-                        connectNulls={false}
-                      />
-                    )}
+                    <YAxis
+                      stroke="hsl(var(--muted-foreground))"
+                      tick={{ fontSize: 11 }}
+                      domain={[0, 100]}
+                      unit="%"
+                    />
+                    <Tooltip content={<TrendTooltip />} />
+                    <ReferenceLine y={60} stroke="hsl(var(--muted-foreground))" strokeDasharray="4 4" strokeOpacity={0.5} label={{ value: "Pass 60%", position: "insideTopRight", fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
                     <Line
-                      type="monotone" dataKey="external" name="External Tests"
-                      stroke="hsl(var(--secondary))" strokeWidth={2}
-                      dot={{ r: 4, fill: "hsl(var(--secondary))" }}
+                      type="monotone"
+                      dataKey="score"
+                      stroke={NEUTRAL_COLOR}
+                      strokeWidth={2}
+                      strokeOpacity={0.4}
+                      dot={<TrendDot />}
+                      activeDot={{ r: 8, fill: NEUTRAL_COLOR }}
                       connectNulls={false}
                     />
-                  </LineChart>
+                  </ComposedChart>
                 </ResponsiveContainer>
               </div>
-              {hasInternalData && (
-                <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
-                  <Info className="w-3 h-3" /> Internal scores are daily averages across all platform quizzes.
-                </p>
-              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {chartData.length === 0 && !isLoading && (
+          <Card className="bg-card">
+            <CardContent className="py-12 text-center text-muted-foreground">
+              <TrendingUp className="w-8 h-8 mx-auto mb-3 opacity-30" />
+              <p className="font-medium">No attempts yet</p>
+              <p className="text-sm mt-1">Complete platform quizzes or log an external test to start tracking your trend.</p>
             </CardContent>
           </Card>
         )}
@@ -293,14 +433,13 @@ export default function TrackerPage() {
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
           </div>
         ) : sortedTestsDesc.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">
+          <div className="text-center py-8 text-muted-foreground">
             <p>No external tests logged yet. Log your first mock test above.</p>
           </div>
         ) : (
           <Card>
             <CardHeader><CardTitle>External Test History</CardTitle></CardHeader>
             <CardContent>
-              {/* Mobile card view */}
               <div className="sm:hidden space-y-3">
                 {sortedTestsDesc.map((test: ExternalTest, idx: number) => {
                   const pct = Math.round((test.score_obtained / test.total_marks) * 100);
@@ -333,7 +472,6 @@ export default function TrackerPage() {
                   );
                 })}
               </div>
-              {/* Desktop table view */}
               <div className="hidden sm:block overflow-x-auto">
                 <table className="w-full text-sm text-left">
                   <thead className="text-xs text-muted-foreground uppercase bg-muted/50">
