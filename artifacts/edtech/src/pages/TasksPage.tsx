@@ -16,6 +16,9 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import {
@@ -372,28 +375,34 @@ export default function TasksPage() {
           </Card>
         )}
 
-        <div className="flex gap-1.5 flex-wrap">
-          {filterOptions.map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setFilter(key)}
-              className={cn(
-                "px-3 py-1 rounded-full text-xs font-medium transition-colors border",
-                filter === key
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "border-border text-muted-foreground hover:border-primary hover:text-foreground",
-              )}
-            >
-              {label}{key !== "all" && counts[key as keyof typeof counts] > 0 && ` (${counts[key as keyof typeof counts]})`}
-            </button>
-          ))}
-        </div>
-
-        {filter === "all" && (
-          <p className="text-xs text-muted-foreground -mt-2 sm:-mt-3 flex items-center gap-1">
-            <GripVertical className="w-3 h-3" /> Drag tasks to reorder
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs text-muted-foreground flex items-center gap-1 shrink-0">
+            {filter === "all"
+              ? <><GripVertical className="w-3 h-3" /> Drag to reorder</>
+              : <>{filtered.length} task{filtered.length !== 1 ? "s" : ""}</>
+            }
           </p>
-        )}
+          <Select
+            value={filter}
+            onValueChange={(v) => setFilter(v as typeof filter)}
+          >
+            <SelectTrigger
+              className="h-8 w-[150px] text-xs"
+              aria-label="Filter tasks by status"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="end">
+              {filterOptions.map(({ key, label }) => (
+                <SelectItem key={key} value={key} className="text-xs">
+                  {label}
+                  {key !== "all" && counts[key as keyof typeof counts] > 0
+                    && ` (${counts[key as keyof typeof counts]})`}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         {isLoading ? (
           <div className="flex h-32 items-center justify-center">
