@@ -1,17 +1,15 @@
 import { create } from "zustand";
 
-export type PomodoroMode = "focus" | "short" | "long" | "custom";
+export type PomodoroMode = "focus" | "short" | "custom";
 
 export const POMODORO_DURATIONS: Record<Exclude<PomodoroMode, "custom">, number> = {
   focus: 25 * 60,
   short: 5 * 60,
-  long: 15 * 60,
 };
 
 export const POMODORO_LABELS: Record<PomodoroMode, string> = {
   focus: "Focus",
   short: "Short Break",
-  long: "Long Break",
   custom: "Custom",
 };
 

@@ -22,21 +22,18 @@ import { playChime } from "@/lib/playChime";
 const MODE_ICONS: Record<PomodoroMode, typeof Brain> = {
   focus: Brain,
   short: Coffee,
-  long: Coffee,
   custom: Settings,
 };
 
 const MODE_COLOR: Record<PomodoroMode, string> = {
   focus: "text-primary",
   short: "text-secondary",
-  long: "text-accent",
   custom: "text-primary",
 };
 
 const MODE_BG: Record<PomodoroMode, string> = {
   focus: "hsl(var(--primary))",
   short: "hsl(var(--secondary))",
-  long: "hsl(var(--accent))",
   custom: "hsl(var(--primary))",
 };
 
@@ -132,13 +129,14 @@ export default function PomodoroPage() {
     store.setMode(newMode);
   }
 
-  const radius = 120;
+  const radius = 116;
   const circumference = 2 * Math.PI * radius;
   const totalDuration = getDurationForMode(mode, customMinutes);
   const progress = totalDuration > 0 ? (totalDuration - timeLeft) / totalDuration : 0;
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
   const streakDays = stats?.streak_days ?? 0;
+  const pctRemaining = Math.ceil((timeLeft / totalDuration) * 100);
 
   return (
     <AppLayout fullHeight>
@@ -160,7 +158,7 @@ export default function PomodoroPage() {
 
           {/* Mode selector — compact touch-friendly buttons */}
           <div className="flex justify-center gap-1.5 flex-wrap">
-            {(["focus", "short", "long", "custom"] as PomodoroMode[]).map((m) => {
+            {(["focus", "short", "custom"] as PomodoroMode[]).map((m) => {
               const Icon = MODE_ICONS[m];
               return (
                 <Button
@@ -257,49 +255,71 @@ export default function PomodoroPage() {
             </div>
           )}
 
-          {/* Timer circle — flex-1 on mobile so it fills remaining space proportionally */}
+          {/* Timer — circular progress ring */}
           <div className="flex flex-col items-center flex-1 md:flex-none justify-center min-h-0">
-            {/*
-              Mobile: circle size = min(42vw, 190px) → ~157–190px, adapts to screen width
-              Desktop: fixed 220px
-            */}
             <div
-              className="relative flex items-center justify-center md:w-56 md:h-56"
-              style={{ width: "min(38vw, 175px)", height: "min(38vw, 175px)" }}
+              className="relative flex items-center justify-center md:w-64 md:h-64"
+              style={{ width: "min(52vw, 220px)", height: "min(52vw, 220px)" }}
             >
               <svg
-                className="w-full h-full transform -rotate-90 absolute inset-0"
+                className="w-full h-full -rotate-90 absolute inset-0"
                 viewBox="0 0 260 260"
+                aria-hidden="true"
               >
-                <circle cx="130" cy="130" r={radius} fill="none" stroke="hsl(var(--muted))" strokeWidth="10" />
+                <defs>
+                  <filter id="ring-glow" x="-30%" y="-30%" width="160%" height="160%">
+                    <feGaussianBlur stdDeviation="3.5" result="blur" />
+                    <feMerge>
+                      <feMergeNode in="blur" />
+                      <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                  </filter>
+                </defs>
+                {/* Track */}
+                <circle
+                  cx="130" cy="130" r={radius}
+                  fill="none"
+                  stroke="hsl(var(--muted))"
+                  strokeWidth="14"
+                  strokeLinecap="round"
+                />
+                {/* Progress arc */}
                 <circle
                   cx="130" cy="130" r={radius}
                   fill="none"
                   stroke={MODE_BG[mode]}
-                  strokeWidth="10"
+                  strokeWidth="14"
                   strokeDasharray={circumference}
                   strokeDashoffset={circumference * (1 - progress)}
-                  className="transition-all duration-1000 ease-linear"
                   strokeLinecap="round"
+                  className="transition-all duration-1000 ease-linear"
+                  filter="url(#ring-glow)"
                 />
               </svg>
-              <div className="text-center z-10">
-                <div className="font-bold font-mono tracking-tighter text-3xl sm:text-4xl md:text-5xl">
+
+              {/* Center content */}
+              <div className="text-center z-10 flex flex-col items-center gap-0.5">
+                <div className="font-bold font-mono tracking-tighter text-4xl sm:text-5xl md:text-5xl leading-none">
                   {String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")}
                 </div>
-                <div className={`text-xs font-medium mt-0.5 md:text-sm ${MODE_COLOR[mode]}`}>
+                <div className={`text-[11px] font-semibold uppercase tracking-widest mt-1 md:text-xs ${MODE_COLOR[mode]}`}>
                   {POMODORO_LABELS[mode]}
                 </div>
+                {totalDuration > 0 && (
+                  <div className="text-[10px] text-muted-foreground/60 tabular-nums">
+                    {pctRemaining}% left
+                  </div>
+                )}
                 {selectedTopicTitle && mode === "focus" && (
-                  <div className="text-[10px] text-muted-foreground mt-0.5 max-w-[120px] truncate md:text-xs">
+                  <div className="text-[10px] text-muted-foreground max-w-[110px] truncate mt-0.5">
                     {selectedTopicTitle}
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Controls — always visible directly below timer */}
-            <div className="flex items-center gap-4 mt-3 md:mt-5">
+            {/* Controls — directly below ring */}
+            <div className="flex items-center gap-4 mt-4 md:mt-6">
               <Button
                 size="icon"
                 variant="outline"
@@ -310,23 +330,23 @@ export default function PomodoroPage() {
                 <RotateCcw className="w-4 h-4 md:w-5 md:h-5" />
               </Button>
               <button
-                className="w-14 h-14 rounded-full shadow-lg hover:scale-105 active:scale-95 transition-transform flex items-center justify-center md:w-16 md:h-16"
+                className="w-16 h-16 rounded-full shadow-xl hover:scale-105 active:scale-95 transition-transform flex items-center justify-center md:w-[4.5rem] md:h-[4.5rem]"
                 style={{ backgroundColor: MODE_BG[mode] }}
                 onClick={handleToggle}
                 aria-label={isRunning ? "Pause timer" : "Start timer"}
               >
                 {isRunning ? (
-                  <svg className="w-6 h-6 text-white fill-white md:w-7 md:h-7" viewBox="0 0 24 24">
+                  <svg className="w-6 h-6 fill-white md:w-7 md:h-7" viewBox="0 0 24 24">
                     <rect x="6" y="4" width="4" height="16" />
                     <rect x="14" y="4" width="4" height="16" />
                   </svg>
                 ) : (
-                  <svg className="w-6 h-6 text-white fill-white ml-0.5 md:w-7 md:h-7" viewBox="0 0 24 24">
+                  <svg className="w-6 h-6 fill-white ml-1 md:w-7 md:h-7" viewBox="0 0 24 24">
                     <polygon points="5,3 19,12 5,21" />
                   </svg>
                 )}
               </button>
-              {/* Spacer to balance reset button and keep play centred */}
+              {/* Spacer mirrors reset button to keep play centred */}
               <div className="w-11 h-11 md:w-12 md:h-12" aria-hidden />
             </div>
           </div>

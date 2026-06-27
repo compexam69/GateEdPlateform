@@ -9,14 +9,12 @@ import { playChime } from "@/lib/playChime";
 const MODE_BG: Record<PomodoroMode, string> = {
   focus: "bg-primary",
   short: "bg-secondary",
-  long: "bg-accent",
   custom: "bg-primary",
 };
 
 const MODE_TEXT: Record<PomodoroMode, string> = {
   focus: "text-primary",
   short: "text-secondary",
-  long: "text-accent",
   custom: "text-primary",
 };
 
