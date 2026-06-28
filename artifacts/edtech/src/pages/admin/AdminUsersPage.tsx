@@ -465,11 +465,6 @@ export default function AdminUsersPage() {
               <span className="font-semibold text-sm leading-snug">{userName}</span>
               {roleBadge(role)}
               {statusBadge(status)}
-              {currentRole === "super_admin" && user.profile_editing_enabled && (
-                <Badge className="bg-teal-500/10 text-teal-400 border-teal-500/25 text-[10px] px-1.5 py-0 gap-0.5">
-                  <Unlock className="w-2.5 h-2.5" />Editing On
-                </Badge>
-              )}
             </div>
 
             {isSuperAdmin && currentRole !== "super_admin" ? (
