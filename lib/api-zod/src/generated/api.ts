@@ -454,11 +454,14 @@ export const GetQuizQuestionsParams = zod.object({
   "quizId": zod.coerce.string()
 })
 
+export const getQuizQuestionsResponseQuestionTypeDefault = `SCQ`;
+
 export const GetQuizQuestionsResponseItem = zod.object({
   "id": zod.string(),
   "quiz_id": zod.string(),
   "question_text": zod.string(),
-  "options": zod.record(zod.string(), zod.string()),
+  "question_type": zod.enum(['SCQ', 'MCQ', 'NAT']).default(getQuizQuestionsResponseQuestionTypeDefault),
+  "options": zod.record(zod.string(), zod.string()).nullish(),
   "correct_answer": zod.string(),
   "explanation": zod.string().nullish(),
   "difficulty": zod.number(),
@@ -488,10 +491,13 @@ export const CreateQuizBody = zod.object({
 /**
  * @summary Create a question (admin only)
  */
+export const createQuestionBodyQuestionTypeDefault = `SCQ`;
+
 export const CreateQuestionBody = zod.object({
   "quiz_id": zod.string(),
   "question_text": zod.string(),
-  "options": zod.record(zod.string(), zod.string()),
+  "question_type": zod.enum(['SCQ', 'MCQ', 'NAT']).default(createQuestionBodyQuestionTypeDefault),
+  "options": zod.record(zod.string(), zod.string()).nullish(),
   "correct_answer": zod.string(),
   "explanation": zod.string().nullish(),
   "difficulty": zod.number(),
@@ -503,12 +509,15 @@ export const CreateQuestionBody = zod.object({
 /**
  * @summary Bulk import questions from JSON array (admin only)
  */
+export const bulkImportQuestionsBodyQuestionsItemQuestionTypeDefault = `SCQ`;
+
 export const BulkImportQuestionsBody = zod.object({
   "quiz_id": zod.string(),
   "questions": zod.array(zod.object({
   "quiz_id": zod.string(),
   "question_text": zod.string(),
-  "options": zod.record(zod.string(), zod.string()),
+  "question_type": zod.enum(['SCQ', 'MCQ', 'NAT']).default(bulkImportQuestionsBodyQuestionsItemQuestionTypeDefault),
+  "options": zod.record(zod.string(), zod.string()).nullish(),
   "correct_answer": zod.string(),
   "explanation": zod.string().nullish(),
   "difficulty": zod.number(),

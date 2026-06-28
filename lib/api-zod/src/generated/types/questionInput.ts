@@ -6,11 +6,14 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { QuestionInputOptions } from './questionInputOptions';
+import type { QuestionInputQuestionType } from './questionInputQuestionType';
 
 export interface QuestionInput {
   quiz_id: string;
   question_text: string;
-  options: QuestionInputOptions;
+  question_type: QuestionInputQuestionType;
+  /** @nullable */
+  options?: QuestionInputOptions;
   correct_answer: string;
   /** @nullable */
   explanation?: string | null;

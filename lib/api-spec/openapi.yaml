@@ -1605,8 +1605,12 @@ components:
           type: string
         question_text:
           type: string
+        question_type:
+          type: string
+          enum: [SCQ, MCQ, NAT]
+          default: SCQ
         options:
-          type: object
+          type: ["object", "null"]
           additionalProperties:
             type: string
         correct_answer:
@@ -1621,7 +1625,7 @@ components:
           type: ["string", "null"]
         qr_code_url:
           type: ["string", "null"]
-      required: [id, quiz_id, question_text, options, correct_answer, difficulty, order_index]
+      required: [id, quiz_id, question_text, question_type, correct_answer, difficulty, order_index]
 
     Quiz:
       type: object
@@ -1682,8 +1686,12 @@ components:
           type: string
         question_text:
           type: string
+        question_type:
+          type: string
+          enum: [SCQ, MCQ, NAT]
+          default: SCQ
         options:
-          type: object
+          type: ["object", "null"]
           additionalProperties:
             type: string
         correct_answer:
@@ -1696,7 +1704,7 @@ components:
           type: integer
         video_solution_url:
           type: ["string", "null"]
-      required: [quiz_id, question_text, options, correct_answer, difficulty, order_index]
+      required: [quiz_id, question_text, question_type, correct_answer, difficulty, order_index]
 
     BulkQuestionsInput:
       type: object

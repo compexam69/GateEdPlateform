@@ -6,4 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type QuestionOptions = {[key: string]: string};
+/**
+ * @nullable
+ */
+export type QuestionOptions = {[key: string]: string} | null;

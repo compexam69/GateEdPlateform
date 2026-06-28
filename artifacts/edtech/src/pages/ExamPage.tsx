@@ -373,7 +373,7 @@ export default function ExamPage() {
         if (idx < total - 1) goToQuestion(idx + 1);
       } else if (["1", "2", "3", "4"].includes(e.key)) {
         const currQs = questionStatesRef.current[idx];
-        const qt = ((currQs?.question as unknown as Record<string, unknown>)?.question_type as string) ?? "SCQ";
+        const qt = currQs?.question?.question_type ?? "SCQ";
         if (qt === "SCQ") {
           const optKeys = Object.keys((currQs?.question?.options as Record<string, string>) ?? {});
           const opt = optKeys[parseInt(e.key) - 1];
@@ -587,7 +587,7 @@ export default function ExamPage() {
   const qs = questionStates[currentIdx];
   if (!qs) return null;
 
-  const qType = ((qs.question as unknown as Record<string, unknown>).question_type as string) ?? "SCQ";
+  const qType = qs.question.question_type ?? "SCQ";
 
   const answered = questionStates.filter(q => q.selectedOption).length;
   const notAnswered = questionStates.filter(q => !q.selectedOption && q.status !== "not-visited").length;

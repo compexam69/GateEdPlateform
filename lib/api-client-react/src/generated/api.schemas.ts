@@ -223,13 +223,27 @@ export interface ExamStartInput {
   quiz_id: string;
 }
 
-export type QuestionOptions = {[key: string]: string};
+export type QuestionQuestionType = typeof QuestionQuestionType[keyof typeof QuestionQuestionType];
+
+
+export const QuestionQuestionType = {
+  SCQ: 'SCQ',
+  MCQ: 'MCQ',
+  NAT: 'NAT',
+} as const;
+
+/**
+ * @nullable
+ */
+export type QuestionOptions = {[key: string]: string} | null;
 
 export interface Question {
   id: string;
   quiz_id: string;
   question_text: string;
-  options: QuestionOptions;
+  question_type: QuestionQuestionType;
+  /** @nullable */
+  options?: QuestionOptions;
   correct_answer: string;
   /** @nullable */
   explanation?: string | null;
@@ -360,12 +374,26 @@ export interface QuizInput {
   negative_marking: number;
 }
 
-export type QuestionInputOptions = {[key: string]: string};
+export type QuestionInputQuestionType = typeof QuestionInputQuestionType[keyof typeof QuestionInputQuestionType];
+
+
+export const QuestionInputQuestionType = {
+  SCQ: 'SCQ',
+  MCQ: 'MCQ',
+  NAT: 'NAT',
+} as const;
+
+/**
+ * @nullable
+ */
+export type QuestionInputOptions = {[key: string]: string} | null;
 
 export interface QuestionInput {
   quiz_id: string;
   question_text: string;
-  options: QuestionInputOptions;
+  question_type: QuestionInputQuestionType;
+  /** @nullable */
+  options?: QuestionInputOptions;
   correct_answer: string;
   /** @nullable */
   explanation?: string | null;

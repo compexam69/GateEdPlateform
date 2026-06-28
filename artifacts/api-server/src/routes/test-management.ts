@@ -474,7 +474,7 @@ router.post("/admin/test-management/:quizId/duplicate", requireAdmin, async (req
   // Copy questions
   const { data: questions } = await supabase
     .from("quiz_questions")
-    .select("question_text, options, correct_answer, explanation, video_solution_url, difficulty, order_index")
+    .select("question_text, question_type, options, correct_answer, explanation, video_solution_url, difficulty, order_index")
     .eq("quiz_id", quizId);
 
   if (questions && questions.length > 0) {
