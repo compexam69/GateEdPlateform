@@ -1,0 +1,436 @@
+## **Prompt: Enable/Disable Profile Editing Permissions (Super Admin Controlled) with Photo Management Improvements**
+
+Implement a complete, production-ready profile editing permission system in the **User Management** section of the **Admin Dashboard**.
+
+Before making any changes, perform a full analysis of the existing frontend, backend, API layer, authentication, authorization, database schema, Supabase RLS policies, profile module, user management module, and photo management workflow to ensure the implementation integrates correctly without breaking existing functionality.
+
+---
+
+# Objective
+
+Allow the **Super Admin** to individually grant or revoke profile editing permissions for users from the **Active Users** list.
+
+The implementation must be secure, scalable, fully responsive, and preserve all existing functionality.
+
+---
+
+# Functional Requirements
+
+## 1. Add "Enable/Disable Editing" Option
+
+Inside the **three-dot (⋮) More Options** menu for every **Active User**, add a new menu item:
+
+* Enable Editing
+* Disable Editing
+
+Behavior:
+
+* If editing is currently disabled, display **Enable Editing**.
+* If editing is currently enabled, display **Disable Editing**.
+* The label should automatically reflect the current state.
+
+---
+
+## 2. Permission Rules
+
+Only the **Super Admin** can:
+
+* Enable profile editing
+* Disable profile editing
+
+Regular Admins:
+
+* Must never see this menu option.
+* Must never be able to modify editing permissions through UI, API, or direct requests.
+
+Students/Users:
+
+* Cannot grant or revoke permissions.
+* Cannot bypass restrictions.
+
+The Super Admin must always retain unrestricted editing access.
+
+---
+
+## 3. Editable Fields
+
+When editing is enabled for a user, that user should receive editing capability for only the following profile fields:
+
+* Name
+* Email Address
+* Mobile Number
+
+Each editable field must display:
+
+* Pencil (✏️) edit icon
+* Same editing UI
+* Same validation
+* Same save workflow
+
+The behavior should match the current Super Admin editing experience.
+
+---
+
+## 4. Disabled State
+
+When editing is disabled:
+
+* Edit icons disappear.
+* Fields become read-only.
+* Existing profile layout remains unchanged.
+* Users can still view their information.
+
+No editing controls should remain visible.
+
+---
+
+## 5. Existing Profile Functionality
+
+Do NOT modify:
+
+* Password change
+* Theme selection
+* Notifications
+* Profile image layout
+* Account settings
+* Download My Data
+* Sign Out
+* Appearance settings
+
+Only control editability of the specified profile fields.
+
+---
+
+## 6. Photo Management Improvements
+
+Review the entire profile photo workflow.
+
+For users without a profile photo:
+
+Display:
+
+* Upload Photo
+
+For users with an existing profile photo:
+
+Display:
+
+* View Photo
+* Update Photo
+* Delete Photo
+
+Ensure:
+
+* Correct permission validation.
+* Existing upload functionality continues working.
+* Image cache refreshes after update.
+* Delete removes both database reference and storage object (if applicable).
+* Proper success/error handling.
+
+---
+
+## 7. Database & Permission Architecture Review
+
+Analyze whether a new database field is required.
+
+Examples:
+
+* `profile_editing_enabled`
+* `can_edit_profile`
+* `profile_edit_permission`
+
+Choose the most suitable approach based on the existing schema.
+
+If an equivalent field already exists, reuse it instead of creating a duplicate.
+
+Update:
+
+* Database schema (only if required)
+* Supabase API logic
+* Backend services
+* Frontend state
+* Authentication layer
+* Authorization middleware
+* RLS policies (if necessary)
+
+The permission must be enforced server-side, not only in the UI.
+
+---
+
+## 8. Security Requirements
+
+Ensure users cannot bypass restrictions by:
+
+* Direct API requests
+* Browser DevTools
+* Modified frontend requests
+* Manual HTTP requests
+* Token manipulation
+* Local storage changes
+* Client-side state manipulation
+
+All permission checks must be validated server-side.
+
+---
+
+## 9. UI/UX Requirements
+
+Maintain consistency with the existing Admin Dashboard.
+
+Requirements:
+
+* Responsive desktop layout
+* Responsive mobile layout
+* Proper menu spacing
+* Touch-friendly controls
+* Accessible labels
+* Loading indicators
+* Disabled states
+* Success messages
+* Error messages
+* Confirmation where appropriate
+
+Do not alter existing UI styling unnecessarily.
+
+---
+
+## 10. API Review
+
+Analyze every related API.
+
+Verify:
+
+* Authorization
+* Permission validation
+* Error handling
+* Input validation
+* Response consistency
+
+Fix any issues discovered.
+
+---
+
+## 11. Database Review
+
+Analyze:
+
+* Tables
+* Relationships
+* Constraints
+* Foreign keys
+* Indexes
+* Triggers
+* Functions
+* Existing profile permission columns
+
+Implement only necessary changes.
+
+Avoid redundant schema modifications.
+
+---
+
+## 12. RLS Review
+
+Review all relevant Supabase RLS policies.
+
+Verify:
+
+* Super Admin access
+* Admin restrictions
+* User ownership
+* Update permissions
+* Profile editing permissions
+
+Update policies only if required.
+
+Do not weaken existing security.
+
+---
+
+## 13. Preserve Existing Functionality
+
+Ensure no regressions occur in:
+
+* Authentication
+* User Management
+* Profile Module
+* Content Editor
+* Learning Path
+* Planner
+* Study Planner
+* Quiz System
+* Notifications
+* Dashboard
+* Content Access Control
+* Theme System
+* Profile Image Management
+* PWA functionality
+* Mobile responsiveness
+* Desktop responsiveness
+
+All existing features must continue working correctly.
+
+---
+
+# Testing & Validation
+
+After implementation, verify:
+
+### Super Admin
+
+* Can see Enable/Disable Editing.
+* Can enable editing.
+* Can disable editing.
+* Always retains full editing access.
+* Can edit every user profile.
+
+### Admin
+
+* Cannot see Enable/Disable Editing.
+* Cannot change editing permissions.
+* Cannot bypass restrictions.
+
+### User
+
+When enabled:
+
+* Name editable.
+* Email editable.
+* Mobile Number editable.
+* Pencil icons visible.
+* Validation works.
+* Database updates correctly.
+
+When disabled:
+
+* Fields read-only.
+* No edit icons.
+* Cannot edit through API.
+* Cannot bypass permissions.
+
+### Photo Management
+
+Without photo:
+
+* Upload Photo visible.
+
+With photo:
+
+* View Photo.
+* Update Photo.
+* Delete Photo.
+
+Verify upload, update, delete, caching, storage cleanup, and permissions.
+
+### Security Testing
+
+Attempt:
+
+* Direct API requests
+* Browser DevTools manipulation
+* Invalid role access
+* Unauthorized updates
+* Manual request replay
+
+Verify all unauthorized operations are rejected.
+
+### Responsive Testing
+
+Verify on:
+
+* Mobile
+* Tablet
+* Desktop
+
+Ensure layout remains responsive and professional.
+
+---
+
+# SQL Editor Guidance (IMPORTANT)
+
+Determine whether database changes are required.
+
+If SQL changes are required, provide:
+
+### A. SQL Migration Script
+
+Create all required schema changes.
+
+### B. Rollback Script
+
+Provide a safe rollback.
+
+### C. RLS Policy Updates
+
+Only if required.
+
+### D. Index Recommendations
+
+If beneficial.
+
+### E. Constraint Recommendations
+
+If needed.
+
+For every SQL recommendation, explain:
+
+* Why it is needed
+* Risk level
+* Whether existing data is affected
+* Whether downtime is required
+
+If no SQL changes are necessary, explicitly state:
+
+**"No SQL Editor changes are required."**
+
+Do not assume SQL changes are required—analyze first.
+
+---
+
+# Fix Any Related Issues
+
+While implementing this feature, analyze all related code and fix any bugs, inconsistencies, permission issues, UI issues, API issues, validation problems, security weaknesses, or responsiveness issues directly related to profile editing permissions and profile photo management. Do not leave partially implemented functionality.
+
+---
+
+# Checkpoint Requirement
+
+After implementation, testing, and validation, create a checkpoint/commit.
+
+**Checkpoint Name:**
+
+**"Super Admin Controlled Profile Editing Permissions & Photo Management Improvements"**
+
+Provide a final implementation report including:
+
+* Files modified
+* Components updated
+* APIs updated
+* Database changes
+* SQL scripts (if required)
+* RLS updates (if required)
+* Security improvements
+* Permission changes
+* UI improvements
+* Responsive improvements
+* Bugs fixed
+* Remaining risks (if any)
+
+---
+
+# Acceptance Criteria
+
+* [ ] Super Admin can enable/disable profile editing for individual users.
+* [ ] Admins cannot access or modify editing permissions.
+* [ ] Users can edit Name, Email, and Mobile Number only when permission is enabled.
+* [ ] Disabled users cannot edit profile fields.
+* [ ] Super Admin always retains unrestricted editing access.
+* [ ] Profile photo options dynamically switch between Upload and View/Update/Delete.
+* [ ] All permission checks are enforced server-side.
+* [ ] RLS policies remain secure.
+* [ ] Existing functionality remains unaffected.
+* [ ] Mobile and desktop layouts remain fully responsive.
+* [ ] All related issues identified during implementation are fixed.
+* [ ] SQL guidance is provided only if required.
+* [ ] All testing passes successfully.
+* [ ] Checkpoint created after successful implementation and verification.

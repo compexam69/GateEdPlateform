@@ -182,6 +182,55 @@ router.delete("/admin/users/:userId", requireAdmin, async (req: AuthRequest, res
   res.json({ message: "User permanently deleted." });
 });
 
+// ── PATCH /admin/users/:userId/profile-editing — Super Admin controlled toggle ──
+// Grants or revokes a user's ability to self-edit their profile fields.
+// Only super_admin may call this. The change is persisted in profiles.profile_editing_enabled
+// which is also enforced by the Supabase RLS "profiles_own_update" policy.
+router.patch("/admin/users/:userId/profile-editing", requireAdmin, async (req: AuthRequest, res) => {
+  const actorRole = req.user!.role;
+  if (actorRole !== "super_admin") {
+    res.status(403).json({ error: "Only Super Admins can modify profile editing permissions." });
+    return;
+  }
+
+  const targetId = String(req.params["userId"]);
+  if (!isValidUuid(targetId)) { res.status(400).json({ error: "Invalid user ID." }); return; }
+
+  const { enabled } = req.body as { enabled?: boolean };
+  if (typeof enabled !== "boolean") {
+    res.status(400).json({ error: "Request body must include { enabled: true | false }." });
+    return;
+  }
+
+  // Disallow modifying yourself or other super_admins
+  if (targetId === req.user!.id) {
+    res.status(400).json({ error: "You cannot modify your own editing permission." });
+    return;
+  }
+
+  const { data: targetProfile } = await supabase
+    .from("profiles")
+    .select("role, full_name")
+    .eq("id", targetId)
+    .maybeSingle();
+
+  if (!targetProfile) { res.status(404).json({ error: "User not found." }); return; }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ profile_editing_enabled: enabled })
+    .eq("id", targetId);
+
+  if (error) { res.status(500).json({ error: error.message }); return; }
+
+  await writeAuditLog(req.user!.id, "profile_editing_toggled", "profile", targetId, {
+    profile_editing_enabled: enabled,
+    target_name: targetProfile.full_name,
+  });
+
+  res.json({ message: enabled ? "Profile editing enabled." : "Profile editing disabled." });
+});
+
 // ── Admin: edit a user's profile fields (name, mobile, email) ────────────────
 router.patch("/admin/users/:userId/profile", requireAdmin, async (req: AuthRequest, res) => {
   const targetUserId = String(req.params["userId"]);

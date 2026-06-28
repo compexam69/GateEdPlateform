@@ -18,6 +18,12 @@ interface AuthState {
    * (Sidebar, ProfilePage, etc.) to avoid per-mount re-fetches.
    */
   avatarUrl: string | null;
+  /**
+   * Whether the Super Admin has granted this user permission to self-edit
+   * their profile fields (name, email, mobile number).
+   * Super Admins always have editing rights regardless of this flag.
+   */
+  profileEditingEnabled: boolean;
   setAuth: (session: Session | null) => Promise<void>;
   setSessionExpired: (expired: boolean) => void;
   /** Called by ProfilePage after a successful upload or removal. */
@@ -30,10 +36,11 @@ async function fetchProfile(userId: string): Promise<{
   role: string | null;
   isApproved: boolean;
   avatarUrl: string | null;
+  profileEditingEnabled: boolean;
 }> {
   const { data } = await supabase
     .from('profiles')
-    .select('role, is_approved, avatar_url')
+    .select('role, is_approved, avatar_url, profile_editing_enabled')
     .eq('id', userId)
     .single()
   // Resolve WITHOUT a version param so the URL is stable across navigations.
@@ -44,6 +51,7 @@ async function fetchProfile(userId: string): Promise<{
     role: data?.role ?? null,
     isApproved: data?.is_approved ?? false,
     avatarUrl,
+    profileEditingEnabled: (data?.profile_editing_enabled as boolean | null) ?? false,
   }
 }
 
@@ -55,29 +63,31 @@ export const useAuth = create<AuthState>((set, get) => ({
   isApproved: false,
   sessionExpired: false,
   avatarUrl: null,
+  profileEditingEnabled: false,
 
   setAvatarUrl: (url) => set({ avatarUrl: url }),
 
   setAuth: async (session) => {
     if (!session?.user) {
-      set({ session: null, user: null, role: null, isApproved: false, avatarUrl: null, loading: false, sessionExpired: false })
+      set({ session: null, user: null, role: null, isApproved: false, avatarUrl: null, profileEditingEnabled: false, loading: false, sessionExpired: false })
       return
     }
     set({ loading: true })
-    const { role, isApproved, avatarUrl } = await fetchProfile(session.user.id)
+    const { role, isApproved, avatarUrl, profileEditingEnabled } = await fetchProfile(session.user.id)
     set({
       session,
       user: session.user,
       role,
       isApproved,
       avatarUrl,
+      profileEditingEnabled,
       loading: false,
       sessionExpired: false,
     })
   },
 
   setSessionExpired: (expired) => {
-    set({ sessionExpired: expired, session: null, user: null, role: null, isApproved: false, avatarUrl: null, loading: false })
+    set({ sessionExpired: expired, session: null, user: null, role: null, isApproved: false, avatarUrl: null, profileEditingEnabled: false, loading: false })
   },
 
   signIn: async (email, password) => {
@@ -90,7 +100,7 @@ export const useAuth = create<AuthState>((set, get) => ({
 
   signOut: async () => {
     await supabase.auth.signOut()
-    set({ session: null, user: null, role: null, isApproved: false, avatarUrl: null, loading: false, sessionExpired: false })
+    set({ session: null, user: null, role: null, isApproved: false, avatarUrl: null, profileEditingEnabled: false, loading: false, sessionExpired: false })
   },
 }))
 

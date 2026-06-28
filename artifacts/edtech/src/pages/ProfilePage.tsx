@@ -20,7 +20,7 @@ const MOBILE_REGEX = /^(\+91)[\s-]?[6-9]\d{9}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function ProfilePage() {
-  const { user, signOut, role } = useAuth();
+  const { user, signOut, role, profileEditingEnabled } = useAuth();
   const { toast } = useToast();
   const { theme, setTheme, isSyncing } = useTheme();
 
@@ -241,9 +241,10 @@ export default function ProfilePage() {
   // role is read from the profiles table via useAuth (authoritative, not JWT metadata)
   const effectiveRole = role ?? "student";
   const isAdmin = effectiveRole === "admin" || effectiveRole === "super_admin";
-  // Only super_admin may edit their own protected fields (name, email, mobile)
-  // Admins and students have immutable protected fields on their own profile
-  const canEditOwnProfile = effectiveRole === "super_admin";
+  // Super Admins always have full editing rights.
+  // Other users (students/admins) can edit their profile only when the Super Admin
+  // has explicitly enabled it for them (profile_editing_enabled = true in profiles table).
+  const canEditOwnProfile = effectiveRole === "super_admin" || profileEditingEnabled;
 
   async function handleSaveName() {
     if (!newName.trim() || newName.trim().length < 2) {

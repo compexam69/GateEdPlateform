@@ -9,6 +9,7 @@ import {
   CheckCircle, XCircle, Search, Shield, User, Clock, RotateCcw,
   Eye, FileText, BookOpen, Timer, TrendingUp, UserPlus, Upload, Download,
   AlertCircle, CheckCircle2, Loader2, Pencil, MoreVertical, Trash2,
+  Unlock, Lock,
 } from "lucide-react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useAdminApproveUser, useAdminRejectUser } from "@workspace/api-client-react";
@@ -330,6 +331,20 @@ export default function AdminUsersPage() {
     },
   });
 
+  const toggleEditingPermission = useMutation({
+    mutationFn: ({ userId, enabled }: { userId: string; enabled: boolean }) =>
+      apiFetch(`/admin/users/${userId}/profile-editing`, {
+        method: "PATCH",
+        body: JSON.stringify({ enabled }),
+      }),
+    onSuccess: (_data, { enabled }) => {
+      queryClient.invalidateQueries({ queryKey: USERS_KEY });
+      toast({ title: enabled ? "Profile editing enabled" : "Profile editing disabled" });
+    },
+    onError: (err: unknown) =>
+      toast({ title: "Permission update failed", description: (err as Error).message, variant: "destructive" }),
+  });
+
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -593,6 +608,28 @@ export default function AdminUsersPage() {
                       onClick={() => setReinstateDialog({ userId, userName })}
                     >
                       <CheckCircle className="w-4 h-4 mr-2 shrink-0" /> Reinstate User
+                    </DropdownMenuItem>
+                  </>
+                )}
+
+                {/* Enable/Disable Profile Editing — super_admin only, never self */}
+                {!isSelf && currentRole === "super_admin" && status === "active" && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      disabled={toggleEditingPermission.isPending}
+                      onClick={() =>
+                        toggleEditingPermission.mutate({
+                          userId,
+                          enabled: !(user.profile_editing_enabled as boolean),
+                        })
+                      }
+                    >
+                      {user.profile_editing_enabled ? (
+                        <><Lock className="w-4 h-4 mr-2 shrink-0" /> Disable Editing</>
+                      ) : (
+                        <><Unlock className="w-4 h-4 mr-2 shrink-0" /> Enable Editing</>
+                      )}
                     </DropdownMenuItem>
                   </>
                 )}

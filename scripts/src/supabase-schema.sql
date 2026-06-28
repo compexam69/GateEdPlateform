@@ -41,18 +41,19 @@ exception when duplicate_object then null; end $$;
 -- ── 3. profiles ───────────────────────────────────────────────────────────────
 -- Linked 1-to-1 with auth.users via Supabase Auth trigger below.
 create table if not exists profiles (
-  id                uuid        primary key references auth.users(id) on delete cascade,
-  full_name         text        not null,
-  mobile_number     text,
-  email             text,
-  role              user_role   not null default 'student',
-  is_approved       boolean     not null default false,
-  status            user_status not null default 'pending_approval',
-  email_verified    boolean     not null default false,
-  avatar_url        text,                          -- Supabase Storage path: "<userId>/photo.jpg"
-  theme_preference  text        check (theme_preference in ('light','dark','ebony','carbon','monokai','amoled')),
-  created_at        timestamptz not null default now(),
-  updated_at        timestamptz not null default now()
+  id                       uuid        primary key references auth.users(id) on delete cascade,
+  full_name                text        not null,
+  mobile_number            text,
+  email                    text,
+  role                     user_role   not null default 'student',
+  is_approved              boolean     not null default false,
+  status                   user_status not null default 'pending_approval',
+  email_verified           boolean     not null default false,
+  avatar_url               text,                          -- Supabase Storage path: "<userId>/photo.jpg"
+  theme_preference         text        check (theme_preference in ('light','dark','ebony','carbon','monokai','amoled')),
+  profile_editing_enabled  boolean     not null default false, -- Super Admin controlled: grants student/admin ability to self-edit name/email/mobile
+  created_at               timestamptz not null default now(),
+  updated_at               timestamptz not null default now()
 );
 
 -- ── 3b. theme_preference migration (run in Supabase SQL Editor for EXISTING databases) ──
@@ -72,6 +73,24 @@ create table if not exists profiles (
 --
 -- RLS: No new policy required. The existing "Users can update their own profile"
 -- policy (UPDATE WHERE id = auth.uid()) already covers this column.
+
+-- ── 3c. profile_editing_enabled migration (EXISTING databases) ─────────────────
+-- New installs: the column is already in the CREATE TABLE above.
+-- Existing databases: run this block once in your Supabase SQL Editor.
+-- Idempotent — safe to re-run.
+do $$ begin
+  alter table public.profiles
+    add column if not exists profile_editing_enabled boolean not null default false;
+exception when others then null;
+end $$;
+--
+-- Why: Super Admin needs per-user control over whether a student/admin can
+--      self-edit their profile fields (name, email, mobile). Defaults to false
+--      (editing disabled) for all new and existing users. Super Admins bypass
+--      this flag — they always retain unrestricted editing access.
+-- Risk level: Low. Additive column, no downtime, no existing data affected.
+-- Rollback SQL (removes the column):
+--   alter table public.profiles drop column if exists profile_editing_enabled;
 
 -- ── 3a. Auth trigger — first user = super_admin, rest = student/pending ───────
 -- FIX: Do NOT update auth.users inside this trigger.
@@ -547,7 +566,14 @@ drop policy if exists "profiles_admin_update" on profiles;
 
 create policy "profiles_own_read"    on profiles for select using (auth.uid() = id);
 create policy "profiles_admin_read"  on profiles for select using (is_admin());
-create policy "profiles_own_update"  on profiles for update using (auth.uid() = id);
+-- Self-update is allowed only when:
+--   a) The user is a super_admin (always unrestricted), OR
+--   b) The Super Admin has explicitly enabled profile editing for this user.
+-- This enforces server-side permission — bypassing the UI does not help.
+create policy "profiles_own_update"  on profiles for update using (
+  auth.uid() = id
+  AND (role = 'super_admin' OR profile_editing_enabled = true)
+);
 -- Admins can only update student profiles; super_admins can update any profile.
 -- NOTE: `role` in the expression below refers to the TARGET row's role column.
 create policy "profiles_admin_update" on profiles for update using (
