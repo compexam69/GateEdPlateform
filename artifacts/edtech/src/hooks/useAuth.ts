@@ -38,20 +38,40 @@ async function fetchProfile(userId: string): Promise<{
   avatarUrl: string | null;
   profileEditingEnabled: boolean;
 }> {
-  const { data } = await supabase
+  // Try the full query (requires the profile_editing_enabled migration to have been run).
+  // If the column doesn't exist yet, Supabase returns an error and data is null —
+  // fall back to the core fields so auth always works regardless of migration status.
+  const { data, error } = await supabase
     .from('profiles')
     .select('role, is_approved, avatar_url, profile_editing_enabled')
     .eq('id', userId)
     .single()
+
+  if (error || !data) {
+    // Column likely missing (migration not yet applied) — retry without it
+    const { data: fallback } = await supabase
+      .from('profiles')
+      .select('role, is_approved, avatar_url')
+      .eq('id', userId)
+      .single()
+    const avatarUrl = resolveAvatarUrl((fallback?.avatar_url as string | null) ?? null)
+    return {
+      role: fallback?.role ?? null,
+      isApproved: fallback?.is_approved ?? false,
+      avatarUrl,
+      profileEditingEnabled: false,
+    }
+  }
+
   // Resolve WITHOUT a version param so the URL is stable across navigations.
   // A cache-busting ?v=<ts> is only added by ProfilePage right after an upload
   // or removal so the browser fetches the new image exactly once.
-  const avatarUrl = resolveAvatarUrl((data?.avatar_url as string | null) ?? null)
+  const avatarUrl = resolveAvatarUrl((data.avatar_url as string | null) ?? null)
   return {
-    role: data?.role ?? null,
-    isApproved: data?.is_approved ?? false,
+    role: data.role ?? null,
+    isApproved: data.is_approved ?? false,
     avatarUrl,
-    profileEditingEnabled: (data?.profile_editing_enabled as boolean | null) ?? false,
+    profileEditingEnabled: (data.profile_editing_enabled as boolean | null) ?? false,
   }
 }
 
