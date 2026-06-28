@@ -52,48 +52,60 @@ const registerSchema = z.object({
 
 type FormValues = z.infer<typeof registerSchema>;
 
-// ── Password strength indicator ───────────────────────────────────────────────
+// ── Compact password strength bar ─────────────────────────────────────────────
 
-function PasswordStrengthIndicator({ password }: { password: string }) {
-  const checks = [
-    { label: "8+ characters", valid: password.length >= 8 },
-    { label: "Uppercase letter", valid: /[A-Z]/.test(password) },
-    { label: "Lowercase letter", valid: /[a-z]/.test(password) },
-    { label: "Number", valid: /[0-9]/.test(password) },
-    { label: "Special character", valid: /[^A-Za-z0-9]/.test(password) },
-  ];
-
-  const score = checks.filter(c => c.valid).length;
-  const strengthColors = ["bg-destructive", "bg-destructive", "bg-yellow-500", "bg-yellow-500", "bg-green-500"];
-  const strengthLabels = ["Very Weak", "Weak", "Fair", "Good", "Strong"];
-
+function PasswordStrengthBar({ password }: { password: string }) {
   if (!password) return null;
 
+  const checks = [
+    password.length >= 8,
+    /[A-Z]/.test(password),
+    /[a-z]/.test(password),
+    /[0-9]/.test(password),
+    /[^A-Za-z0-9]/.test(password),
+  ];
+  const score = checks.filter(Boolean).length;
+  const colors = ["bg-destructive", "bg-destructive", "bg-yellow-500", "bg-yellow-500", "bg-green-500"];
+  const labels = ["Very Weak", "Weak", "Fair", "Good", "Strong"];
+  const textColors = ["text-destructive", "text-destructive", "text-yellow-500", "text-yellow-500", "text-green-500"];
+
   return (
-    <div className="mt-2 space-y-2">
-      <div className="flex gap-1">
+    <div className="mt-1.5 space-y-1">
+      <div className="flex gap-0.5">
         {checks.map((_, i) => (
           <div
             key={i}
-            className={`h-1 flex-1 rounded-full transition-all ${i < score ? strengthColors[score - 1] : "bg-muted"}`}
+            className={`h-0.5 flex-1 rounded-full transition-all ${i < score ? colors[score - 1] : "bg-muted"}`}
           />
         ))}
       </div>
-      <p className={`text-xs font-medium ${score >= 4 ? "text-green-500" : score >= 3 ? "text-yellow-500" : "text-destructive"}`}>
-        {password ? strengthLabels[score - 1] || "Very Weak" : ""}
+      <p className={`text-[10px] font-medium ${textColors[score - 1] ?? "text-muted-foreground"}`}>
+        {labels[score - 1] ?? "Very Weak"}
       </p>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-        {checks.map((check) => (
-          <div key={check.label} className="flex items-center gap-1.5">
-            {check.valid
-              ? <CheckCircle className="w-3 h-3 text-green-500 shrink-0" />
-              : <XCircle className="w-3 h-3 text-muted-foreground shrink-0" />}
-            <span className={`text-xs ${check.valid ? "text-green-500" : "text-muted-foreground"}`}>
-              {check.label}
-            </span>
-          </div>
-        ))}
-      </div>
+    </div>
+  );
+}
+
+// ── Full strength checklist (shown below bar on click) ────────────────────────
+
+function PasswordChecklist({ password }: { password: string }) {
+  const checks = [
+    { label: "8+ characters", valid: password.length >= 8 },
+    { label: "Uppercase", valid: /[A-Z]/.test(password) },
+    { label: "Lowercase", valid: /[a-z]/.test(password) },
+    { label: "Number", valid: /[0-9]/.test(password) },
+    { label: "Special char", valid: /[^A-Za-z0-9]/.test(password) },
+  ];
+  return (
+    <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 mt-1">
+      {checks.map((c) => (
+        <div key={c.label} className="flex items-center gap-1">
+          {c.valid
+            ? <CheckCircle className="w-2.5 h-2.5 text-green-500 shrink-0" />
+            : <XCircle className="w-2.5 h-2.5 text-muted-foreground shrink-0" />}
+          <span className={`text-[10px] ${c.valid ? "text-green-500" : "text-muted-foreground"}`}>{c.label}</span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -115,7 +127,6 @@ function RegistrationSuccess({ email }: { email: string }) {
       });
       return;
     }
-
     setResendLoading(true);
     try {
       const res = await fetch(`${getApiBase()}/auth/verify-email`, {
@@ -139,86 +150,78 @@ function RegistrationSuccess({ email }: { email: string }) {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 py-10">
+    <div className="h-screen bg-background flex flex-col items-center justify-center px-4">
       <motion.div
         className="w-full max-w-sm"
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
+        exit={{ opacity: 0, y: -16, transition: { duration: 0.2, ease: "easeIn" } }}
+        transition={{ duration: 0.35, ease: "easeOut" }}
       >
-        {/* Brand mark */}
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4 ring-1 ring-primary/20">
-            <BookOpen className="w-8 h-8 text-primary" />
+        <div className="text-center mb-6">
+          <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-3 ring-1 ring-primary/20">
+            <BookOpen className="w-6 h-6 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">EdTech</h1>
+          <h1 className="text-xl font-bold tracking-tight text-foreground">EdTech</h1>
         </div>
 
-        {/* Success card */}
-        <div className="rounded-2xl border border-border bg-card shadow-sm p-6 space-y-5">
-          {/* Icon + heading */}
-          <div className="flex flex-col items-center text-center gap-3 pb-1">
-            <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center ring-1 ring-primary/20">
-              <Mail className="w-7 h-7 text-primary" />
+        <div className="rounded-2xl border border-border bg-card shadow-sm p-5 space-y-4">
+          <div className="flex flex-col items-center text-center gap-2.5">
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center ring-1 ring-primary/20">
+              <Mail className="w-6 h-6 text-primary" />
             </div>
             <div>
-              <h2 className="text-xl font-bold tracking-tight">Check your inbox</h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                Account created — verification email sent to:
-              </p>
-              <p className="text-sm font-semibold text-foreground mt-1 break-all">{email}</p>
+              <h2 className="text-lg font-bold tracking-tight">Check your inbox</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Verification email sent to:</p>
+              <p className="text-sm font-semibold text-foreground mt-0.5 break-all">{email}</p>
             </div>
           </div>
 
           <div className="h-px bg-border" />
 
-          {/* Steps */}
-          <div className="space-y-3 text-sm">
+          <div className="space-y-2.5 text-sm">
             {[
-              { step: "1", text: "Open the verification email and click the link inside." },
-              { step: "2", text: "Once verified, your account enters admin review (usually under 24 hours)." },
-              { step: "3", text: "When approved, you'll receive a confirmation email and can sign in." },
+              { step: "1", text: "Click the link in the verification email." },
+              { step: "2", text: "Your account enters admin review (under 24 hours)." },
+              { step: "3", text: "Once approved, sign in to start learning." },
             ].map(({ step, text }) => (
-              <div key={step} className="flex gap-3">
-                <div className="w-5 h-5 rounded-full bg-primary/15 text-primary text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+              <div key={step} className="flex gap-2.5">
+                <div className="w-4 h-4 rounded-full bg-primary/15 text-primary text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">
                   {step}
                 </div>
-                <p className="text-muted-foreground leading-relaxed">{text}</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">{text}</p>
               </div>
             ))}
           </div>
 
           <div className="h-px bg-border" />
 
-          {/* Didn't receive */}
-          <div className="space-y-3">
+          <div className="space-y-2">
             <p className="text-xs text-muted-foreground text-center">
-              Didn't receive the email? Check your spam/junk folder first.
+              Didn't receive it? Check spam/junk first.
             </p>
             <Button
               variant="outline"
-              className="w-full h-11 rounded-xl"
+              className="w-full h-9 rounded-xl text-sm"
               onClick={handleResend}
               disabled={resendLoading || resendCount >= MAX_RESENDS}
             >
               {resendLoading
-                ? <><RefreshCw className="w-4 h-4 mr-2 animate-spin" /> Sending…</>
-                : <><RefreshCw className="w-4 h-4 mr-2" /> Resend verification email</>
-              }
+                ? <><RefreshCw className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Sending…</>
+                : <><RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Resend verification email</>}
               {resendCount > 0 && !resendLoading && (
                 <span className="ml-auto text-xs text-muted-foreground">{resendCount}/{MAX_RESENDS}</span>
               )}
             </Button>
-
             <Link href="/login">
-              <Button variant="ghost" className="w-full h-11 rounded-xl text-primary hover:text-primary/80">
-                Already verified? Sign in <ArrowRight className="w-4 h-4 ml-1" />
+              <Button variant="ghost" className="w-full h-9 rounded-xl text-primary text-sm hover:text-primary/80">
+                Already verified? Sign in <ArrowRight className="w-3.5 h-3.5 ml-1" />
               </Button>
             </Link>
           </div>
         </div>
 
-        <p className="text-center text-xs text-muted-foreground mt-6">
+        <p className="text-center text-xs text-muted-foreground mt-4">
           Wrong email?{" "}
           <Link href="/register" className="text-primary hover:underline" onClick={() => window.location.reload()}>
             Register again
@@ -237,22 +240,15 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [passwordValue, setPasswordValue] = useState("");
+  const [showChecklist, setShowChecklist] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(registerSchema),
-    defaultValues: {
-      fullName: "",
-      mobile: "",
-      email: "",
-      password: "",
-      confirmPassword: "",
-    },
+    defaultValues: { fullName: "", mobile: "", email: "", password: "", confirmPassword: "" },
   });
 
-  if (registeredEmail) {
-    return <RegistrationSuccess email={registeredEmail} />;
-  }
+  if (registeredEmail) return <RegistrationSuccess email={registeredEmail} />;
 
   async function onSubmit(values: FormValues) {
     setLoading(true);
@@ -269,7 +265,6 @@ export default function RegisterPage() {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error((json as { error?: string }).error || "Registration failed");
-
       setRegisteredEmail(values.email.toLowerCase().trim());
     } catch (error: unknown) {
       toast({
@@ -285,41 +280,41 @@ export default function RegisterPage() {
   const allValid = form.formState.isValid;
 
   return (
-    <div className="min-h-screen bg-background overflow-y-auto">
-      <div className="flex flex-col items-center justify-start min-h-screen px-4 py-10 sm:justify-center">
-        <motion.div
-          className="w-full max-w-sm"
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -16, transition: { duration: 0.2, ease: "easeIn" } }}
-          transition={{ duration: 0.35, ease: "easeOut" }}
-        >
-          {/* Logo + brand */}
-          <div className="text-center mb-8">
-            <motion.div
-              className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4 ring-1 ring-primary/20"
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.1, duration: 0.35, ease: "easeOut" }}
-            >
-              <BookOpen className="w-8 h-8 text-primary" />
-            </motion.div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">EdTech</h1>
-            <p className="text-sm text-muted-foreground mt-1">Join students preparing for JEE, NEET &amp; GATE</p>
-          </div>
+    <div className="h-screen bg-background flex items-center justify-center px-4 overflow-hidden">
+      <motion.div
+        className="w-full max-w-sm"
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -16, transition: { duration: 0.2, ease: "easeIn" } }}
+        transition={{ duration: 0.35, ease: "easeOut" }}
+      >
+        {/* Logo + brand — compact */}
+        <div className="text-center mb-4">
+          <motion.div
+            className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-2.5 ring-1 ring-primary/20"
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.1, duration: 0.35, ease: "easeOut" }}
+          >
+            <BookOpen className="w-6 h-6 text-primary" />
+          </motion.div>
+          <h1 className="text-xl font-bold tracking-tight text-foreground">EdTech</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">Join students preparing for JEE, NEET &amp; GATE</p>
+        </div>
 
-          {/* Form card */}
-          <div className="rounded-2xl border border-border bg-card shadow-sm p-6 space-y-5">
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
+        {/* Form card */}
+        <div className="rounded-2xl border border-border bg-card shadow-sm px-5 py-4">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-2.5" noValidate>
 
-                {/* Full Name */}
+              {/* Row 1: Full Name + Mobile side-by-side */}
+              <div className="grid grid-cols-2 gap-2.5">
                 <FormField
                   control={form.control}
                   name="fullName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      <FormLabel className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
                         Full Name
                       </FormLabel>
                       <FormControl>
@@ -327,32 +322,31 @@ export default function RegisterPage() {
                           placeholder="Rahul Sharma"
                           autoComplete="name"
                           autoCapitalize="words"
-                          className="h-11 bg-muted/40 border-border/60 focus:bg-background transition-colors"
+                          className="h-9 text-sm bg-muted/40 border-border/60 focus:bg-background transition-colors"
                           {...field}
                         />
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-[10px]" />
                     </FormItem>
                   )}
                 />
 
-                {/* Mobile */}
                 <FormField
                   control={form.control}
                   name="mobile"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                        Mobile Number
+                      <FormLabel className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                        Mobile
                       </FormLabel>
                       <FormControl>
-                        <div className="flex">
-                          <div className="flex items-center px-3 border border-r-0 border-input bg-muted rounded-l-md text-muted-foreground text-sm font-medium select-none shrink-0 h-11">
+                        <div className="flex h-9">
+                          <div className="flex items-center px-2 border border-r-0 border-input bg-muted rounded-l-md text-muted-foreground text-xs font-medium select-none shrink-0">
                             +91
                           </div>
                           <Input
-                            className="rounded-l-none min-w-0 h-11 bg-muted/40 border-border/60 focus:bg-background transition-colors"
-                            placeholder="9876543210"
+                            className="rounded-l-none min-w-0 h-9 text-sm bg-muted/40 border-border/60 focus:bg-background transition-colors"
+                            placeholder="98765…"
                             maxLength={10}
                             inputMode="numeric"
                             autoComplete="tel-national"
@@ -361,134 +355,140 @@ export default function RegisterPage() {
                           />
                         </div>
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-[10px]" />
                     </FormItem>
                   )}
                 />
+              </div>
 
-                {/* Email */}
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                        Email address
-                      </FormLabel>
-                      <FormControl>
+              {/* Email */}
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                      Email address
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type="email"
+                        placeholder="you@example.com"
+                        autoComplete="email"
+                        inputMode="email"
+                        className="h-9 text-sm bg-muted/40 border-border/60 focus:bg-background transition-colors"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage className="text-[10px]" />
+                  </FormItem>
+                )}
+              />
+
+              {/* Password */}
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                      Password
+                    </FormLabel>
+                    <FormControl>
+                      <div className="relative">
                         <Input
-                          type="email"
-                          placeholder="you@example.com"
-                          autoComplete="email"
-                          inputMode="email"
-                          className="h-11 bg-muted/40 border-border/60 focus:bg-background transition-colors"
+                          type={showPassword ? "text" : "password"}
+                          placeholder="Create a strong password"
+                          autoComplete="new-password"
+                          className="h-9 pr-9 text-sm bg-muted/40 border-border/60 focus:bg-background transition-colors"
+                          {...field}
+                          onFocus={() => setShowChecklist(true)}
+                          onChange={(e) => { field.onChange(e); setPasswordValue(e.target.value); }}
+                        />
+                        <button
+                          type="button"
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                          onClick={() => setShowPassword(v => !v)}
+                          tabIndex={-1}
+                          aria-label={showPassword ? "Hide password" : "Show password"}
+                        >
+                          {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    </FormControl>
+                    {passwordValue && (
+                      <>
+                        <PasswordStrengthBar password={passwordValue} />
+                        {showChecklist && <PasswordChecklist password={passwordValue} />}
+                      </>
+                    )}
+                    <FormMessage className="text-[10px]" />
+                  </FormItem>
+                )}
+              />
+
+              {/* Confirm Password */}
+              <FormField
+                control={form.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                      Confirm Password
+                    </FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Input
+                          type={showConfirm ? "text" : "password"}
+                          placeholder="Repeat your password"
+                          autoComplete="new-password"
+                          className="h-9 pr-9 text-sm bg-muted/40 border-border/60 focus:bg-background transition-colors"
                           {...field}
                         />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        <button
+                          type="button"
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                          onClick={() => setShowConfirm(v => !v)}
+                          tabIndex={-1}
+                          aria-label={showConfirm ? "Hide confirm password" : "Show confirm password"}
+                        >
+                          {showConfirm ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    </FormControl>
+                    <FormMessage className="text-[10px]" />
+                  </FormItem>
+                )}
+              />
 
-                {/* Password */}
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                        Password
-                      </FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Input
-                            type={showPassword ? "text" : "password"}
-                            placeholder="Create a strong password"
-                            autoComplete="new-password"
-                            className="h-11 pr-10 bg-muted/40 border-border/60 focus:bg-background transition-colors"
-                            {...field}
-                            onChange={(e) => { field.onChange(e); setPasswordValue(e.target.value); }}
-                          />
-                          <button
-                            type="button"
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                            onClick={() => setShowPassword(v => !v)}
-                            tabIndex={-1}
-                            aria-label={showPassword ? "Hide password" : "Show password"}
-                          >
-                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                          </button>
-                        </div>
-                      </FormControl>
-                      <PasswordStrengthIndicator password={passwordValue} />
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <Button
+                type="submit"
+                className="w-full h-10 text-sm font-semibold rounded-xl transition-all active:scale-[0.98] mt-0.5"
+                disabled={loading || !allValid}
+              >
+                {loading ? (
+                  <><Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> Creating account…</>
+                ) : "Sign Up"}
+              </Button>
+            </form>
+          </Form>
 
-                {/* Confirm Password */}
-                <FormField
-                  control={form.control}
-                  name="confirmPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                        Confirm Password
-                      </FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Input
-                            type={showConfirm ? "text" : "password"}
-                            placeholder="Repeat your password"
-                            autoComplete="new-password"
-                            className="h-11 pr-10 bg-muted/40 border-border/60 focus:bg-background transition-colors"
-                            {...field}
-                          />
-                          <button
-                            type="button"
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                            onClick={() => setShowConfirm(v => !v)}
-                            tabIndex={-1}
-                            aria-label={showConfirm ? "Hide confirm password" : "Show confirm password"}
-                          >
-                            {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                          </button>
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <Button
-                  type="submit"
-                  className="w-full h-11 text-sm font-semibold rounded-xl mt-1 transition-all active:scale-[0.98]"
-                  disabled={loading || !allValid}
-                >
-                  {loading ? (
-                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Creating account…</>
-                  ) : "Sign Up"}
-                </Button>
-              </form>
-            </Form>
-
-            {/* Divider */}
-            <div className="flex items-center gap-3">
-              <div className="h-px flex-1 bg-border" />
-              <span className="text-xs text-muted-foreground font-medium tracking-wider">OR</span>
-              <div className="h-px flex-1 bg-border" />
-            </div>
-
-            {/* Bottom toggle */}
-            <p className="text-center text-sm text-muted-foreground">
-              Already have an account?{" "}
-              <Link href="/login" className="font-semibold text-primary hover:text-primary/80 transition-colors">
-                Log In
-              </Link>
-            </p>
+          {/* Divider */}
+          <div className="flex items-center gap-3 mt-3.5">
+            <div className="h-px flex-1 bg-border" />
+            <span className="text-[10px] text-muted-foreground font-medium tracking-wider">OR</span>
+            <div className="h-px flex-1 bg-border" />
           </div>
-        </motion.div>
-      </div>
+
+          {/* Bottom toggle */}
+          <p className="text-center text-sm text-muted-foreground mt-3">
+            Already have an account?{" "}
+            <Link href="/login" className="font-semibold text-primary hover:text-primary/80 transition-colors">
+              Log In
+            </Link>
+          </p>
+        </div>
+      </motion.div>
     </div>
   );
 }
