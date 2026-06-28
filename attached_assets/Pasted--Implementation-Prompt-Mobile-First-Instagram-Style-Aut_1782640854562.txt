@@ -1,0 +1,439 @@
+## **Implementation Prompt: Mobile-First Instagram-Style Authentication Redesign (Login & Register)**
+
+Analyze the existing **Login** and **Register** pages of the project before making any changes. Redesign both authentication pages to follow a clean, modern, **Instagram-inspired authentication UI** while preserving **100% of the existing authentication functionality, validation, API integration, Supabase authentication, routing, session management, error handling, and business logic**.
+
+The implementation must follow a **mobile-first responsive design** approach, while also providing an optimized experience on tablets and desktop screens.
+
+---
+
+# Goal
+
+Completely redesign the authentication UI without changing any backend functionality.
+
+The final result should feel like a modern production-grade authentication experience similar to Instagram while remaining fully compatible with the existing project.
+
+---
+
+# UI Requirements
+
+## 1. Mobile-First Layout
+
+Design the authentication pages primarily for mobile devices.
+
+Requirements:
+
+* Content centered vertically and horizontally
+* Maximum readability
+* Comfortable thumb reach
+* Proper safe-area spacing
+* No horizontal scrolling
+* Minimal vertical scrolling
+* Responsive spacing
+* Professional appearance
+
+---
+
+## 2. Center Authentication Card
+
+Place the entire authentication UI inside a centered card.
+
+The card should include:
+
+* Application Logo
+* Application Name
+* Welcome text
+* Login/Register form
+* Authentication actions
+* Footer links
+
+Desktop:
+
+* Centered card
+* Appropriate max-width
+* Professional spacing
+
+Mobile:
+
+* Full-width card with margins
+* Comfortable padding
+* Optimized spacing
+
+---
+
+## 3. Logo Section
+
+Top section should contain:
+
+* App logo
+* App name
+* Small welcome subtitle
+
+Example:
+
+```
+App Logo
+
+StudyFlow
+
+Welcome back.
+Continue your learning journey.
+```
+
+---
+
+## 4. Login Form
+
+Include:
+
+* Email
+* Password
+
+Password field must support:
+
+* Show/Hide password toggle
+* Proper validation
+* Accessible labels
+
+---
+
+## 5. Register Form
+
+Include:
+
+* Full Name
+* Email
+* Mobile Number (if supported)
+* Password
+* Confirm Password
+
+Preserve all existing validation rules.
+
+---
+
+## 6. Buttons
+
+Primary button:
+
+* Full width
+* Consistent height
+* Rounded corners
+* Loading indicator
+* Disabled while submitting
+
+Examples:
+
+```
+Log In
+
+Sign Up
+```
+
+---
+
+## 7. Forgot Password
+
+Display as an inline text link.
+
+Requirements:
+
+* Right aligned
+* Below password field
+* Small spacing
+* Mobile friendly
+
+Example:
+
+```
+Forgot password?
+```
+
+Do not modify existing reset-password functionality.
+
+---
+
+## 8. Divider
+
+Below the primary button add a subtle divider.
+
+Example:
+
+```
+──────── OR ────────
+```
+
+Maintain existing social login functionality if implemented.
+
+---
+
+## 9. Bottom Toggle
+
+Bottom section should contain:
+
+Login page:
+
+```
+Don't have an account?
+
+Sign Up
+```
+
+Register page:
+
+```
+Already have an account?
+
+Log In
+```
+
+The toggle should:
+
+* Preserve routing
+* Preserve existing navigation
+* Preserve browser history behavior
+
+---
+
+## 10. Typography
+
+Use consistent typography.
+
+Requirements:
+
+* Proper hierarchy
+* Mobile readability
+* Desktop readability
+* Consistent font sizes
+* Balanced spacing
+
+---
+
+## 11. Responsive Design
+
+Desktop:
+
+* Centered authentication card
+* Appropriate maximum width
+* Balanced whitespace
+* Professional layout
+
+Tablet:
+
+* Responsive scaling
+
+Mobile:
+
+* Full-width responsive card
+* Comfortable touch targets
+* Optimized spacing
+* Mobile-first alignment
+
+---
+
+## 12. Accessibility
+
+Ensure:
+
+* Keyboard navigation
+* Proper focus states
+* Screen reader labels
+* ARIA attributes where required
+* Sufficient color contrast
+* Accessible form validation
+* Proper tab order
+
+---
+
+## 13. Dark Theme Compatibility
+
+Ensure the redesigned pages work perfectly with:
+
+* Light Theme
+* Dark Theme
+* Ebony Theme
+* Carbon Theme
+* Monokai Theme
+* Pure Black Theme (if implemented)
+
+No hardcoded colors.
+
+Use the project's theme system and design tokens.
+
+---
+
+## 14. Preserve Existing Functionality
+
+Do **NOT** modify:
+
+* Authentication logic
+* Supabase Auth
+* Session handling
+* User registration
+* Login flow
+* Logout flow
+* Password reset
+* Email verification
+* Role assignment
+* API calls
+* Validation rules
+* Error handling
+* Rate limiting
+* Security mechanisms
+
+Only redesign the UI.
+
+---
+
+## 15. Animations
+
+Add subtle animations using existing animation libraries (if available).
+
+Examples:
+
+* Card fade-in
+* Button hover
+* Button press
+* Form transition
+* Loading animation
+
+Animations should be smooth and lightweight.
+
+---
+
+## 16. Performance
+
+Ensure:
+
+* No unnecessary re-renders
+* No layout shifts
+* Fast initial rendering
+* Optimized CSS
+* Responsive images
+* No performance regressions
+
+---
+
+## 17. Cross-Browser Compatibility
+
+Verify on:
+
+* Chrome
+* Firefox
+* Edge
+* Safari
+* Android Chrome
+* Mobile Safari
+
+---
+
+## 18. Regression Testing
+
+Verify:
+
+* Login works
+* Register works
+* Forgot Password works
+* Email validation works
+* Password validation works
+* Session persistence works
+* Navigation works
+* Mobile responsiveness works
+* Desktop responsiveness works
+* Theme switching works
+* Error messages display correctly
+* Loading states work correctly
+
+Ensure no existing functionality is broken.
+
+---
+
+# SQL Editor Guidance (IMPORTANT)
+
+Determine whether any database changes are required.
+
+If authentication redesign only affects the frontend:
+
+Explicitly state:
+
+> **No SQL Editor changes are required.**
+
+If any database schema or profile changes become necessary:
+
+Provide separately:
+
+### A. SQL Migration Scripts
+
+### B. Rollback Scripts
+
+### C. RLS Policy Updates
+
+### D. Migration Safety Notes
+
+### E. Risk Assessment
+
+Do **not** require SQL changes unless absolutely necessary.
+
+---
+
+# Implementation Requirements
+
+Before marking the task complete:
+
+* Analyze the existing authentication pages.
+* Preserve all authentication functionality.
+* Preserve routing and API integrations.
+* Ensure responsive behavior across all screen sizes.
+* Ensure theme compatibility.
+* Ensure accessibility compliance.
+* Verify there are no console errors or runtime errors.
+* Verify there are no layout overflows.
+* Verify there are no regressions.
+* Fix every issue discovered during implementation before completion.
+
+---
+
+# Checkpoint Requirement
+
+After successful implementation, testing, and validation, immediately create a project checkpoint/commit.
+
+### Checkpoint Name
+
+**"Instagram-Style Mobile-First Authentication UI Redesign"**
+
+---
+
+# Final Implementation Report
+
+Provide:
+
+* Files modified
+* Components updated
+* Responsive improvements
+* Accessibility improvements
+* Theme compatibility status
+* Animation enhancements
+* Performance optimizations
+* Any SQL changes (or explicitly state none required)
+* Issues found and fixed during implementation
+* Remaining risks (if any)
+
+---
+
+# Acceptance Criteria
+
+* [ ] Login page redesigned in Instagram-inspired style.
+* [ ] Register page redesigned in Instagram-inspired style.
+* [ ] Mobile-first responsive design implemented.
+* [ ] Desktop layout optimized.
+* [ ] Centered authentication card implemented.
+* [ ] Logo and welcome section added.
+* [ ] Forgot Password link positioned correctly.
+* [ ] Bottom Sign Up / Log In toggle implemented.
+* [ ] Existing authentication logic preserved.
+* [ ] Supabase authentication remains fully functional.
+* [ ] Theme compatibility verified across all supported themes.
+* [ ] Accessibility requirements satisfied.
+* [ ] No console or runtime errors remain.
+* [ ] No regressions introduced.
+* [ ] No SQL changes required unless explicitly identified and documented.
+* [ ] All issues found during implementation fixed before completion.
+* [ ] Checkpoint created after successful implementation and validation.
