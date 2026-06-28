@@ -1,6 +1,7 @@
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { lazy, Suspense, useEffect } from "react";
+import { AnimatePresence } from "framer-motion";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -67,43 +68,46 @@ function RootRoute() {
 }
 
 function Router() {
+  const [location] = useLocation();
   return (
     <Suspense fallback={<PageLoader />}>
-      <Switch>
-        <Route path="/" component={RootRoute} />
-        <Route path="/login" component={LoginPage} />
-        <Route path="/register" component={RegisterPage} />
-        <Route path="/forgot-password" component={ForgotPasswordPage} />
-        <Route path="/reset-password" component={ResetPasswordPage} />
-        <Route path="/pending-approval" component={PendingApprovalPage} />
+      <AnimatePresence mode="wait" initial={false}>
+        <Switch key={location}>
+          <Route path="/" component={RootRoute} />
+          <Route path="/login" component={LoginPage} />
+          <Route path="/register" component={RegisterPage} />
+          <Route path="/forgot-password" component={ForgotPasswordPage} />
+          <Route path="/reset-password" component={ResetPasswordPage} />
+          <Route path="/pending-approval" component={PendingApprovalPage} />
 
-        <Route path="/dashboard"><ProtectedRoute><DashboardPage /></ProtectedRoute></Route>
-        <Route path="/subjects"><ProtectedRoute><SubjectsPage /></ProtectedRoute></Route>
-        <Route path="/subjects/:subjectId"><ProtectedRoute><SubjectDetailPage /></ProtectedRoute></Route>
-        <Route path="/chapters/:chapterId"><ProtectedRoute><ChapterDetailPage /></ProtectedRoute></Route>
-        <Route path="/topics/:topicId"><ProtectedRoute><TopicDetailPage /></ProtectedRoute></Route>
-        <Route path="/exam/:quizId"><ProtectedRoute><ExamPage /></ProtectedRoute></Route>
-        <Route path="/exam/results/:resultId"><ProtectedRoute><ExamResultPage /></ProtectedRoute></Route>
-        <Route path="/notes"><ProtectedRoute><NotesPage /></ProtectedRoute></Route>
-        <Route path="/pomodoro"><ProtectedRoute><PomodoroPage /></ProtectedRoute></Route>
-        <Route path="/tasks"><ProtectedRoute><TasksPage /></ProtectedRoute></Route>
-        <Route path="/tracker"><ProtectedRoute><TrackerPage /></ProtectedRoute></Route>
-        <Route path="/profile"><ProtectedRoute><ProfilePage /></ProtectedRoute></Route>
+          <Route path="/dashboard"><ProtectedRoute><DashboardPage /></ProtectedRoute></Route>
+          <Route path="/subjects"><ProtectedRoute><SubjectsPage /></ProtectedRoute></Route>
+          <Route path="/subjects/:subjectId"><ProtectedRoute><SubjectDetailPage /></ProtectedRoute></Route>
+          <Route path="/chapters/:chapterId"><ProtectedRoute><ChapterDetailPage /></ProtectedRoute></Route>
+          <Route path="/topics/:topicId"><ProtectedRoute><TopicDetailPage /></ProtectedRoute></Route>
+          <Route path="/exam/:quizId"><ProtectedRoute><ExamPage /></ProtectedRoute></Route>
+          <Route path="/exam/results/:resultId"><ProtectedRoute><ExamResultPage /></ProtectedRoute></Route>
+          <Route path="/notes"><ProtectedRoute><NotesPage /></ProtectedRoute></Route>
+          <Route path="/pomodoro"><ProtectedRoute><PomodoroPage /></ProtectedRoute></Route>
+          <Route path="/tasks"><ProtectedRoute><TasksPage /></ProtectedRoute></Route>
+          <Route path="/tracker"><ProtectedRoute><TrackerPage /></ProtectedRoute></Route>
+          <Route path="/profile"><ProtectedRoute><ProfilePage /></ProtectedRoute></Route>
 
-        <Route path="/admin"><ProtectedRoute requireAdmin><AdminPage /></ProtectedRoute></Route>
-        <Route path="/admin/users"><ProtectedRoute requireAdmin><AdminUsersPage /></ProtectedRoute></Route>
-        <Route path="/admin/subjects"><ProtectedRoute requireAdmin><AdminSubjectsPage /></ProtectedRoute></Route>
-        <Route path="/admin/quizzes"><ProtectedRoute requireAdmin><AdminQuizzesPage /></ProtectedRoute></Route>
-        <Route path="/admin/analytics"><ProtectedRoute requireAdmin><AdminAnalyticsPage /></ProtectedRoute></Route>
-        <Route path="/admin/gate"><ProtectedRoute requireAdmin><AdminGatePage /></ProtectedRoute></Route>
-        <Route path="/admin/rate-limits"><ProtectedRoute requireAdmin><AdminRateLimitsPage /></ProtectedRoute></Route>
-        <Route path="/admin/content-access"><ProtectedRoute requireAdmin><AdminContentAccessPage /></ProtectedRoute></Route>
-        <Route path="/admin/announcements"><ProtectedRoute requireAdmin><AdminAnnouncementsPage /></ProtectedRoute></Route>
-        <Route path="/admin/test-management"><ProtectedRoute requireAdmin><AdminTestManagementPage /></ProtectedRoute></Route>
-        <Route path="/tests"><ProtectedRoute><TestsPage /></ProtectedRoute></Route>
+          <Route path="/admin"><ProtectedRoute requireAdmin><AdminPage /></ProtectedRoute></Route>
+          <Route path="/admin/users"><ProtectedRoute requireAdmin><AdminUsersPage /></ProtectedRoute></Route>
+          <Route path="/admin/subjects"><ProtectedRoute requireAdmin><AdminSubjectsPage /></ProtectedRoute></Route>
+          <Route path="/admin/quizzes"><ProtectedRoute requireAdmin><AdminQuizzesPage /></ProtectedRoute></Route>
+          <Route path="/admin/analytics"><ProtectedRoute requireAdmin><AdminAnalyticsPage /></ProtectedRoute></Route>
+          <Route path="/admin/gate"><ProtectedRoute requireAdmin><AdminGatePage /></ProtectedRoute></Route>
+          <Route path="/admin/rate-limits"><ProtectedRoute requireAdmin><AdminRateLimitsPage /></ProtectedRoute></Route>
+          <Route path="/admin/content-access"><ProtectedRoute requireAdmin><AdminContentAccessPage /></ProtectedRoute></Route>
+          <Route path="/admin/announcements"><ProtectedRoute requireAdmin><AdminAnnouncementsPage /></ProtectedRoute></Route>
+          <Route path="/admin/test-management"><ProtectedRoute requireAdmin><AdminTestManagementPage /></ProtectedRoute></Route>
+          <Route path="/tests"><ProtectedRoute><TestsPage /></ProtectedRoute></Route>
 
-        <Route component={NotFound} />
-      </Switch>
+          <Route component={NotFound} />
+        </Switch>
+      </AnimatePresence>
     </Suspense>
   );
 }

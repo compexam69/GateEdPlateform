@@ -100,7 +100,8 @@ export default function LoginPage() {
         className="w-full max-w-sm"
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
+        exit={{ opacity: 0, y: -16, transition: { duration: 0.2, ease: "easeIn" } }}
+        transition={{ duration: 0.35, ease: "easeOut" }}
       >
         {/* Logo + brand */}
         <div className="text-center mb-8">
