@@ -307,59 +307,58 @@ export default function RegisterPage() {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-2.5" noValidate>
 
-              {/* Row 1: Full Name + Mobile side-by-side */}
-              <div className="grid grid-cols-2 gap-2.5">
-                <FormField
-                  control={form.control}
-                  name="fullName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
-                        Full Name
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Rahul Sharma"
-                          autoComplete="name"
-                          autoCapitalize="words"
-                          className="h-9 text-sm bg-muted/40 border-border/60 focus:bg-background transition-colors"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage className="text-[10px]" />
-                    </FormItem>
-                  )}
-                />
+              {/* Full Name */}
+              <FormField
+                control={form.control}
+                name="fullName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                      Full Name
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Rahul Sharma"
+                        autoComplete="name"
+                        autoCapitalize="words"
+                        className="h-9 text-sm bg-muted/40 border-border/60 focus:bg-background transition-colors"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage className="text-[10px]" />
+                  </FormItem>
+                )}
+              />
 
-                <FormField
-                  control={form.control}
-                  name="mobile"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
-                        Mobile
-                      </FormLabel>
-                      <FormControl>
-                        <div className="flex h-9">
-                          <div className="flex items-center px-2 border border-r-0 border-input bg-muted rounded-l-md text-muted-foreground text-xs font-medium select-none shrink-0">
-                            +91
-                          </div>
-                          <Input
-                            className="rounded-l-none min-w-0 h-9 text-sm bg-muted/40 border-border/60 focus:bg-background transition-colors"
-                            placeholder="98765…"
-                            maxLength={10}
-                            inputMode="numeric"
-                            autoComplete="tel-national"
-                            {...field}
-                            onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ""))}
-                          />
+              {/* Mobile */}
+              <FormField
+                control={form.control}
+                name="mobile"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                      Mobile Number
+                    </FormLabel>
+                    <FormControl>
+                      <div className="flex h-9">
+                        <div className="flex items-center px-3 border border-r-0 border-input bg-muted rounded-l-md text-muted-foreground text-sm font-medium select-none shrink-0">
+                          +91
                         </div>
-                      </FormControl>
-                      <FormMessage className="text-[10px]" />
-                    </FormItem>
-                  )}
-                />
-              </div>
+                        <Input
+                          className="rounded-l-none min-w-0 h-9 text-sm bg-muted/40 border-border/60 focus:bg-background transition-colors"
+                          placeholder="9876543210"
+                          maxLength={10}
+                          inputMode="numeric"
+                          autoComplete="tel-national"
+                          {...field}
+                          onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ""))}
+                        />
+                      </div>
+                    </FormControl>
+                    <FormMessage className="text-[10px]" />
+                  </FormItem>
+                )}
+              />
 
               {/* Email */}
               <FormField
