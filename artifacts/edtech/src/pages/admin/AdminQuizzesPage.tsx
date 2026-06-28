@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Edit, Trash2, ChevronDown, ChevronRight, QrCode, FileJson, BookOpen, HelpCircle, ExternalLink, FileText, Upload, Download, AlertCircle, CheckCircle2, Loader2, Eye, Shield } from "lucide-react";
+import { Plus, Edit, Trash2, ChevronDown, ChevronRight, QrCode, FileJson, BookOpen, HelpCircle, ExternalLink, FileText, Upload, Download, AlertCircle, AlertTriangle, CheckCircle2, Loader2, Eye, Shield } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getSubjects, getGetSubjectsUrl, getChapters, getGetChaptersUrl, getTopics, getGetTopicsUrl } from "@workspace/api-client-react";
 import { supabase } from "@/lib/supabase";
@@ -69,7 +69,8 @@ type Question = {
   id: string;
   quiz_id: string;
   question_text: string;
-  options: Record<string, string>;
+  question_type: "SCQ" | "MCQ" | "NAT";
+  options: Record<string, string> | null;
   correct_answer: string;
   explanation?: string;
   video_solution_url?: string;
@@ -306,14 +307,32 @@ function QuizRow({ quiz, expanded, onToggle, onEdit, onDelete, onAddQuestion, on
                     <div className="flex items-start gap-3">
                       <span className="text-xs text-muted-foreground font-medium mt-0.5 shrink-0 w-5">{idx + 1}.</span>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium leading-snug break-words">{q.question_text}</p>
-                        <div className="mt-1.5 grid grid-cols-2 gap-1">
-                          {Object.entries(q.options ?? {}).map(([key, val]) => (
-                            <span key={key} className={`text-xs px-2 py-0.5 rounded ${key === q.correct_answer ? "bg-success/20 text-success font-semibold" : "text-muted-foreground"}`}>
-                              {key}: {val}
-                            </span>
-                          ))}
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <p className="text-sm font-medium leading-snug break-words">{q.question_text}</p>
+                          {q.question_type && q.question_type !== "SCQ" && (
+                            <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold border ${
+                              q.question_type === "MCQ" ? "bg-primary/15 text-primary border-primary/30" : "bg-warning/15 text-warning border-warning/30"
+                            }`}>{q.question_type}</span>
+                          )}
                         </div>
+                        {q.question_type === "NAT" ? (
+                          <div className="mt-1.5">
+                            <span className="text-xs text-muted-foreground">Answer: </span>
+                            <span className="text-xs font-mono font-bold text-success">{q.correct_answer}</span>
+                          </div>
+                        ) : (
+                          <div className="mt-1.5 grid grid-cols-2 gap-1">
+                            {Object.entries(q.options ?? {}).map(([key, val]) => {
+                              const correctKeys = q.correct_answer?.split(",").map(v => v.trim()) ?? [];
+                              const isCorrect = correctKeys.includes(key);
+                              return (
+                                <span key={key} className={`text-xs px-2 py-0.5 rounded ${isCorrect ? "bg-success/20 text-success font-semibold" : "text-muted-foreground"}`}>
+                                  {key}: {val}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
                         {q.explanation && <p className="text-xs text-muted-foreground mt-1 italic">{q.explanation}</p>}
                         <div className="flex items-center gap-3 mt-1.5">
                           <Badge variant="secondary" className="text-xs">Diff: {q.difficulty}/5</Badge>
@@ -524,6 +543,7 @@ function QuestionDialog({ open, quizId, question, onClose, onSaved, saving, setS
 }) {
   const [form, setForm] = useState({
     question_text: "",
+    question_type: "SCQ" as "SCQ" | "MCQ" | "NAT",
     optA: "", optB: "", optC: "", optD: "",
     correct_answer: "A",
     explanation: "",
@@ -534,13 +554,15 @@ function QuestionDialog({ open, quizId, question, onClose, onSaved, saving, setS
 
   useState(() => {
     if (open) {
+      const qt = question?.question_type ?? "SCQ";
       setForm({
         question_text: question?.question_text ?? "",
+        question_type: qt,
         optA: question?.options?.["A"] ?? "",
         optB: question?.options?.["B"] ?? "",
         optC: question?.options?.["C"] ?? "",
         optD: question?.options?.["D"] ?? "",
-        correct_answer: question?.correct_answer ?? "A",
+        correct_answer: question?.correct_answer ?? (qt === "NAT" ? "" : "A"),
         explanation: question?.explanation ?? "",
         video_solution_url: question?.video_solution_url ?? "",
         difficulty: question?.difficulty ?? 3,
@@ -578,8 +600,11 @@ function QuestionDialog({ open, quizId, question, onClose, onSaved, saving, setS
       const payload = {
         quiz_id: quizId,
         question_text: form.question_text,
-        options: { A: form.optA, B: form.optB, ...(form.optC ? { C: form.optC } : {}), ...(form.optD ? { D: form.optD } : {}) },
-        correct_answer: form.correct_answer,
+        question_type: form.question_type,
+        options: form.question_type === "NAT" ? null : { A: form.optA, B: form.optB, ...(form.optC ? { C: form.optC } : {}), ...(form.optD ? { D: form.optD } : {}) },
+        correct_answer: form.question_type === "MCQ"
+          ? form.correct_answer.split(",").map(v => v.trim().toUpperCase()).filter(Boolean).sort().join(",")
+          : form.correct_answer.trim(),
         explanation: form.explanation || null,
         video_solution_url: form.video_solution_url || null,
         qr_code_url: qrCodeUrl,
@@ -608,31 +633,89 @@ function QuestionDialog({ open, quizId, question, onClose, onSaved, saving, setS
             <Label>Question Text *</Label>
             <Textarea rows={3} value={form.question_text} onChange={e => f("question_text", e.target.value)} placeholder="Enter the question..." />
           </div>
-          <div className="space-y-2">
-            <Label>Options *</Label>
-            {(["A", "B", "C", "D"] as const).map(opt => (
-              <div key={opt} className="flex items-center gap-2">
-                <span className={`text-xs font-bold w-5 shrink-0 ${form.correct_answer === opt ? "text-success" : "text-muted-foreground"}`}>{opt}</span>
-                <Input
-                  value={form[`opt${opt}` as "optA" | "optB" | "optC" | "optD"]}
-                  onChange={e => f(`opt${opt}`, e.target.value)}
-                  placeholder={`Option ${opt}${opt === "A" || opt === "B" ? " *" : " (optional)"}`}
-                />
-                <Button
-                  size="sm"
-                  variant={form.correct_answer === opt ? "default" : "outline"}
-                  className={`text-xs shrink-0 ${form.correct_answer === opt ? "bg-success hover:bg-success/90" : ""}`}
-                  onClick={() => f("correct_answer", opt)}
-                >
-                  ✓
-                </Button>
-              </div>
-            ))}
-            <p className="text-xs text-muted-foreground">Click ✓ to mark the correct answer</p>
+          <div className="space-y-1.5">
+            <Label>Question Type</Label>
+            <div className="flex gap-2">
+              {(["SCQ", "MCQ", "NAT"] as const).map(qt => (
+                <button
+                  key={qt}
+                  type="button"
+                  onClick={() => {
+                    f("question_type", qt);
+                    if (qt === "NAT") f("correct_answer", "");
+                    else if (qt === "SCQ") f("correct_answer", "A");
+                  }}
+                  className={`px-3 py-1 rounded text-xs font-mono font-semibold border transition-colors ${
+                    form.question_type === qt
+                      ? qt === "MCQ" ? "bg-primary text-primary-foreground border-primary"
+                        : qt === "NAT" ? "bg-warning text-warning-foreground border-warning"
+                        : "bg-success text-success-foreground border-success"
+                      : "border-border text-muted-foreground hover:border-primary hover:text-foreground"
+                  }`}
+                >{qt}</button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {form.question_type === "MCQ" ? "Multiple correct — select all that apply" : form.question_type === "NAT" ? "Numerical answer type — student enters a number" : "Single correct answer"}
+            </p>
           </div>
+          {form.question_type !== "NAT" && (
+            <div className="space-y-2">
+              <Label>Options *</Label>
+              {(["A", "B", "C", "D"] as const).map(opt => {
+                const correctKeys = form.question_type === "MCQ"
+                  ? form.correct_answer.split(",").map(v => v.trim().toUpperCase()).filter(Boolean)
+                  : [form.correct_answer];
+                const isCorrect = correctKeys.includes(opt);
+                return (
+                  <div key={opt} className="flex items-center gap-2">
+                    <span className={`text-xs font-bold w-5 shrink-0 ${isCorrect ? "text-success" : "text-muted-foreground"}`}>{opt}</span>
+                    <Input
+                      value={form[`opt${opt}` as "optA" | "optB" | "optC" | "optD"]}
+                      onChange={e => f(`opt${opt}`, e.target.value)}
+                      placeholder={`Option ${opt}${opt === "A" || opt === "B" ? " *" : " (optional)"}`}
+                    />
+                    <Button
+                      size="sm"
+                      variant={isCorrect ? "default" : "outline"}
+                      className={`text-xs shrink-0 ${isCorrect ? "bg-success hover:bg-success/90" : ""}`}
+                      onClick={() => {
+                        if (form.question_type === "MCQ") {
+                          const keys = form.correct_answer.split(",").map(v => v.trim().toUpperCase()).filter(Boolean);
+                          const next = keys.includes(opt) ? keys.filter(k => k !== opt) : [...keys, opt];
+                          f("correct_answer", next.sort().join(","));
+                        } else {
+                          f("correct_answer", opt);
+                        }
+                      }}
+                    >
+                      ✓
+                    </Button>
+                  </div>
+                );
+              })}
+              <p className="text-xs text-muted-foreground">
+                {form.question_type === "MCQ" ? "Click ✓ to toggle correct answers (select multiple)" : "Click ✓ to mark the correct answer"}
+              </p>
+            </div>
+          )}
+          {form.question_type === "NAT" && (
+            <div className="space-y-1.5">
+              <Label>Correct Answer (number) *</Label>
+              <Input
+                type="text"
+                inputMode="decimal"
+                value={form.correct_answer}
+                onChange={e => f("correct_answer", e.target.value)}
+                placeholder="e.g. 9.8"
+                className="font-mono"
+              />
+              <p className="text-xs text-muted-foreground">Enter the numeric answer. Tolerance ±0.001.</p>
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label>Explanation (optional)</Label>
-            <Textarea rows={2} value={form.explanation} onChange={e => f("explanation", e.target.value)} placeholder="Solution explanation..." />
+            <Textarea rows={2} value={form.explanation} onChange={e => f("explanation", e.target.value)} placeholder="One-line solution shown in the Solutions tab after exam..." />
           </div>
           <div className="space-y-1.5">
             <Label>Video Solution URL <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
@@ -651,7 +734,15 @@ function QuestionDialog({ open, quizId, question, onClose, onSaved, saving, setS
           </div>
           <div className="flex gap-2 justify-end pt-2">
             <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button onClick={handleSave} disabled={saving || !form.question_text || !form.optA || !form.optB}>
+            <Button
+              onClick={handleSave}
+              disabled={
+                saving ||
+                !form.question_text ||
+                (form.question_type !== "NAT" && (!form.optA || !form.optB)) ||
+                !form.correct_answer
+              }
+            >
               {saving ? "Saving..." : "Save Question"}
             </Button>
           </div>
@@ -1062,6 +1153,10 @@ function TopLevelBulkImportDialog({ open, quizzes, onClose, onImported }: {
                     <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" /><span>{qError}</span>
                   </div>
                 )}
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-warning/10 border border-warning/20 text-warning text-xs">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  <span>Import <strong>appends</strong> questions — it does not update existing ones. Re-importing the same CSV will create duplicates. Delete existing questions first if you need to replace them.</span>
+                </div>
                 <div className="flex gap-2 justify-end">
                   <Button variant="outline" onClick={() => { resetAll(); onClose(); }}>Cancel</Button>
                   <Button
@@ -1298,6 +1393,13 @@ function BulkImportDialog({ open, quizId, onClose, onImported }: {
             <Upload className="w-5 h-5 text-primary" /> Bulk Import Questions
           </DialogTitle>
         </DialogHeader>
+
+        {!importResult && (
+          <div className="flex items-start gap-2 px-1 py-2 rounded-lg bg-warning/10 border border-warning/20 text-warning text-xs">
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+            <span>Import <strong>appends</strong> questions — it does not update existing ones. Re-importing the same CSV will create duplicates. Delete existing questions first if you need to replace them.</span>
+          </div>
+        )}
 
         {importResult ? (
           <div className="space-y-4 py-2">
