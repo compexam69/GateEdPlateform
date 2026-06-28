@@ -64,6 +64,7 @@ type QuestionPreviewRow = {
   correct_answer: string;
   difficulty: number;
   question_type: "SCQ" | "MCQ" | "NAT";
+  explanation: string;
   error?: string;
 };
 
@@ -170,7 +171,8 @@ function validateQuestionClient(q: unknown, idx: number): QuestionPreviewRow {
   const question_type = (typeof raw.question_type === "string" ? raw.question_type : "SCQ") as "SCQ" | "MCQ" | "NAT";
   const correct_answer = typeof raw.correct_answer === "string" ? raw.correct_answer.trim() : "";
   const difficulty = Math.round(Number(raw.difficulty ?? 3) || 3);
-  const base = { question_text, correct_answer, difficulty, question_type };
+  const explanation = typeof raw.explanation === "string" ? raw.explanation.trim() : "";
+  const base = { question_text, correct_answer, difficulty, question_type, explanation };
 
   if (!question_text) return { ...base, valid: false, error: `Row ${idx + 1}: Question text is missing` };
 
@@ -779,7 +781,7 @@ function Step3_Import({ wizardData, setWd, parsedQuestions, validatedQuestions, 
                 <table className="w-full text-xs">
                   <thead className="bg-muted/40 sticky top-0">
                     <tr>
-                      {["#", "Question", "Type", "Answer", "Diff", "Status"].map(h => (
+                      {["#", "Question", "Type", "Answer", "Explanation", "Status"].map(h => (
                         <th key={h} className="px-3 py-2 text-left font-medium text-muted-foreground whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -788,7 +790,7 @@ function Step3_Import({ wizardData, setWd, parsedQuestions, validatedQuestions, 
                     {validatedQuestions.map((r, i) => (
                       <tr key={i} className={`${!r.valid ? "bg-destructive/5" : "hover:bg-muted/20"}`}>
                         <td className="px-3 py-1.5 text-muted-foreground">{i + 1}</td>
-                        <td className="px-3 py-1.5 max-w-[200px] truncate" title={r.question_text}>{r.question_text || "—"}</td>
+                        <td className="px-3 py-1.5 max-w-[160px] truncate" title={r.question_text}>{r.question_text || "—"}</td>
                         <td className="px-3 py-1.5">
                           <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold border ${
                             r.question_type === "MCQ" ? "bg-primary/15 text-primary border-primary/30"
@@ -797,7 +799,7 @@ function Step3_Import({ wizardData, setWd, parsedQuestions, validatedQuestions, 
                           }`}>{r.question_type || "SCQ"}</span>
                         </td>
                         <td className="px-3 py-1.5 font-mono font-bold text-primary">{r.correct_answer || "—"}</td>
-                        <td className="px-3 py-1.5 text-center">{r.difficulty}</td>
+                        <td className="px-3 py-1.5 max-w-[140px] truncate text-muted-foreground" title={r.explanation}>{r.explanation || <span className="italic opacity-50">none</span>}</td>
                         <td className="px-3 py-1.5">
                           {r.valid
                             ? <Badge className="bg-green-500/15 text-green-400 border-green-800/30 text-[10px] px-1.5 py-0">Valid</Badge>
