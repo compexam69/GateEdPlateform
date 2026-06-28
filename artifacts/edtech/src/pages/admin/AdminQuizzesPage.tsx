@@ -661,28 +661,63 @@ function QuestionDialog({ open, quizId, question, onClose, onSaved, saving, setS
   );
 }
 
+function parseCsvLine(line: string): string[] {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') { current += '"'; i++; }
+      else inQuotes = !inQuotes;
+    } else if (ch === "," && !inQuotes) {
+      result.push(current);
+      current = "";
+    } else {
+      current += ch;
+    }
+  }
+  result.push(current);
+  return result;
+}
+
 function parseCsvToQuestions(csv: string): unknown[] {
   const lines = csv.trim().split("\n").map(l => l.trim()).filter(Boolean);
   if (lines.length < 2) return [];
-  const headers = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, ""));
+  const headers = parseCsvLine(lines[0]).map(h => h.trim().toLowerCase());
   return lines.slice(1).map((line, idx) => {
-    const cols = line.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g) ?? [];
-    const clean = (v?: string) => (v ?? "").replace(/^"|"$/g, "").trim();
-    const get = (key: string) => clean(cols[headers.indexOf(key)]);
-    const optC = get("option_c") || get("C");
-    const optD = get("option_d") || get("D");
-    const videoUrl = get("video_solution_url");
+    const cols = parseCsvLine(line);
+    const get = (key: string) => (cols[headers.indexOf(key)] ?? "").trim();
+
+    const rawType = (get("question_type") || "SCQ").toUpperCase();
+    const question_type: "SCQ" | "MCQ" | "NAT" =
+      rawType === "MCQ" ? "MCQ" : rawType === "NAT" ? "NAT" : "SCQ";
+
+    const correctRaw = get("correct_answer") || get("answer");
+    let correct_answer: string;
+    if (question_type === "NAT") {
+      correct_answer = correctRaw.trim();
+    } else if (question_type === "MCQ") {
+      correct_answer = correctRaw.split(",").map(v => v.trim().toUpperCase()).filter(Boolean).sort().join(",");
+    } else {
+      correct_answer = correctRaw.toUpperCase();
+    }
+
+    const optC = get("option_c") || get("c");
+    const optD = get("option_d") || get("d");
+
     return {
       question_text: get("question_text") || get("question"),
-      options: {
-        A: get("option_a") || get("A"),
-        B: get("option_b") || get("B"),
+      question_type,
+      options: question_type === "NAT" ? null : {
+        A: get("option_a") || get("a"),
+        B: get("option_b") || get("b"),
         ...(optC ? { C: optC } : {}),
         ...(optD ? { D: optD } : {}),
       },
-      correct_answer: (get("correct_answer") || get("answer")).toUpperCase(),
+      correct_answer,
       explanation: get("explanation") || null,
-      video_solution_url: videoUrl || null,
+      video_solution_url: get("video_solution_url") || null,
       difficulty: parseInt(get("difficulty") || "3", 10) || 3,
       order_index: idx,
     };
