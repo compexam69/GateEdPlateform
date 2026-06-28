@@ -26,6 +26,7 @@ import {
   RefreshCw,
   ArrowRight,
   Loader2,
+  Check,
 } from "lucide-react";
 
 const registerSchema = z.object({
@@ -334,30 +335,43 @@ export default function RegisterPage() {
               <FormField
                 control={form.control}
                 name="mobile"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
-                      Mobile Number
-                    </FormLabel>
-                    <FormControl>
-                      <div className="flex h-9">
-                        <div className="flex items-center px-3 border border-r-0 border-input bg-muted rounded-l-md text-muted-foreground text-sm font-medium select-none shrink-0">
-                          +91
+                render={({ field }) => {
+                  const isValidMobile = /^[6-9]\d{9}$/.test(field.value);
+                  return (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                        Mobile Number
+                      </FormLabel>
+                      <FormControl>
+                        <div className="flex h-9 relative">
+                          <div className="flex items-center px-3 border border-r-0 border-input bg-muted rounded-l-md text-muted-foreground text-sm font-medium select-none shrink-0">
+                            +91
+                          </div>
+                          <Input
+                            className="rounded-l-none min-w-0 h-9 text-sm bg-muted/40 border-border/60 focus:bg-background transition-colors pr-8"
+                            placeholder="9876543210"
+                            maxLength={10}
+                            inputMode="numeric"
+                            autoComplete="tel-national"
+                            {...field}
+                            onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ""))}
+                          />
+                          {isValidMobile && (
+                            <motion.div
+                              className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                              initial={{ opacity: 0, scale: 0.5 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                            >
+                              <Check className="w-3.5 h-3.5 text-green-500" />
+                            </motion.div>
+                          )}
                         </div>
-                        <Input
-                          className="rounded-l-none min-w-0 h-9 text-sm bg-muted/40 border-border/60 focus:bg-background transition-colors"
-                          placeholder="9876543210"
-                          maxLength={10}
-                          inputMode="numeric"
-                          autoComplete="tel-national"
-                          {...field}
-                          onChange={(e) => field.onChange(e.target.value.replace(/\D/g, ""))}
-                        />
-                      </div>
-                    </FormControl>
-                    <FormMessage className="text-[10px]" />
-                  </FormItem>
-                )}
+                      </FormControl>
+                      <FormMessage className="text-[10px]" />
+                    </FormItem>
+                  );
+                }}
               />
 
               {/* Email */}
