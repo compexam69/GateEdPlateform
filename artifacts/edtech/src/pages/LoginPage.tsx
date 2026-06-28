@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Link, useLocation } from "wouter";
+import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,8 +16,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, AlertCircle, BookOpen } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { Eye, EyeOff, AlertCircle, BookOpen, Loader2 } from "lucide-react";
 import { getApiBase } from "@/lib/api";
 
 const loginSchema = z.object({
@@ -39,6 +39,7 @@ export default function LoginPage() {
       setSessionExpired(false);
     }
   }, [sessionExpired, setSessionExpired, toast]);
+
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showVerificationBanner, setShowVerificationBanner] = useState(false);
@@ -94,98 +95,151 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
-      <div className="w-full max-w-md space-y-8">
-        <div className="text-center">
-          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 py-10">
+      <motion.div
+        className="w-full max-w-sm"
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
+      >
+        {/* Logo + brand */}
+        <div className="text-center mb-8">
+          <motion.div
+            className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4 ring-1 ring-primary/20"
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.1, duration: 0.35, ease: "easeOut" }}
+          >
             <BookOpen className="w-8 h-8 text-primary" />
-          </div>
-          <h2 className="text-3xl font-bold tracking-tight">Welcome back</h2>
-          <p className="text-muted-foreground mt-2">Sign in to continue your learning journey</p>
+          </motion.div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">EdTech</h1>
+          <p className="text-sm text-muted-foreground mt-1">Welcome back. Continue your learning journey.</p>
         </div>
 
-        {showVerificationBanner && (
-          <div className="flex items-start gap-3 p-4 rounded-lg border border-warning/30 bg-warning/10 text-warning">
-            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <p className="font-medium text-sm">Email not verified</p>
-              <p className="text-xs mt-0.5 text-warning/80">Please verify your email before logging in.</p>
-              <Button
-                variant="link"
-                size="sm"
-                className="text-warning px-0 h-auto mt-1 text-xs"
-                onClick={handleResendVerification}
-                disabled={resendLoading}
-              >
-                {resendLoading ? "Sending..." : "Resend verification email"}
-              </Button>
-            </div>
-          </div>
-        )}
+        {/* Card */}
+        <div className="rounded-2xl border border-border bg-card shadow-sm p-6 space-y-5">
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email address</FormLabel>
-                  <FormControl>
-                    <Input type="email" placeholder="you@example.com" autoComplete="email" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          {/* Verification banner */}
+          {showVerificationBanner && (
+            <motion.div
+              className="flex items-start gap-3 p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/10"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              transition={{ duration: 0.25 }}
+            >
+              <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-amber-500">Email not verified</p>
+                <p className="text-xs mt-0.5 text-amber-500/80">Verify your email before signing in.</p>
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="text-amber-500 px-0 h-auto mt-1 text-xs"
+                  onClick={handleResendVerification}
+                  disabled={resendLoading}
+                >
+                  {resendLoading ? "Sending…" : "Resend verification email"}
+                </Button>
+              </div>
+            </motion.div>
+          )}
 
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <div className="flex items-center justify-between">
-                    <FormLabel>Password</FormLabel>
-                    <Link href="/forgot-password" className="text-xs text-primary hover:underline">
-                      Forgot password?
-                    </Link>
-                  </div>
-                  <FormControl>
-                    <div className="relative">
+          {/* Form */}
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
+
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Email address
+                    </FormLabel>
+                    <FormControl>
                       <Input
-                        type={showPassword ? "text" : "password"}
-                        placeholder="Enter your password"
-                        autoComplete="current-password"
+                        type="email"
+                        placeholder="you@example.com"
+                        autoComplete="email"
+                        inputMode="email"
+                        className="h-11 bg-muted/40 border-border/60 focus:bg-background transition-colors"
                         {...field}
                       />
-                      <button
-                        type="button"
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                        onClick={() => setShowPassword(v => !v)}
-                        tabIndex={-1}
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Password
+                      </FormLabel>
+                      <Link
+                        href="/forgot-password"
+                        className="text-xs text-primary hover:text-primary/80 font-medium transition-colors"
                       >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
+                        Forgot password?
+                      </Link>
                     </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                    <FormControl>
+                      <div className="relative">
+                        <Input
+                          type={showPassword ? "text" : "password"}
+                          placeholder="Enter your password"
+                          autoComplete="current-password"
+                          className="h-11 pr-10 bg-muted/40 border-border/60 focus:bg-background transition-colors"
+                          {...field}
+                        />
+                        <button
+                          type="button"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                          onClick={() => setShowPassword(v => !v)}
+                          tabIndex={-1}
+                          aria-label={showPassword ? "Hide password" : "Show password"}
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <Button type="submit" className="w-full h-11" disabled={loading}>
-              {loading ? "Signing in..." : "Sign in"}
-            </Button>
-          </form>
-        </Form>
+              <Button
+                type="submit"
+                className="w-full h-11 text-sm font-semibold rounded-xl mt-1 transition-all active:scale-[0.98]"
+                disabled={loading}
+              >
+                {loading ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Signing in…</>
+                ) : "Log In"}
+              </Button>
+            </form>
+          </Form>
 
-        <p className="text-center text-sm text-muted-foreground">
-          Don't have an account?{" "}
-          <Link href="/register" className="font-medium text-primary hover:underline">
-            Create one for free
-          </Link>
-        </p>
-      </div>
+          {/* Divider */}
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-border" />
+            <span className="text-xs text-muted-foreground font-medium tracking-wider">OR</span>
+            <div className="h-px flex-1 bg-border" />
+          </div>
+
+          {/* Bottom toggle */}
+          <p className="text-center text-sm text-muted-foreground">
+            Don't have an account?{" "}
+            <Link href="/register" className="font-semibold text-primary hover:text-primary/80 transition-colors">
+              Sign Up
+            </Link>
+          </p>
+        </div>
+      </motion.div>
     </div>
   );
 }

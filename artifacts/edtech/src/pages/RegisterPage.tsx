@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Link } from "wouter";
+import { motion } from "framer-motion";
 import { getApiBase } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +25,7 @@ import {
   Mail,
   RefreshCw,
   ArrowRight,
+  Loader2,
 } from "lucide-react";
 
 const registerSchema = z.object({
@@ -137,20 +139,26 @@ function RegistrationSuccess({ email }: { email: string }) {
   }
 
   return (
-    <div className="min-h-svh bg-background flex flex-col items-center justify-center px-4 py-10">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 py-10">
+      <motion.div
+        className="w-full max-w-sm"
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
+      >
         {/* Brand mark */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4 ring-1 ring-primary/20">
             <BookOpen className="w-8 h-8 text-primary" />
           </div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">EdTech</h1>
         </div>
 
         {/* Success card */}
-        <div className="rounded-2xl border border-border bg-card p-6 sm:p-8 space-y-5">
+        <div className="rounded-2xl border border-border bg-card shadow-sm p-6 space-y-5">
           {/* Icon + heading */}
-          <div className="flex flex-col items-center text-center gap-3 pb-2">
-            <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
+          <div className="flex flex-col items-center text-center gap-3 pb-1">
+            <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center ring-1 ring-primary/20">
               <Mail className="w-7 h-7 text-primary" />
             </div>
             <div>
@@ -161,6 +169,8 @@ function RegistrationSuccess({ email }: { email: string }) {
               <p className="text-sm font-semibold text-foreground mt-1 break-all">{email}</p>
             </div>
           </div>
+
+          <div className="h-px bg-border" />
 
           {/* Steps */}
           <div className="space-y-3 text-sm">
@@ -187,7 +197,7 @@ function RegistrationSuccess({ email }: { email: string }) {
             </p>
             <Button
               variant="outline"
-              className="w-full h-10"
+              className="w-full h-11 rounded-xl"
               onClick={handleResend}
               disabled={resendLoading || resendCount >= MAX_RESENDS}
             >
@@ -199,14 +209,13 @@ function RegistrationSuccess({ email }: { email: string }) {
                 <span className="ml-auto text-xs text-muted-foreground">{resendCount}/{MAX_RESENDS}</span>
               )}
             </Button>
-          </div>
 
-          {/* Sign in link */}
-          <Link href="/login">
-            <Button variant="ghost" className="w-full h-10 text-primary">
-              Already verified? Sign in <ArrowRight className="w-4 h-4 ml-1" />
-            </Button>
-          </Link>
+            <Link href="/login">
+              <Button variant="ghost" className="w-full h-11 rounded-xl text-primary hover:text-primary/80">
+                Already verified? Sign in <ArrowRight className="w-4 h-4 ml-1" />
+              </Button>
+            </Link>
+          </div>
         </div>
 
         <p className="text-center text-xs text-muted-foreground mt-6">
@@ -215,7 +224,7 @@ function RegistrationSuccess({ email }: { email: string }) {
             Register again
           </Link>
         </p>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -241,7 +250,6 @@ export default function RegisterPage() {
     },
   });
 
-  // Show success screen once registration is complete
   if (registeredEmail) {
     return <RegistrationSuccess email={registeredEmail} />;
   }
@@ -262,8 +270,6 @@ export default function RegisterPage() {
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error((json as { error?: string }).error || "Registration failed");
 
-      // Transition to the success/verification-pending screen.
-      // This also prevents double-submit since the form is no longer rendered.
       setRegisteredEmail(values.email.toLowerCase().trim());
     } catch (error: unknown) {
       toast({
@@ -279,23 +285,30 @@ export default function RegisterPage() {
   const allValid = form.formState.isValid;
 
   return (
-    <div className="min-h-svh bg-background overflow-y-auto">
-      <div className="flex flex-col items-center justify-start min-h-svh px-4 py-10 sm:justify-center">
-        <div className="w-full max-w-md space-y-6">
-
-          {/* Brand header */}
-          <div className="text-center">
-            <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-              <BookOpen className="w-7 h-7 text-primary" />
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Create your account</h2>
-            <p className="text-muted-foreground mt-2 text-sm sm:text-base">
-              Join students preparing for JEE, NEET &amp; GATE
-            </p>
+    <div className="min-h-screen bg-background overflow-y-auto">
+      <div className="flex flex-col items-center justify-start min-h-screen px-4 py-10 sm:justify-center">
+        <motion.div
+          className="w-full max-w-sm"
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+        >
+          {/* Logo + brand */}
+          <div className="text-center mb-8">
+            <motion.div
+              className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4 ring-1 ring-primary/20"
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.1, duration: 0.35, ease: "easeOut" }}
+            >
+              <BookOpen className="w-8 h-8 text-primary" />
+            </motion.div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">EdTech</h1>
+            <p className="text-sm text-muted-foreground mt-1">Join students preparing for JEE, NEET &amp; GATE</p>
           </div>
 
           {/* Form card */}
-          <div className="rounded-2xl border border-border bg-card p-5 sm:p-7">
+          <div className="rounded-2xl border border-border bg-card shadow-sm p-6 space-y-5">
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
 
@@ -305,12 +318,15 @@ export default function RegisterPage() {
                   name="fullName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Full Name</FormLabel>
+                      <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Full Name
+                      </FormLabel>
                       <FormControl>
                         <Input
                           placeholder="Rahul Sharma"
                           autoComplete="name"
                           autoCapitalize="words"
+                          className="h-11 bg-muted/40 border-border/60 focus:bg-background transition-colors"
                           {...field}
                         />
                       </FormControl>
@@ -325,14 +341,16 @@ export default function RegisterPage() {
                   name="mobile"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Mobile Number</FormLabel>
+                      <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Mobile Number
+                      </FormLabel>
                       <FormControl>
                         <div className="flex">
-                          <div className="flex items-center px-3 border border-r-0 border-input bg-muted rounded-l-md text-muted-foreground text-sm font-medium select-none shrink-0">
+                          <div className="flex items-center px-3 border border-r-0 border-input bg-muted rounded-l-md text-muted-foreground text-sm font-medium select-none shrink-0 h-11">
                             +91
                           </div>
                           <Input
-                            className="rounded-l-none min-w-0"
+                            className="rounded-l-none min-w-0 h-11 bg-muted/40 border-border/60 focus:bg-background transition-colors"
                             placeholder="9876543210"
                             maxLength={10}
                             inputMode="numeric"
@@ -353,13 +371,16 @@ export default function RegisterPage() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email address</FormLabel>
+                      <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Email address
+                      </FormLabel>
                       <FormControl>
                         <Input
                           type="email"
                           placeholder="you@example.com"
                           autoComplete="email"
                           inputMode="email"
+                          className="h-11 bg-muted/40 border-border/60 focus:bg-background transition-colors"
                           {...field}
                         />
                       </FormControl>
@@ -374,14 +395,16 @@ export default function RegisterPage() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Password</FormLabel>
+                      <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Password
+                      </FormLabel>
                       <FormControl>
                         <div className="relative">
                           <Input
                             type={showPassword ? "text" : "password"}
                             placeholder="Create a strong password"
                             autoComplete="new-password"
-                            className="pr-10"
+                            className="h-11 pr-10 bg-muted/40 border-border/60 focus:bg-background transition-colors"
                             {...field}
                             onChange={(e) => { field.onChange(e); setPasswordValue(e.target.value); }}
                           />
@@ -408,14 +431,16 @@ export default function RegisterPage() {
                   name="confirmPassword"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Confirm Password</FormLabel>
+                      <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Confirm Password
+                      </FormLabel>
                       <FormControl>
                         <div className="relative">
                           <Input
                             type={showConfirm ? "text" : "password"}
                             placeholder="Repeat your password"
                             autoComplete="new-password"
-                            className="pr-10"
+                            className="h-11 pr-10 bg-muted/40 border-border/60 focus:bg-background transition-colors"
                             {...field}
                           />
                           <button
@@ -436,27 +461,32 @@ export default function RegisterPage() {
 
                 <Button
                   type="submit"
-                  className="w-full h-11 mt-2 text-base"
+                  className="w-full h-11 text-sm font-semibold rounded-xl mt-1 transition-all active:scale-[0.98]"
                   disabled={loading || !allValid}
                 >
                   {loading ? (
-                    <><div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" /> Creating account…</>
-                  ) : "Create account"}
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Creating account…</>
+                  ) : "Sign Up"}
                 </Button>
-
               </form>
             </Form>
+
+            {/* Divider */}
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-xs text-muted-foreground font-medium tracking-wider">OR</span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+
+            {/* Bottom toggle */}
+            <p className="text-center text-sm text-muted-foreground">
+              Already have an account?{" "}
+              <Link href="/login" className="font-semibold text-primary hover:text-primary/80 transition-colors">
+                Log In
+              </Link>
+            </p>
           </div>
-
-          {/* Sign in link */}
-          <p className="text-center text-sm text-muted-foreground pb-4">
-            Already have an account?{" "}
-            <Link href="/login" className="font-medium text-primary hover:underline">
-              Sign in
-            </Link>
-          </p>
-
-        </div>
+        </motion.div>
       </div>
     </div>
   );
