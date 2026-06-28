@@ -31,13 +31,21 @@ import { cn } from "@/lib/utils";
 const USERS_KEY = ["admin-users"];
 
 import { getApiBase } from "@/lib/api";
+import { getCsrfToken } from "@/lib/csrf";
 
 async function apiFetch(path: string, opts: RequestInit = {}) {
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
+  let csrfToken = "";
+  try { csrfToken = await getCsrfToken(); } catch { /* best-effort */ }
   const res = await fetch(`${getApiBase()}${path}`, {
     ...opts,
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...(opts.headers ?? {}) },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      "x-csrf-token": csrfToken,
+      ...(opts.headers ?? {}),
+    },
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: "Unknown error" }));
