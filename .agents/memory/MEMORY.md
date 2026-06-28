@@ -4,3 +4,4 @@
 - [API Route Hardening](api-route-hardening.md) — all input validation patterns used across routes: UUID, capText, sanitizeEnum, mass-assignment whitelist
 - [api-client-react lib build](api-client-react-build.md) — lib uses composite:true; must run `npx tsc -p tsconfig.json` inside lib/api-client-react/ to generate dist/ for frontend typecheck to pass
 - [MCQ/NAT question types](mcq-nat-question-types.md) — quiz_questions table needs question_type column + nullable options; scoring uses checkIsCorrect helper; frontend uses parseCsvLine for robust CSV parsing
+- [CSV parser column alignment](csv-parser-column-alignment.md) — regex CSV parser silently drops empty fields causing Answer Sheet/Solutions to be blank; always use character-by-character parseCsvLine

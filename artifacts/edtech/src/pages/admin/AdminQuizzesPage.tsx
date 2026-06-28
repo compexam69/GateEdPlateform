@@ -724,9 +724,11 @@ function parseCsvToQuestions(csv: string): unknown[] {
   });
 }
 
-const QUESTION_CSV_TEMPLATE = `question_text,option_a,option_b,option_c,option_d,correct_answer,explanation,video_solution_url,difficulty
-"What is the SI unit of force?","Joule","Newton","Watt","Pascal","B","Force is measured in Newtons (N).","",2
-"Acceleration due to gravity on Earth is:","9.8 m/s²","8.9 m/s²","","","A","Standard gravity is 9.8 m/s².","",1`;
+const QUESTION_CSV_TEMPLATE = `question_text,question_type,option_a,option_b,option_c,option_d,correct_answer,explanation,video_solution_url,difficulty
+"What is the SI unit of force?",SCQ,"Joule","Newton","Watt","Pascal",B,"Force is measured in Newtons (N).",,2
+"Acceleration due to gravity on Earth is:",SCQ,"9.8 m/s²","8.9 m/s²",,,A,"Standard gravity is 9.8 m/s².",,1
+"Which of the following are vectors?",MCQ,"Velocity","Mass","Displacement","Temperature","A,C","Velocity and Displacement are vector quantities.",,2
+"If F=ma and m=5 kg a=3 m/s² then F=?",NAT,,,,,15,"F = 5 × 3 = 15 N.",,2`;
 
 const QUIZ_CSV_TEMPLATE = `title,type,passing_score,duration_minutes,negative_marking,max_attempts
 "Physics Chapter 1 - Kinematics Quiz",topic_test,60,30,0.25,3
@@ -744,11 +746,10 @@ type QuizPreviewRow = ParsedQuiz & { valid: boolean; error?: string };
 function parseCsvToQuizzes(csv: string): ParsedQuiz[] {
   const lines = csv.trim().split("\n").map(l => l.trim()).filter(Boolean);
   if (lines.length < 2) return [];
-  const headers = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, "").toLowerCase());
+  const headers = parseCsvLine(lines[0]).map(h => h.trim().toLowerCase());
   return lines.slice(1).map(line => {
-    const cols = line.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g) ?? [];
-    const clean = (v?: string) => (v ?? "").replace(/^"|"$/g, "").trim();
-    const get = (key: string) => clean(cols[headers.indexOf(key)]);
+    const cols = parseCsvLine(line);
+    const get = (key: string) => (cols[headers.indexOf(key)] ?? "").trim();
     return {
       title: get("title"),
       type: get("type") || "topic_test",
@@ -770,23 +771,46 @@ function validateQuizRow(q: ParsedQuiz, idx: number): QuizPreviewRow {
 type QuestionPreviewRow = {
   valid: boolean;
   question_text: string;
+  question_type: "SCQ" | "MCQ" | "NAT";
   correct_answer: string;
   difficulty: number;
+  explanation: string;
   error?: string;
 };
 
 function validateQuestionClient(q: unknown, idx: number): QuestionPreviewRow {
   const raw = q as Record<string, unknown>;
-  const opts = raw.options as Record<string, string> | undefined;
   const question_text = typeof raw.question_text === "string" ? raw.question_text.trim() : "";
-  const correct_answer = typeof raw.correct_answer === "string" ? raw.correct_answer.trim().toUpperCase() : "";
+  const question_type = (typeof raw.question_type === "string" ? raw.question_type : "SCQ") as "SCQ" | "MCQ" | "NAT";
+  const correct_answer = typeof raw.correct_answer === "string" ? raw.correct_answer.trim() : "";
   const difficulty = Math.round(Number(raw.difficulty ?? 3) || 3);
-  const base = { question_text, correct_answer, difficulty };
-  if (!question_text) return { ...base, valid: false, error: `Row ${idx + 1}: Question text is missing` };
-  if (!opts?.A?.trim()) return { ...base, valid: false, error: `Row ${idx + 1}: Option A is required` };
-  if (!opts?.B?.trim()) return { ...base, valid: false, error: `Row ${idx + 1}: Option B is required` };
-  if (!["A", "B", "C", "D"].includes(correct_answer))
-    return { ...base, valid: false, error: `Row ${idx + 1}: Correct answer must be A, B, C, or D (got "${raw.correct_answer}")` };
+  const explanation = typeof raw.explanation === "string" ? raw.explanation.trim() : "";
+  const base = { question_text, question_type, correct_answer, difficulty, explanation };
+
+  if (!question_text) return { ...base, valid: false, error: `Row ${idx + 1}: question_text is missing` };
+
+  if (question_type === "NAT") {
+    if (!correct_answer) return { ...base, valid: false, error: `Row ${idx + 1}: correct_answer required for NAT` };
+    if (isNaN(parseFloat(correct_answer)))
+      return { ...base, valid: false, error: `Row ${idx + 1}: NAT correct_answer must be a number (got "${correct_answer}")` };
+    return { ...base, valid: true };
+  }
+
+  const opts = raw.options as Record<string, string> | null | undefined;
+  if (!opts?.A?.trim()) return { ...base, valid: false, error: `Row ${idx + 1}: option_a is required` };
+  if (!opts?.B?.trim()) return { ...base, valid: false, error: `Row ${idx + 1}: option_b is required` };
+
+  if (question_type === "MCQ") {
+    const parts = correct_answer.split(",").map(v => v.trim().toUpperCase()).filter(Boolean);
+    if (parts.length < 2)
+      return { ...base, valid: false, error: `Row ${idx + 1}: MCQ correct_answer needs ≥2 options e.g. "A,C"` };
+    if (!parts.every(p => ["A", "B", "C", "D"].includes(p)))
+      return { ...base, valid: false, error: `Row ${idx + 1}: MCQ correct_answer must only contain A,B,C,D` };
+    return { ...base, valid: true };
+  }
+
+  if (!["A", "B", "C", "D"].includes(correct_answer.toUpperCase()))
+    return { ...base, valid: false, error: `Row ${idx + 1}: correct_answer must be A, B, C, or D (got "${String(raw.correct_answer)}")` };
   return { ...base, valid: true };
 }
 
@@ -966,8 +990,8 @@ function TopLevelBulkImportDialog({ open, quizzes, onClose, onImported }: {
                     <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-2 text-sm">
                       <p className="font-medium">CSV Format</p>
                       <p className="text-muted-foreground text-xs">
-                        Required: <span className="font-mono text-foreground">question_text</span>, <span className="font-mono text-foreground">option_a</span>, <span className="font-mono text-foreground">option_b</span>, <span className="font-mono text-foreground">correct_answer</span> (A/B/C/D).
-                        Optional: <span className="font-mono text-foreground">option_c</span>, <span className="font-mono text-foreground">option_d</span>, <span className="font-mono text-foreground">explanation</span>, <span className="font-mono text-foreground">difficulty</span> (1–5). Max 500 rows.
+                        Required: <span className="font-mono text-foreground">question_text</span>, <span className="font-mono text-foreground">option_a</span>, <span className="font-mono text-foreground">option_b</span>, <span className="font-mono text-foreground">correct_answer</span>.
+                        Optional: <span className="font-mono text-foreground">question_type</span> (SCQ/MCQ/NAT, default SCQ), <span className="font-mono text-foreground">option_c</span>, <span className="font-mono text-foreground">option_d</span>, <span className="font-mono text-foreground">explanation</span>, <span className="font-mono text-foreground">video_solution_url</span>, <span className="font-mono text-foreground">difficulty</span> (1–5). Max 500 rows.
                       </p>
                       <Button variant="outline" size="sm" className="gap-1.5 mt-1" onClick={dlQuestionTemplate}>
                         <Download className="w-3.5 h-3.5" /> Download CSV Template
@@ -995,15 +1019,16 @@ function TopLevelBulkImportDialog({ open, quizzes, onClose, onImported }: {
                           <div className="overflow-x-auto max-h-44 overflow-y-auto">
                             <table className="w-full text-xs">
                               <thead className="bg-muted/40 sticky top-0">
-                                <tr>{["#","Question","Answer","Diff","Status"].map(h => <th key={h} className="px-3 py-2 text-left font-medium text-muted-foreground whitespace-nowrap">{h}</th>)}</tr>
+                                <tr>{["#","Question","Type","Answer","Explanation","Status"].map(h => <th key={h} className="px-3 py-2 text-left font-medium text-muted-foreground whitespace-nowrap">{h}</th>)}</tr>
                               </thead>
                               <tbody className="divide-y divide-border">
                                 {qCsvValidated.map((r, i) => (
                                   <tr key={i} className={`hover:bg-muted/20 ${!r.valid ? "bg-destructive/5" : ""}`}>
                                     <td className="px-3 py-2 text-muted-foreground">{i + 1}</td>
-                                    <td className="px-3 py-2 max-w-[200px] truncate" title={r.question_text}>{r.question_text || "—"}</td>
+                                    <td className="px-3 py-2 max-w-[180px] truncate" title={r.question_text}>{r.question_text || "—"}</td>
+                                    <td className="px-3 py-2 font-mono text-xs">{r.question_type}</td>
                                     <td className="px-3 py-2 font-mono font-bold text-primary">{r.correct_answer || "—"}</td>
-                                    <td className="px-3 py-2 text-center">{r.difficulty}</td>
+                                    <td className="px-3 py-2 max-w-[140px] truncate text-muted-foreground" title={r.explanation}>{r.explanation || <span className="italic opacity-50">none</span>}</td>
                                     <td className="px-3 py-2">
                                       {r.valid
                                         ? <Badge className="bg-success/15 text-success border-success/25 text-[10px] px-1.5 py-0">Valid</Badge>
@@ -1313,8 +1338,8 @@ function BulkImportDialog({ open, quizId, onClose, onImported }: {
                 <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-2 text-sm">
                   <p className="font-medium">CSV Format</p>
                   <p className="text-muted-foreground text-xs">
-                    Required: <span className="font-mono text-foreground">question_text</span>, <span className="font-mono text-foreground">option_a</span>, <span className="font-mono text-foreground">option_b</span>, <span className="font-mono text-foreground">correct_answer</span> (A/B/C/D).
-                    Optional: <span className="font-mono text-foreground">option_c</span>, <span className="font-mono text-foreground">option_d</span>, <span className="font-mono text-foreground">explanation</span>, <span className="font-mono text-foreground">video_solution_url</span>, <span className="font-mono text-foreground">difficulty</span> (1–5). Max 500 rows.
+                    Required: <span className="font-mono text-foreground">question_text</span>, <span className="font-mono text-foreground">option_a</span>, <span className="font-mono text-foreground">option_b</span>, <span className="font-mono text-foreground">correct_answer</span>.
+                    Optional: <span className="font-mono text-foreground">question_type</span> (SCQ/MCQ/NAT, default SCQ), <span className="font-mono text-foreground">option_c</span>, <span className="font-mono text-foreground">option_d</span>, <span className="font-mono text-foreground">explanation</span>, <span className="font-mono text-foreground">video_solution_url</span>, <span className="font-mono text-foreground">difficulty</span> (1–5). Max 500 rows.
                   </p>
                   <Button variant="outline" size="sm" className="gap-1.5 mt-1" onClick={downloadTemplate}>
                     <Download className="w-3.5 h-3.5" /> Download CSV Template
@@ -1345,7 +1370,7 @@ function BulkImportDialog({ open, quizId, onClose, onImported }: {
                         <table className="w-full text-xs">
                           <thead className="bg-muted/40 sticky top-0">
                             <tr>
-                              {["#", "Question", "Answer", "Difficulty", "Status"].map(h => (
+                              {["#", "Question", "Type", "Answer", "Explanation", "Status"].map(h => (
                                 <th key={h} className="px-3 py-2 text-left font-medium text-muted-foreground whitespace-nowrap">{h}</th>
                               ))}
                             </tr>
@@ -1354,9 +1379,10 @@ function BulkImportDialog({ open, quizId, onClose, onImported }: {
                             {csvValidated.map((r, i) => (
                               <tr key={i} className={`hover:bg-muted/20 ${!r.valid ? "bg-destructive/5" : ""}`}>
                                 <td className="px-3 py-2 text-muted-foreground shrink-0">{i + 1}</td>
-                                <td className="px-3 py-2 max-w-[220px] truncate" title={r.question_text}>{r.question_text || "—"}</td>
+                                <td className="px-3 py-2 max-w-[180px] truncate" title={r.question_text}>{r.question_text || "—"}</td>
+                                <td className="px-3 py-2 font-mono text-xs">{r.question_type}</td>
                                 <td className="px-3 py-2 font-mono font-bold text-primary">{r.correct_answer || "—"}</td>
-                                <td className="px-3 py-2 text-center">{r.difficulty}</td>
+                                <td className="px-3 py-2 max-w-[140px] truncate text-muted-foreground" title={r.explanation}>{r.explanation || <span className="italic opacity-50">none</span>}</td>
                                 <td className="px-3 py-2">
                                   {r.valid
                                     ? <Badge className="bg-success/15 text-success border-success/25 text-[10px] px-1.5 py-0">Valid</Badge>
@@ -1401,12 +1427,13 @@ function BulkImportDialog({ open, quizId, onClose, onImported }: {
                     <div className="space-y-1.5">
                       {[
                         { name: "question_text / question", req: true, desc: "Full question text. Supports plain text and LaTeX (e.g. $x^2$)." },
-                        { name: "option_a / A", req: true, desc: "Option A text." },
-                        { name: "option_b / B", req: true, desc: "Option B text." },
-                        { name: "option_c / C", req: false, desc: "Option C — leave blank to omit (for True/False questions)." },
+                        { name: "question_type", req: false, desc: "SCQ (single correct), MCQ (multiple correct), or NAT (numeric answer). Defaults to SCQ." },
+                        { name: "option_a / A", req: true, desc: "Option A text. Not required for NAT questions." },
+                        { name: "option_b / B", req: true, desc: "Option B text. Not required for NAT questions." },
+                        { name: "option_c / C", req: false, desc: "Option C — leave blank to omit (e.g. True/False questions)." },
                         { name: "option_d / D", req: false, desc: "Option D — leave blank to omit." },
-                        { name: "correct_answer / answer", req: true, desc: "Must be exactly A, B, C, or D (uppercase)." },
-                        { name: "explanation", req: false, desc: "Text explanation shown after the exam. Supports LaTeX." },
+                        { name: "correct_answer / answer", req: true, desc: "SCQ: A/B/C/D. MCQ: comma-separated e.g. A,C. NAT: numeric value e.g. 9.8." },
+                        { name: "explanation", req: false, desc: "One-line solution shown in the Solutions tab after the exam. Supports LaTeX." },
                         { name: "video_solution_url", req: false, desc: "YouTube URL for video solution. Leave blank for text-only." },
                         { name: "difficulty", req: false, desc: "Integer 1–5 (1 = easiest). Defaults to 3 if omitted." },
                       ].map(f => (
