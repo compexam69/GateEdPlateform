@@ -527,10 +527,25 @@ router.get("/exam/results/:resultId", requireAuth, async (req: AuthRequest, res)
     ? fetchedAnswers.filter((a: { selected_option?: string | null }) => !a.selected_option).length
     : (summary?.skipped ?? 0);
 
+  // When user_answers is empty (e.g. silent insert failure for a historical attempt),
+  // fetch quiz_questions directly so the frontend can still show correct answers
+  // and explanations in the Answer Sheet / Solutions tabs.
+  let quizQuestionsFallback: unknown[] = [];
+  if (fetchedAnswers.length === 0 && attempt.quiz_id) {
+    const { data: qFallback } = await supabase
+      .from("quiz_questions")
+      .select("id, question_text, question_type, options, correct_answer, explanation, video_solution_url, qr_code_url")
+      .eq("quiz_id", attempt.quiz_id)
+      .order("order_index");
+    quizQuestionsFallback = qFallback ?? [];
+  }
+
   res.json({
     ...attempt,
     passed,
     answers: fetchedAnswers,
+    // Fallback question list when user_answers is empty (historical attempt recovery).
+    quiz_questions_fallback: quizQuestionsFallback,
     // Always include pre-computed counts so the frontend never has to re-derive them.
     correct_count: correctCount,
     incorrect_count: incorrectCount,

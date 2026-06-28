@@ -1,0 +1,482 @@
+# Implementation Prompt: Fix Empty Answer Sheet & Solutions Tabs After Test Submission
+
+## Goal
+
+Investigate and permanently fix the issue where the **Answer Sheet** and **Solutions** tabs remain empty after test submission, despite the CSV containing the correct answers and one-line solutions.
+
+The implementation must identify the exact root cause, fix every issue, ensure all required mappings are correct, and guarantee that both features work reliably for every imported question without breaking any existing functionality.
+
+---
+
+# Requirements Analysis
+
+Perform a complete end-to-end analysis of the entire Question Import workflow, including:
+
+* CSV Template
+* CSV Parser
+* Bulk Question Import
+* Database Schema
+* Supabase Tables
+* Question Import API
+* Question Storage
+* Question Retrieval
+* Test Attempt System
+* Answer Sheet Module
+* Solutions Module
+* Result Calculation Logic
+* Question Rendering
+* Frontend Mapping
+* Backend Mapping
+
+Do **not** assume the issue is only in the CSV.
+
+Investigate every layer before implementing any fix.
+
+---
+
+# Step 1 — Analyze CSV Template
+
+Review the current CSV template and verify that it contains every field required by the Test module.
+
+Specifically verify that the CSV includes correctly mapped fields for:
+
+* Question
+* Question Type
+* Option A
+* Option B
+* Option C
+* Option D
+* Correct Answer(s)
+* Solution / Explanation
+* Marks
+* Negative Marks
+* Difficulty
+* Subject
+* Chapter
+* Topic
+* Question ID
+* Any additional required metadata
+
+Identify:
+
+* Missing columns
+* Incorrect column names
+* Incorrect data formats
+* Empty values
+* Invalid mappings
+* Duplicate fields
+* Incorrect import headers
+
+If any required field is missing, update the CSV template accordingly.
+
+---
+
+# Step 2 — Analyze Question Import Pipeline
+
+Trace the imported CSV data through the complete import process.
+
+Verify that:
+
+CSV
+
+↓
+
+CSV Parser
+
+↓
+
+Validation
+
+↓
+
+Question Import Service
+
+↓
+
+Supabase Insert
+
+↓
+
+Database Tables
+
+↓
+
+Question Retrieval API
+
+↓
+
+Test Engine
+
+↓
+
+Answer Sheet
+
+↓
+
+Solutions
+
+All required fields must be successfully preserved throughout the pipeline.
+
+---
+
+# Step 3 — Database Verification
+
+Verify that the database actually stores:
+
+* Correct Answer(s)
+* Solution / Explanation
+
+If these values are missing after import:
+
+Identify exactly why.
+
+Possible causes include:
+
+* Incorrect INSERT statements
+* Missing columns
+* Wrong column mapping
+* Validation removing fields
+* Serialization issues
+* API transformation bugs
+
+Fix every issue found.
+
+---
+
+# Step 4 — Backend API Review
+
+Review all APIs used by:
+
+* Test Module
+* Result Module
+* Answer Sheet
+* Solutions
+
+Verify that API responses include:
+
+* Correct Answer(s)
+* Solution
+* Explanation
+
+If the backend omits these fields:
+
+Update the API.
+
+Ensure backward compatibility.
+
+---
+
+# Step 5 — Frontend Review
+
+Inspect the components responsible for rendering:
+
+* Answer Sheet tab
+* Solutions tab
+
+Verify:
+
+* Correct API consumption
+* Proper state management
+* Proper field mapping
+* Conditional rendering
+* Error handling
+* Loading state
+
+Ensure the frontend displays:
+
+Answer Sheet
+
+* Correct Answer(s)
+* User Answer
+* Answer Status
+
+Solutions
+
+* One-line explanation
+* Optional formatted text
+* Proper wrapping
+* Mobile responsiveness
+
+---
+
+# Step 6 — CSV Mapping Validation
+
+Verify that the import process correctly maps:
+
+CSV Column
+
+↓
+
+Database Column
+
+↓
+
+Frontend Property
+
+↓
+
+Displayed Value
+
+No field should be lost or renamed during processing.
+
+---
+
+# Step 7 — Bulk Import Validation
+
+Confirm that:
+
+* Single Question Import works
+* Bulk Import works
+* Existing CSV files continue working (where possible)
+* New CSV template supports all required fields
+* Large CSV imports correctly preserve answers and solutions
+
+---
+
+# Step 8 — Error Handling
+
+Improve validation during CSV import.
+
+If:
+
+* Correct Answer is missing
+* Solution is missing
+* Required fields are empty
+
+Show meaningful validation errors before import.
+
+Do not silently import incomplete data.
+
+---
+
+# Step 9 — Backward Compatibility
+
+Ensure that:
+
+* Previously imported questions continue working where data exists.
+* Existing exams are not broken.
+* Existing imports remain compatible.
+* Older records without solutions fail gracefully instead of crashing.
+
+---
+
+# Step 10 — UI Improvements
+
+Answer Sheet
+
+Display:
+
+* Correct Answer
+* User Answer
+* Status
+* Marks
+
+Solutions
+
+Display:
+
+* One-line explanation
+* Proper formatting
+* Responsive layout
+* Readable typography
+* Mobile-friendly spacing
+
+---
+
+# Step 11 — Testing
+
+Test the following scenarios:
+
+### Single Choice Questions
+
+✔ Correct Answer displayed
+
+✔ Solution displayed
+
+---
+
+### Multiple Choice Questions
+
+✔ Multiple correct answers displayed
+
+✔ Solution displayed
+
+---
+
+### Imported CSV Questions
+
+✔ Answer Sheet populated
+
+✔ Solutions populated
+
+---
+
+### Newly Imported CSV
+
+✔ Works correctly
+
+---
+
+### Previously Imported Questions
+
+✔ No regression
+
+---
+
+### Mobile
+
+✔ Responsive layout
+
+---
+
+### Desktop
+
+✔ Responsive layout
+
+---
+
+### Edge Cases
+
+* Missing solution
+* Missing answer
+* Empty explanation
+* Invalid CSV row
+* Duplicate question
+* Large CSV import
+
+All must behave correctly.
+
+---
+
+# Step 12 — Fix Every Issue Found
+
+Do **not** stop after fixing the first issue.
+
+Continue auditing until **all** issues affecting the Answer Sheet, Solutions, CSV import, field mapping, database storage, APIs, and frontend rendering are resolved.
+
+The final implementation must ensure there are **no remaining bugs**, **no incorrect mappings**, **no missing fields**, and **no regressions** anywhere in the Question Import and Test workflow.
+
+---
+
+# SQL Editor Guidance (IMPORTANT)
+
+Determine whether database changes are required.
+
+## If SQL changes are required:
+
+Provide separately:
+
+### A. SQL Migration Script
+
+Create only the required migration(s).
+
+### B. Rollback Script
+
+Provide rollback SQL.
+
+### C. Database Verification Queries
+
+Queries to verify:
+
+* Correct answers stored
+* Solutions stored
+* Imported records
+* Null values
+* Invalid mappings
+
+### D. Index Recommendations
+
+Only if beneficial.
+
+### E. Constraint Recommendations
+
+Only if required.
+
+Explain:
+
+* Why required
+* Risk level
+* Existing data impact
+* Downtime required
+
+Execute SQL **only if genuinely required**.
+
+---
+
+## If NO SQL changes are required
+
+Explicitly state:
+
+**"No SQL Editor changes are required. The issue was resolved entirely within the application code."**
+
+---
+
+# Preserve Existing Functionality
+
+Do NOT break:
+
+* Question Import
+* Bulk Import
+* Quiz Module
+* Test Module
+* Result Module
+* Analytics
+* Reports
+* Leaderboards
+* Question Editor
+* CSV Export
+* Existing Exams
+* Existing APIs
+
+Maintain complete backward compatibility.
+
+---
+
+# Checkpoint Requirement
+
+After all fixes have been implemented, tested, and verified successfully, immediately create a checkpoint/commit.
+
+### Checkpoint Name
+
+**"Answer Sheet & Solutions Mapping Fix, CSV Validation & Test Workflow Stabilization"**
+
+---
+
+# Final Implementation Report
+
+Provide:
+
+* Root cause(s) identified
+* Files modified
+* Database changes (if any)
+* CSV template updates
+* API changes
+* Frontend changes
+* Backend changes
+* SQL scripts executed (if any)
+* Validation improvements
+* Testing performed
+* Remaining risks (if any)
+
+---
+
+# Acceptance Criteria
+
+* [ ] Root cause identified.
+* [ ] CSV template contains all required fields.
+* [ ] CSV column mappings verified.
+* [ ] Correct Answer(s) stored correctly.
+* [ ] Solution/Explanation stored correctly.
+* [ ] APIs return required fields.
+* [ ] Answer Sheet displays correct answers.
+* [ ] Solutions tab displays one-line explanations.
+* [ ] CSV validation prevents incomplete imports.
+* [ ] Existing functionality remains unaffected.
+* [ ] Mobile layout verified.
+* [ ] Desktop layout verified.
+* [ ] Edge cases handled.
+* [ ] No console errors.
+* [ ] No regression introduced.
+* [ ] SQL guidance provided (or explicitly confirmed unnecessary).
+* [ ] All identified issues fixed.
+* [ ] Final checkpoint created after successful implementation.

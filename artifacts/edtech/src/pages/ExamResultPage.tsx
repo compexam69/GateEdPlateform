@@ -77,7 +77,7 @@ export default function ExamResultPage() {
     { name: "Skipped", value: skipped, color: "hsl(var(--muted-foreground))" },
   ].filter(d => d.value > 0);
 
-  const answers = answersArr as Array<{
+  type AnswerRow = {
     question_id: string;
     selected_option: string | null;
     correct_answer?: string;
@@ -86,6 +86,7 @@ export default function ExamResultPage() {
     explanation?: string;
     video_solution_url?: string;
     qr_code_url?: string;
+    _fallback?: true;
     quiz_questions?: {
       question_text?: string;
       question_type?: string;
@@ -95,7 +96,36 @@ export default function ExamResultPage() {
       video_solution_url?: string;
       qr_code_url?: string;
     };
-  }>;
+  };
+  const answers = answersArr as AnswerRow[];
+
+  // Fallback: when user_answers is empty (historical attempt where INSERT failed silently),
+  // use quiz_questions fetched directly by the API so Answer Sheet / Solutions still have data.
+  type FallbackQ = {
+    id: string; question_text?: string; question_type?: string;
+    options?: Record<string, string>; correct_answer?: string;
+    explanation?: string; video_solution_url?: string; qr_code_url?: string;
+  };
+  const quizQuestionsFallback = (
+    (result as unknown as { quiz_questions_fallback?: FallbackQ[] }).quiz_questions_fallback ?? []
+  ) as FallbackQ[];
+  const usingFallback = answers.length === 0 && quizQuestionsFallback.length > 0;
+
+  // Unified display list: real user_answers rows when available, synthetic fallback rows otherwise.
+  const displayAnswers: AnswerRow[] = usingFallback
+    ? quizQuestionsFallback.map(q => ({
+        question_id: q.id,
+        selected_option: null,
+        correct_answer: q.correct_answer,
+        is_correct: false,
+        time_spent_ms: 0,
+        explanation: q.explanation,
+        video_solution_url: q.video_solution_url,
+        qr_code_url: q.qr_code_url,
+        quiz_questions: q,
+        _fallback: true as const,
+      }))
+    : answers;
 
   // Insights: time analysis
   const withTime = answers.filter(a => (a.time_spent_ms ?? 0) > 0);
@@ -115,8 +145,8 @@ export default function ExamResultPage() {
     correct: a.is_correct,
   }));
 
-  // Videos with links
-  const withVideo = answers.filter(a => {
+  // Videos with links — use displayAnswers so fallback questions also surface video links
+  const withVideo = displayAnswers.filter(a => {
     const v = a.quiz_questions?.video_solution_url || a.video_solution_url;
     return !!v;
   });
@@ -223,34 +253,47 @@ export default function ExamResultPage() {
 
           {/* Answer Sheet */}
           <TabsContent value="answers" className="space-y-3 mt-4">
-            <div className="flex gap-2 flex-wrap">
-              {(["all", "incorrect", "skipped"] as const).map(f => (
-                <button
-                  key={f}
-                  onClick={() => setAnswerFilter(f)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${
-                    answerFilter === f
-                      ? f === "all" ? "bg-primary text-primary-foreground border-primary"
-                        : f === "incorrect" ? "bg-destructive text-destructive-foreground border-destructive"
-                        : "bg-muted text-foreground border-muted-foreground"
-                      : "border-border text-muted-foreground hover:border-primary hover:text-foreground"
-                  }`}
-                >
-                  {f === "all" ? `All (${answers.length})` : f === "incorrect" ? `Incorrect (${incorrect})` : `Skipped (${skipped})`}
-                </button>
-              ))}
-            </div>
-            {answers
+            {usingFallback && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-warning/10 border border-warning/20 text-warning text-xs">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                <span>
+                  Per-question answer data was not recorded for this attempt — this can happen with older quiz imports.
+                  Correct answers and explanations are shown below for reference.
+                  Re-take this quiz to see your individual answer status.
+                </span>
+              </div>
+            )}
+            {!usingFallback && (
+              <div className="flex gap-2 flex-wrap">
+                {(["all", "incorrect", "skipped"] as const).map(f => (
+                  <button
+                    key={f}
+                    onClick={() => setAnswerFilter(f)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${
+                      answerFilter === f
+                        ? f === "all" ? "bg-primary text-primary-foreground border-primary"
+                          : f === "incorrect" ? "bg-destructive text-destructive-foreground border-destructive"
+                          : "bg-muted text-foreground border-muted-foreground"
+                        : "border-border text-muted-foreground hover:border-primary hover:text-foreground"
+                    }`}
+                  >
+                    {f === "all" ? `All (${displayAnswers.length})` : f === "incorrect" ? `Incorrect (${incorrect})` : `Skipped (${skipped})`}
+                  </button>
+                ))}
+              </div>
+            )}
+            {displayAnswers
               .filter(ans => {
+                if (usingFallback) return true;
                 if (answerFilter === "incorrect") return !ans.is_correct && !!ans.selected_option;
                 if (answerFilter === "skipped") return !ans.selected_option;
                 return true;
               })
-              .map(ans => {
+              .map((ans, fallbackIdx) => {
                 const q = ans.quiz_questions;
                 const isCorrect = ans.is_correct;
                 const isSkipped = !ans.selected_option;
-                const globalIdx = answers.indexOf(ans);
+                const globalIdx = usingFallback ? fallbackIdx : displayAnswers.indexOf(ans);
                 const qType = q?.question_type ?? "SCQ";
                 const correctAns = q?.correct_answer || ans.correct_answer || "";
                 const explanation = q?.explanation || ans.explanation;
@@ -262,7 +305,12 @@ export default function ExamResultPage() {
                 };
 
                 return (
-                  <Card key={ans.question_id} className={`border-l-4 ${isCorrect ? "border-l-success" : isSkipped ? "border-l-muted-foreground" : "border-l-destructive"}`}>
+                  <Card key={ans.question_id} className={`border-l-4 ${
+                    ans._fallback ? "border-l-border"
+                      : isCorrect ? "border-l-success"
+                      : isSkipped ? "border-l-muted-foreground"
+                      : "border-l-destructive"
+                  }`}>
                     <CardContent className="p-4 space-y-2">
                       <div className="flex items-start justify-between gap-3">
                         <p className="font-medium text-sm flex-1">{globalIdx + 1}. <MathText text={q?.question_text || "Question"} /></p>
@@ -272,27 +320,32 @@ export default function ExamResultPage() {
                               qType === "MCQ" ? "bg-primary/15 text-primary border-primary/30" : "bg-warning/15 text-warning border-warning/30"
                             }`}>{qType}</span>
                           )}
-                          {isCorrect
+                          {!ans._fallback && (isCorrect
                             ? <span className="text-success flex items-center gap-1 text-xs"><CheckCircle className="w-3.5 h-3.5" />Correct</span>
                             : isSkipped
                             ? <span className="text-muted-foreground flex items-center gap-1 text-xs"><Minus className="w-3.5 h-3.5" />Skipped</span>
-                            : <span className="text-destructive flex items-center gap-1 text-xs"><XCircle className="w-3.5 h-3.5" />Wrong</span>}
+                            : <span className="text-destructive flex items-center gap-1 text-xs"><XCircle className="w-3.5 h-3.5" />Wrong</span>
+                          )}
                         </div>
                       </div>
                       <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                        <span>
-                          Your answer:{" "}
-                          <strong className={isSkipped ? "text-muted-foreground" : isCorrect ? "text-success" : "text-destructive"}>
-                            {formatAns(ans.selected_option, qType)}
-                          </strong>
-                        </span>
+                        {!ans._fallback && (
+                          <span>
+                            Your answer:{" "}
+                            <strong className={isSkipped ? "text-muted-foreground" : isCorrect ? "text-success" : "text-destructive"}>
+                              {formatAns(ans.selected_option, qType)}
+                            </strong>
+                          </span>
+                        )}
                         <span>
                           Correct: <strong className="text-success">{formatAns(correctAns, qType)}</strong>
                         </span>
-                        <span className={`font-medium ${isSkipped ? "text-muted-foreground" : isCorrect ? "text-success" : "text-destructive"}`}>
-                          {isSkipped ? "0 marks" : isCorrect ? "+1 mark" : quizNegMarking > 0 ? `\u2212${quizNegMarking} marks` : "0 marks"}
-                        </span>
-                        {ans.time_spent_ms ? <span><Clock className="w-3 h-3 inline" /> {Math.round(ans.time_spent_ms / 1000)}s</span> : null}
+                        {!ans._fallback && (
+                          <span className={`font-medium ${isSkipped ? "text-muted-foreground" : isCorrect ? "text-success" : "text-destructive"}`}>
+                            {isSkipped ? "0 marks" : isCorrect ? "+1 mark" : quizNegMarking > 0 ? `\u2212${quizNegMarking} marks` : "0 marks"}
+                          </span>
+                        )}
+                        {!ans._fallback && ans.time_spent_ms ? <span><Clock className="w-3 h-3 inline" /> {Math.round(ans.time_spent_ms / 1000)}s</span> : null}
                       </div>
                       {explanation && (
                         <p className="text-xs text-muted-foreground/80 border-t border-border/50 pt-2 flex items-start gap-1.5">
@@ -304,7 +357,7 @@ export default function ExamResultPage() {
                   </Card>
                 );
               })}
-            {answers.filter(ans => {
+            {!usingFallback && displayAnswers.filter(ans => {
               if (answerFilter === "incorrect") return !ans.is_correct && !!ans.selected_option;
               if (answerFilter === "skipped") return !ans.selected_option;
               return true;
@@ -315,7 +368,13 @@ export default function ExamResultPage() {
 
           {/* Solutions */}
           <TabsContent value="solutions" className="space-y-3 mt-4">
-            {answers.map((ans, idx) => {
+            {usingFallback && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-warning/10 border border-warning/20 text-warning text-xs">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                <span>Solutions are shown from the current question bank. Your per-question answer selections were not recorded for this attempt.</span>
+              </div>
+            )}
+            {displayAnswers.map((ans, idx) => {
               const q = ans.quiz_questions;
               const explanation = q?.explanation || ans.explanation;
               const videoUrl = q?.video_solution_url || ans.video_solution_url;
@@ -347,6 +406,9 @@ export default function ExamResultPage() {
                 </Card>
               );
             })}
+            {displayAnswers.length === 0 && (
+              <p className="text-center text-muted-foreground py-6 text-sm italic">No solutions available for this exam.</p>
+            )}
           </TabsContent>
 
           {/* Videos Tab */}
