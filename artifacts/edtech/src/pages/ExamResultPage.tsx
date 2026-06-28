@@ -69,6 +69,7 @@ export default function ExamResultPage() {
   const rank = (result as { rank?: number }).rank;
   const percentile = (result as { percentile?: number }).percentile;
   const totalParticipants = (result as { total_participants?: number }).total_participants ?? 0;
+  const quizNegMarking = (result as unknown as { quizzes?: { negative_marking?: number } }).quizzes?.negative_marking ?? 0;
 
   const pieData = [
     { name: "Correct", value: correct, color: "hsl(var(--success))" },
@@ -87,6 +88,7 @@ export default function ExamResultPage() {
     qr_code_url?: string;
     quiz_questions?: {
       question_text?: string;
+      question_type?: string;
       options?: Record<string, string>;
       correct_answer?: string;
       explanation?: string;
@@ -249,24 +251,55 @@ export default function ExamResultPage() {
                 const isCorrect = ans.is_correct;
                 const isSkipped = !ans.selected_option;
                 const globalIdx = answers.indexOf(ans);
+                const qType = q?.question_type ?? "SCQ";
+                const correctAns = q?.correct_answer || ans.correct_answer || "";
+                const explanation = q?.explanation || ans.explanation;
+
+                const formatAns = (val: string | null | undefined, type: string) => {
+                  if (!val) return "—";
+                  if (type === "MCQ") return val.split(",").join(", ");
+                  return val;
+                };
+
                 return (
                   <Card key={ans.question_id} className={`border-l-4 ${isCorrect ? "border-l-success" : isSkipped ? "border-l-muted-foreground" : "border-l-destructive"}`}>
-                    <CardContent className="p-4">
+                    <CardContent className="p-4 space-y-2">
                       <div className="flex items-start justify-between gap-3">
                         <p className="font-medium text-sm flex-1">{globalIdx + 1}. <MathText text={q?.question_text || "Question"} /></p>
-                        {isCorrect
-                          ? <span className="text-success flex items-center gap-1 text-xs shrink-0"><CheckCircle className="w-3.5 h-3.5" />Correct</span>
-                          : isSkipped
-                          ? <span className="text-muted-foreground flex items-center gap-1 text-xs shrink-0"><Minus className="w-3.5 h-3.5" />Skipped</span>
-                          : <span className="text-destructive flex items-center gap-1 text-xs shrink-0"><XCircle className="w-3.5 h-3.5" />Wrong</span>}
+                        <div className="flex items-center gap-2 shrink-0">
+                          {qType !== "SCQ" && (
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold border ${
+                              qType === "MCQ" ? "bg-primary/15 text-primary border-primary/30" : "bg-warning/15 text-warning border-warning/30"
+                            }`}>{qType}</span>
+                          )}
+                          {isCorrect
+                            ? <span className="text-success flex items-center gap-1 text-xs"><CheckCircle className="w-3.5 h-3.5" />Correct</span>
+                            : isSkipped
+                            ? <span className="text-muted-foreground flex items-center gap-1 text-xs"><Minus className="w-3.5 h-3.5" />Skipped</span>
+                            : <span className="text-destructive flex items-center gap-1 text-xs"><XCircle className="w-3.5 h-3.5" />Wrong</span>}
+                        </div>
                       </div>
-                      <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
-                        {ans.selected_option && <span>Your answer: <strong className={isCorrect ? "text-success" : "text-destructive"}>{ans.selected_option}</strong></span>}
-                        {!isCorrect && (q?.correct_answer || ans.correct_answer) && (
-                          <span>Correct: <strong className="text-success">{q?.correct_answer || ans.correct_answer}</strong></span>
-                        )}
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        <span>
+                          Your answer:{" "}
+                          <strong className={isSkipped ? "text-muted-foreground" : isCorrect ? "text-success" : "text-destructive"}>
+                            {formatAns(ans.selected_option, qType)}
+                          </strong>
+                        </span>
+                        <span>
+                          Correct: <strong className="text-success">{formatAns(correctAns, qType)}</strong>
+                        </span>
+                        <span className={`font-medium ${isSkipped ? "text-muted-foreground" : isCorrect ? "text-success" : "text-destructive"}`}>
+                          {isSkipped ? "0 marks" : isCorrect ? "+1 mark" : quizNegMarking > 0 ? `\u2212${quizNegMarking} marks` : "0 marks"}
+                        </span>
                         {ans.time_spent_ms ? <span><Clock className="w-3 h-3 inline" /> {Math.round(ans.time_spent_ms / 1000)}s</span> : null}
                       </div>
+                      {explanation && (
+                        <p className="text-xs text-muted-foreground/80 border-t border-border/50 pt-2 flex items-start gap-1.5">
+                          <Lightbulb className="w-3.5 h-3.5 shrink-0 text-warning mt-0.5" />
+                          <MathText text={explanation} />
+                        </p>
+                      )}
                     </CardContent>
                   </Card>
                 );

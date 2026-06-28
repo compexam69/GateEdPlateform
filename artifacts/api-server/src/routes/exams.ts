@@ -70,7 +70,7 @@ router.post("/exam/start", requireAuth, async (req: AuthRequest, res) => {
 
   const { data: questions, error: questErr } = await supabase
     .from("quiz_questions")
-    .select("id, quiz_id, question_text, options, difficulty, order_index, video_solution_url, qr_code_url")
+    .select("id, quiz_id, question_text, question_type, options, difficulty, order_index, video_solution_url, qr_code_url")
     .eq("quiz_id", quiz_id)
     .order("order_index");
   if (questErr) { res.status(500).json({ error: questErr.message }); return; }
@@ -131,10 +131,24 @@ router.post("/exam/submit", requireAuth, async (req: AuthRequest, res) => {
     .select("*")
     .eq("quiz_id", attempt.quiz_id);
 
-  const questionMap = new Map((questions ?? []).map((q: { id: string; correct_answer: string; explanation: string | null; video_solution_url: string | null; qr_code_url: string | null }) => [q.id, q]));
+  const questionMap = new Map((questions ?? []).map((q: { id: string; question_type: string; correct_answer: string; explanation: string | null; video_solution_url: string | null; qr_code_url: string | null }) => [q.id, q]));
   const quiz = attempt.quizzes as { negative_marking: number; passing_score: number; type: string; topic_id?: string; chapter_id?: string; subject_id?: string };
   const negMark = quiz?.negative_marking ?? 0;
   const passingScore = quiz?.passing_score ?? 60;
+
+  function checkIsCorrect(questionType: string, selected: string, correct: string): boolean {
+    if (questionType === "NAT") {
+      const s = parseFloat(selected);
+      const c = parseFloat(correct);
+      if (isNaN(s) || isNaN(c)) return false;
+      return Math.abs(s - c) < 0.001;
+    }
+    if (questionType === "MCQ") {
+      const normalize = (v: string) => v.split(",").map(x => x.trim().toUpperCase()).filter(Boolean).sort().join(",");
+      return normalize(selected) === normalize(correct);
+    }
+    return selected.trim().toUpperCase() === correct.trim().toUpperCase();
+  }
 
   let correct = 0;
   let incorrect = 0;
@@ -145,7 +159,7 @@ router.post("/exam/submit", requireAuth, async (req: AuthRequest, res) => {
     if (!isValidUuid(a.question_id)) return null;
     const q = questionMap.get(a.question_id);
     if (!q) return null;
-    const isCorrect = a.selected_option ? a.selected_option === q.correct_answer : false;
+    const isCorrect = a.selected_option ? checkIsCorrect(q.question_type ?? "SCQ", a.selected_option, q.correct_answer) : false;
     const isSkipped = !a.selected_option;
     if (isSkipped) skipped++;
     else if (isCorrect) correct++;
@@ -467,7 +481,7 @@ router.get("/exam/results/:resultId", requireAuth, async (req: AuthRequest, res)
   const [answersRes, allAttemptsRes] = await Promise.all([
     supabase
       .from("user_answers")
-      .select("*, quiz_questions(question_text, options, correct_answer, explanation, video_solution_url, qr_code_url)")
+      .select("*, quiz_questions(question_text, question_type, options, correct_answer, explanation, video_solution_url, qr_code_url)")
       .eq("attempt_id", resultId),
     supabase
       .from("user_attempts")
@@ -632,7 +646,7 @@ router.get("/quizzes/:quizId/questions", requireAuth, async (req: AuthRequest, r
 
   const { data, error } = await supabase
     .from("quiz_questions")
-    .select("id, quiz_id, question_text, options, difficulty, order_index, video_solution_url, qr_code_url")
+    .select("id, quiz_id, question_text, question_type, options, difficulty, order_index, video_solution_url, qr_code_url")
     .eq("quiz_id", quizId)
     .order("order_index");
   if (error) { res.status(500).json({ error: error.message }); return; }
@@ -744,7 +758,7 @@ router.get("/exam/resume/:attemptId", requireAuth, async (req: AuthRequest, res)
 
   const { data: questions, error: qErr } = await supabase
     .from("quiz_questions")
-    .select("id, quiz_id, question_text, options, difficulty, order_index, video_solution_url, qr_code_url")
+    .select("id, quiz_id, question_text, question_type, options, difficulty, order_index, video_solution_url, qr_code_url")
     .eq("quiz_id", attempt.quiz_id as string)
     .order("order_index");
   if (qErr) { res.status(500).json({ error: qErr.message }); return; }

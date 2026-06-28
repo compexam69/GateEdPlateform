@@ -372,9 +372,13 @@ export default function ExamPage() {
       } else if (e.key === "Enter") {
         if (idx < total - 1) goToQuestion(idx + 1);
       } else if (["1", "2", "3", "4"].includes(e.key)) {
-        const optKeys = Object.keys((questionStatesRef.current[idx]?.question?.options as Record<string, string>) ?? {});
-        const opt = optKeys[parseInt(e.key) - 1];
-        if (opt) selectOption(opt);
+        const currQs = questionStatesRef.current[idx];
+        const qt = ((currQs?.question as unknown as Record<string, unknown>)?.question_type as string) ?? "SCQ";
+        if (qt === "SCQ") {
+          const optKeys = Object.keys((currQs?.question?.options as Record<string, string>) ?? {});
+          const opt = optKeys[parseInt(e.key) - 1];
+          if (opt) selectOption(opt);
+        }
       }
     };
     window.addEventListener("keydown", handleKey);
@@ -407,6 +411,34 @@ export default function ExamPage() {
       if (i !== currentIdx) return qs;
       const isMarked = qs.isMarked;
       return { ...qs, selectedOption: option, status: isMarked ? "answered-marked" : "answered" };
+    }));
+  }
+
+  function selectOptionMcq(key: string) {
+    setQuestionStates(prev => prev.map((qs, i) => {
+      if (i !== currentIdx) return qs;
+      const current = qs.selectedOption ? qs.selectedOption.split(",") : [];
+      const next = current.includes(key)
+        ? current.filter(k => k !== key)
+        : [...current, key].sort();
+      const newSelected = next.length > 0 ? next.join(",") : null;
+      const isMarked = qs.isMarked;
+      const status: QuestionStatus = newSelected
+        ? (isMarked ? "answered-marked" : "answered")
+        : (isMarked ? "marked" : "unanswered");
+      return { ...qs, selectedOption: newSelected, status };
+    }));
+  }
+
+  function selectOptionNat(value: string) {
+    setQuestionStates(prev => prev.map((qs, i) => {
+      if (i !== currentIdx) return qs;
+      const newSelected = value !== "" ? value : null;
+      const isMarked = qs.isMarked;
+      const status: QuestionStatus = newSelected
+        ? (isMarked ? "answered-marked" : "answered")
+        : (isMarked ? "marked" : "unanswered");
+      return { ...qs, selectedOption: newSelected, status };
     }));
   }
 
@@ -555,6 +587,8 @@ export default function ExamPage() {
   const qs = questionStates[currentIdx];
   if (!qs) return null;
 
+  const qType = ((qs.question as unknown as Record<string, unknown>).question_type as string) ?? "SCQ";
+
   const answered = questionStates.filter(q => q.selectedOption).length;
   const notAnswered = questionStates.filter(q => !q.selectedOption && q.status !== "not-visited").length;
   const markedForReview = questionStates.filter(q => q.isMarked).length;
@@ -605,7 +639,16 @@ export default function ExamPage() {
           }}
         >
           <div className="flex justify-between items-center mb-5">
-            <h2 className="text-lg font-bold">Question {currentIdx + 1} of {questionStates.length}</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-bold">Question {currentIdx + 1} of {questionStates.length}</h2>
+              {qType !== "SCQ" && (
+                <span className={`text-xs px-2 py-0.5 rounded font-mono font-semibold border ${
+                  qType === "MCQ"
+                    ? "bg-primary/15 text-primary border-primary/30"
+                    : "bg-warning/15 text-warning border-warning/30"
+                }`}>{qType === "MCQ" ? "Multi-select" : "Numerical"}</span>
+              )}
+            </div>
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <input
                 type="checkbox"
@@ -621,32 +664,49 @@ export default function ExamPage() {
             <MathText text={qs.question.question_text} />
           </div>
 
-          <div className="space-y-3">
-            {Object.entries((qs.question.options as Record<string, string>) ?? {}).map(([key, value], optIdx) => {
-              const isSelected = qs.selectedOption === key;
-              return (
-                <label
-                  key={key}
-                  className={`flex items-center gap-3 p-4 border rounded-lg cursor-pointer transition-all ${
-                    isSelected
-                      ? "border-primary bg-primary/10"
-                      : "border-border hover:bg-muted/60"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name={`q-${currentIdx}`}
-                    checked={isSelected}
-                    onChange={() => selectOption(key)}
-                    className="h-4 w-4 accent-primary"
-                  />
-                  <span className="font-semibold text-muted-foreground w-5 shrink-0">{key}.</span>
-                  <span className="flex-1 min-w-0"><MathText text={value} /></span>
-                  <span className="text-xs text-muted-foreground/40 shrink-0">{optIdx + 1}</span>
-                </label>
-              );
-            })}
-          </div>
+          {qType === "NAT" ? (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">Enter a numerical value:</p>
+              <input
+                type="number"
+                step="any"
+                value={qs.selectedOption ?? ""}
+                onChange={(e) => selectOptionNat(e.target.value)}
+                onKeyDown={(e) => e.stopPropagation()}
+                className="w-full max-w-xs rounded-lg border border-border bg-muted/30 px-4 py-3 text-lg font-mono focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="Enter your answer"
+              />
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {Object.entries((qs.question.options as Record<string, string>) ?? {}).map(([key, value], optIdx) => {
+                const isSelected = qType === "MCQ"
+                  ? (qs.selectedOption?.split(",") ?? []).includes(key)
+                  : qs.selectedOption === key;
+                return (
+                  <label
+                    key={key}
+                    className={`flex items-center gap-3 p-4 border rounded-lg cursor-pointer transition-all ${
+                      isSelected
+                        ? "border-primary bg-primary/10"
+                        : "border-border hover:bg-muted/60"
+                    }`}
+                  >
+                    <input
+                      type={qType === "MCQ" ? "checkbox" : "radio"}
+                      name={`q-${currentIdx}`}
+                      checked={isSelected}
+                      onChange={() => qType === "MCQ" ? selectOptionMcq(key) : selectOption(key)}
+                      className="h-4 w-4 accent-primary"
+                    />
+                    <span className="font-semibold text-muted-foreground w-5 shrink-0">{key}.</span>
+                    <span className="flex-1 min-w-0"><MathText text={value} /></span>
+                    <span className="text-xs text-muted-foreground/40 shrink-0">{optIdx + 1}</span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
 
           <div className="mt-6 flex justify-between border-t border-border pt-4">
             <Button
@@ -671,7 +731,7 @@ export default function ExamPage() {
 
           {/* Keyboard hint */}
           <p className="text-xs text-muted-foreground/50 text-center mt-4 hidden sm:block">
-            Arrow keys to navigate · 1–4 to select option · M to mark · Enter to save & next
+            Arrow keys to navigate · 1–4 to select option (SCQ) · M to mark · Enter to next
           </p>
 
           {/* Mobile Question Palette */}

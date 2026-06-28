@@ -33,8 +33,11 @@ async function writeAuditLog(
   }
 }
 
+type QuestionType = "SCQ" | "MCQ" | "NAT";
+
 interface RawQuestion {
   question_text?: unknown;
+  question_type?: unknown;
   options?: unknown;
   correct_answer?: unknown;
   explanation?: unknown;
@@ -43,7 +46,23 @@ interface RawQuestion {
   order_index?: unknown;
 }
 
-function isValidOptions(opts: unknown): opts is Record<string, string> {
+function normalizeQuestionType(raw: unknown): QuestionType {
+  const s = String(raw ?? "").trim().toUpperCase();
+  if (s === "MCQ") return "MCQ";
+  if (s === "NAT") return "NAT";
+  return "SCQ";
+}
+
+function normalizeCorrectAnswer(questionType: QuestionType, raw: string): string {
+  if (questionType === "NAT") return raw.trim();
+  if (questionType === "MCQ") {
+    return raw.split(",").map(v => v.trim().toUpperCase()).filter(Boolean).sort().join(",");
+  }
+  return raw.trim().toUpperCase();
+}
+
+function isValidOptions(opts: unknown, questionType: QuestionType): boolean {
+  if (questionType === "NAT") return true;
   if (!opts || typeof opts !== "object" || Array.isArray(opts)) return false;
   const o = opts as Record<string, unknown>;
   if (!("A" in o) || typeof o["A"] !== "string" || (o["A"] as string).trim() === "") return false;
@@ -65,19 +84,34 @@ function validateQuestion(
   if (!question_text)
     return { valid: false, error: `Row ${idx + 1}: question_text is missing` };
 
-  if (!isValidOptions(raw.options))
-    return { valid: false, error: `Row ${idx + 1}: options must have non-empty A and B` };
+  const question_type = normalizeQuestionType(raw.question_type);
 
-  const correct_answer =
-    typeof raw.correct_answer === "string"
-      ? raw.correct_answer.trim().toUpperCase()
-      : "";
-  if (!["A", "B", "C", "D"].includes(correct_answer))
-    return {
-      valid: false,
-      error: `Row ${idx + 1}: correct_answer must be A, B, C, or D (got "${String(raw.correct_answer)}")`,
-    };
+  if (!isValidOptions(raw.options, question_type))
+    return { valid: false, error: `Row ${idx + 1}: options must have non-empty A and B (question_type=${question_type})` };
 
+  const rawAnswer =
+    typeof raw.correct_answer === "string" ? raw.correct_answer.trim() : "";
+  if (!rawAnswer)
+    return { valid: false, error: `Row ${idx + 1}: correct_answer is missing` };
+
+  if (question_type === "NAT") {
+    if (isNaN(parseFloat(rawAnswer)))
+      return { valid: false, error: `Row ${idx + 1}: NAT correct_answer must be a number (got "${rawAnswer}")` };
+  } else if (question_type === "MCQ") {
+    const parts = rawAnswer.split(",").map(v => v.trim().toUpperCase()).filter(Boolean);
+    if (parts.length < 2)
+      return { valid: false, error: `Row ${idx + 1}: MCQ correct_answer needs ≥2 options e.g. "A,C" (got "${rawAnswer}")` };
+    if (!parts.every(p => ["A", "B", "C", "D"].includes(p)))
+      return { valid: false, error: `Row ${idx + 1}: MCQ correct_answer must only contain A,B,C,D (got "${rawAnswer}")` };
+  } else {
+    if (!["A", "B", "C", "D"].includes(rawAnswer.toUpperCase()))
+      return {
+        valid: false,
+        error: `Row ${idx + 1}: correct_answer must be A, B, C, or D for SCQ (got "${String(raw.correct_answer)}")`,
+      };
+  }
+
+  const correct_answer = normalizeCorrectAnswer(question_type, rawAnswer);
   const diff = Number(raw.difficulty ?? 3);
   const difficulty = isNaN(diff) || diff < 1 || diff > 5 ? 3 : Math.round(diff);
   const oi = Number(raw.order_index ?? idx);
@@ -86,7 +120,8 @@ function validateQuestion(
     valid: true,
     row: {
       question_text,
-      options: raw.options,
+      question_type,
+      options: question_type === "NAT" ? null : raw.options,
       correct_answer,
       explanation:
         typeof raw.explanation === "string" && raw.explanation.trim()

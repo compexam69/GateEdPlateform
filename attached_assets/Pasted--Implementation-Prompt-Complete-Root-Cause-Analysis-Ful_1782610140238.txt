@@ -1,0 +1,521 @@
+# Implementation Prompt: Complete Root Cause Analysis, Full CSV Import Support (SCQ, MCQ & NAT) and Post-Exam Answer Sheet Enhancement
+
+## Objective
+
+The current **Test Management** module supports CSV import only for **SCQ (Single Choice Questions)**, while **MCQ (Multiple Choice Questions)** and **NAT (Numerical Answer Type)** questions are either unsupported or not imported correctly. **Do NOT implement temporary fixes, shortcuts, or workarounds.** Perform a complete production-level root cause analysis of the entire CSV import pipeline and permanently resolve every issue preventing full support for all question types.
+
+Additionally, enhance the examination system by implementing a comprehensive **Post-Exam Answer Sheet** that allows users to review every question after submitting an exam, including their answer, the correct answer, result, and a concise solution/explanation.
+
+The implementation must be production-ready, scalable, secure, and must not introduce regressions into any existing functionality.
+
+---
+
+# Part 1 – Root Cause Analysis of CSV Import
+
+Perform a complete end-to-end analysis of the CSV import workflow.
+
+Trace execution from:
+
+CSV File Selection
+
+↓
+
+CSV Upload
+
+↓
+
+CSV Parser
+
+↓
+
+Column Mapping
+
+↓
+
+Question Type Detection
+
+↓
+
+Validation
+
+↓
+
+Data Transformation
+
+↓
+
+Backend/API Request
+
+↓
+
+Business Logic
+
+↓
+
+Database Insert
+
+↓
+
+Question Retrieval
+
+↓
+
+UI Rendering
+
+Identify the exact step(s) where MCQ and NAT support fails.
+
+Do **NOT** stop after identifying the first issue.
+
+If multiple issues exist, identify and permanently fix **all** of them.
+
+---
+
+# CSV Parser Analysis
+
+Inspect the parser implementation.
+
+Verify:
+
+* CSV reading
+* Header detection
+* Column mapping
+* Empty value handling
+* Data normalization
+* Unicode support
+* Special character handling
+* Multi-line text handling
+* Comma escaping
+* Quote escaping
+
+Ensure parsing works correctly for:
+
+* SCQ
+* MCQ
+* NAT
+
+---
+
+# Question Type Mapping
+
+Review the entire question type mapping logic.
+
+Verify support for:
+
+* SCQ
+* MCQ
+* NAT
+
+Ensure:
+
+* Type detection is accurate.
+* Internal enums are mapped correctly.
+* Database values match application values.
+* APIs correctly recognize all three types.
+
+Fix all mapping inconsistencies.
+
+---
+
+# Validation Logic Review
+
+Review validation rules.
+
+Ensure validation supports:
+
+## SCQ
+
+* Single correct option only.
+
+## MCQ
+
+* Multiple correct answers.
+* Multiple selected options.
+* Validation for at least one correct answer.
+* Unlimited supported combinations.
+
+## NAT
+
+* Integer support.
+* Negative values.
+
+Ensure validation errors are meaningful.
+
+---
+
+# CSV Template Enhancement
+
+Update downloadable CSV templates to support all question types.
+
+Required columns should include (where applicable):
+
+* Question
+* Question Type
+* Option A
+* Option B
+* Option C
+* Option D
+* Correct Answer
+* Marks
+* Negative Marks
+* Difficulty
+* Topic
+* Chapter
+* Subject
+* Solution / Explanation 
+
+For NAT questions:
+
+* Correct Answer should accept numerical values.
+
+For MCQ questions:
+
+* Correct Answer should support multiple values (e.g., A,C,D).
+
+Document the expected CSV format clearly.
+
+---
+
+# Database Analysis
+
+Review:
+
+* Question tables
+* Question type columns
+* Constraints
+* Enums
+* Foreign keys
+* Relationships
+* Default values
+* Triggers
+* Functions
+* Views
+* RLS policies
+
+Verify database supports:
+
+* SCQ
+* MCQ
+* NAT
+* Solution/Explanation field
+
+If database schema requires modification, implement safe migrations.
+
+---
+
+# Backend/API Analysis
+
+Inspect:
+
+* Upload endpoint
+* CSV processing service
+* Validation service
+* Question creation service
+* Database insertion logic
+* Bulk insert logic
+* Error handling
+
+Verify:
+
+* All question types are processed.
+* Bulk imports work correctly.
+* Partial failures are handled safely.
+* Proper rollback occurs on critical failures.
+
+Fix all identified issues.
+
+---
+
+# Frontend Analysis
+
+Inspect:
+
+* Import dialog
+* CSV upload
+* Validation
+* Preview
+* Error display
+* Success messages
+* Progress indicators
+
+Ensure:
+
+* All question types preview correctly.
+* Errors identify the exact row and column.
+* Import summary is accurate.
+* Existing UI remains unchanged.
+
+---
+
+# Part 2 – Post-Exam Answer Sheet
+
+After exam submission, automatically display a detailed **Answer Sheet**.
+
+Each question should display:
+
+* Question Number
+* Question
+* User's Answer
+* Correct Answer
+* Result (Correct / Incorrect)
+* Marks Awarded
+* One-line Solution / Explanation
+
+Ensure:
+
+* Questions appear in the original exam order.
+* Answers cannot be edited.
+* Correct and incorrect answers are visually distinguishable.
+* Responsive layout for desktop, tablet, and mobile.
+* Clean, modern UI.
+
+---
+
+# Solution / Explanation Support
+
+Extend the CSV import process to support an optional:
+
+**Solution / Explanation**
+
+column.
+
+Requirements:
+
+* Optional during import.
+* Imported into database.
+* Editable from Question Editor.
+* Displayed in Answer Sheet.
+* Support plain text.
+* Preserve formatting where applicable.
+* Existing questions without explanations should continue to work.
+
+---
+
+# Existing Functionality Preservation
+
+Do NOT break:
+
+* Existing SCQ imports.
+* Manual question creation.
+* Question editing.
+* Question deletion.
+* Exam creation.
+* Test attempts.
+* Result calculation.
+* Leaderboards.
+* Analytics.
+* Search.
+* Filters.
+* Reports.
+* User permissions.
+
+---
+
+# Authentication & Authorization Audit
+
+Verify:
+
+* Authorized Admins can import questions.
+* Students cannot import.
+* Existing role permissions remain unchanged.
+* RLS policies continue to work correctly.
+
+---
+
+# Error Handling Improvements
+
+Replace generic import failures with meaningful messages.
+
+Examples:
+
+* Invalid Question Type
+* Invalid Correct Answer
+* Missing Required Field
+* Invalid CSV Format
+* Duplicate Question
+* Database Error
+* Permission Denied
+* Invalid Numerical Value
+* Invalid Multiple Correct Answers
+
+Provide row and column numbers wherever possible.
+
+---
+
+# Performance Requirements
+
+Ensure:
+
+* Large CSV imports remain performant.
+* Batch inserts are optimized.
+* No unnecessary database queries.
+* No duplicate inserts.
+* No memory leaks.
+* No blocking UI.
+* Progress indicator updates correctly.
+
+---
+
+# Code Quality Review
+
+After implementation:
+
+Remove:
+
+* Dead code
+* Unused imports
+* Unused validation
+* Obsolete parsers
+* Duplicate logic
+* Legacy question-type mappings
+* Redundant helper functions
+
+Ensure the implementation follows existing project architecture and coding standards.
+
+---
+
+# Testing Requirements
+
+Perform comprehensive testing.
+
+## CSV Import
+
+Test with sample CSV files for:
+
+* SCQ
+* MCQ
+* NAT
+
+Verify:
+
+* Import succeeds.
+* Data stored correctly.
+* Question types preserved.
+* Correct answers stored correctly.
+* Solutions imported correctly.
+
+---
+
+## Answer Sheet
+
+Verify:
+
+* Displays after exam submission.
+* Every question appears.
+* User answer shown correctly.
+* Correct answer shown correctly.
+* Result displayed correctly.
+* Solution displayed correctly.
+* Marks calculated correctly.
+
+---
+
+## Regression Testing
+
+Verify:
+
+* Existing SCQ import still works.
+* Existing exams still work.
+* Manual question creation still works.
+* Question editing still works.
+* Reports remain accurate.
+* Analytics remain accurate.
+* No console errors.
+* No runtime errors.
+* No API failures.
+
+---
+
+# SQL Editor Guidance
+
+Analyze whether Supabase database changes are required.
+
+If SQL changes are required, provide separately:
+
+### Safe SQL Migration Script
+
+### Rollback Script
+
+### New Columns (if required)
+
+### Enum Updates
+
+### Constraint Updates
+
+### Index Recommendations
+
+### RLS Policy Updates
+
+Explain:
+
+* Why each SQL change is required.
+* Risk level.
+* Impact on existing data.
+* Whether downtime is required.
+
+If SQL changes are **NOT** required, explicitly state:
+
+**"No Supabase SQL Editor changes are required for this implementation."**
+
+Do **NOT** recommend SQL changes unless they are genuinely necessary.
+
+---
+
+# Implementation Report
+
+After implementation provide:
+
+* Root cause(s) identified
+* Exact failure point(s)
+* Files modified
+* Components updated
+* CSV parser improvements
+* Validation improvements
+* Database changes
+* Backend changes
+* API changes
+* Answer Sheet implementation details
+* Solution/Explanation support details
+* Performance improvements
+* Dead code removed
+* SQL requirements (if any)
+
+---
+
+# Checkpoint Requirement
+
+Only after **all identified issues have been permanently fixed**, fully tested, and verified:
+
+Create a checkpoint/commit.
+
+**Checkpoint Name:**
+
+`Test Management - Full CSV Import Support (SCQ, MCQ, NAT) & Post-Exam Answer Sheet`
+
+---
+
+# Final Verification Checklist
+
+* [ ] Entire CSV import workflow analyzed end-to-end.
+* [ ] Exact root cause(s) identified and documented.
+* [ ] All identified issues permanently fixed.
+* [ ] No temporary fixes or workarounds used.
+* [ ] SCQ import works correctly.
+* [ ] MCQ import works correctly.
+* [ ] NAT import works correctly.
+* [ ] CSV templates updated.
+* [ ] Solution/Explanation column supported.
+* [ ] Question Editor supports Solution/Explanation.
+* [ ] Post-Exam Answer Sheet implemented.
+* [ ] Answer Sheet displays Question Number, Question, User Answer, Correct Answer, Result, Marks, and Solution.
+* [ ] Existing SCQ functionality remains unchanged.
+* [ ] Existing Test Management features remain fully functional.
+* [ ] No console errors.
+* [ ] No network errors.
+* [ ] No backend exceptions.
+* [ ] No dead code remains.
+* [ ] Authentication and authorization verified.
+* [ ] SQL requirements analyzed and documented.
+* [ ] If SQL changes are required, safe migration and rollback scripts are provided.
+* [ ] All identified issues related to this feature are fixed.
+* [ ] Production-ready validation completed successfully.
+* [ ] Checkpoint created only after successful implementation and verification.

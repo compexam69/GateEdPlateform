@@ -63,6 +63,7 @@ type QuestionPreviewRow = {
   question_text: string;
   correct_answer: string;
   difficulty: number;
+  question_type: "SCQ" | "MCQ" | "NAT";
   error?: string;
 };
 
@@ -86,9 +87,10 @@ const ROLE_LABELS: Record<RoleId, string> = {
   super_admin: "Super Admins",
 };
 
-const QUESTION_CSV_TEMPLATE = `question_text,option_a,option_b,option_c,option_d,correct_answer,explanation,video_solution_url,difficulty
-"What is the SI unit of force?","Joule","Newton","Watt","Pascal","B","Force is measured in Newtons (N).","",2
-"Acceleration due to gravity on Earth is:","9.8 m/s²","8.9 m/s²","10 m/s²","11 m/s²","A","Standard gravity is 9.8 m/s².","https://youtube.com/watch?v=example",1`;
+const QUESTION_CSV_TEMPLATE = `question_text,question_type,option_a,option_b,option_c,option_d,correct_answer,explanation,video_solution_url,difficulty
+"What is the SI unit of force?","SCQ","Joule","Newton","Watt","Pascal","B","Force is measured in Newtons (N).","",2
+"Which are vector quantities? (select all that apply)","MCQ","Force","Speed","Velocity","Displacement","A,C,D","Vectors have both magnitude and direction.","",2
+"What is the acceleration due to gravity in m/s²?","NAT","","","","","9.8","Standard gravity is 9.8 m/s².","",1`;
 
 const WIZARD_STEPS = [
   { n: 1, label: "Hierarchy" },
@@ -99,25 +101,61 @@ const WIZARD_STEPS = [
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
+function parseCsvLine(line: string): string[] {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') { current += '"'; i++; }
+      else inQuotes = !inQuotes;
+    } else if (ch === "," && !inQuotes) {
+      result.push(current);
+      current = "";
+    } else {
+      current += ch;
+    }
+  }
+  result.push(current);
+  return result;
+}
+
 function parseCsvToQuestions(csv: string): unknown[] {
   const lines = csv.trim().split("\n").map(l => l.trim()).filter(Boolean);
   if (lines.length < 2) return [];
-  const headers = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, ""));
+  const headers = parseCsvLine(lines[0]).map(h => h.trim().toLowerCase());
   return lines.slice(1).map((line, idx) => {
-    const cols = line.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g) ?? [];
-    const clean = (v?: string) => (v ?? "").replace(/^"|"$/g, "").trim();
-    const get = (key: string) => clean(cols[headers.indexOf(key)]);
-    const optC = get("option_c") || get("C");
-    const optD = get("option_d") || get("D");
+    const cols = parseCsvLine(line);
+    const get = (key: string) => (cols[headers.indexOf(key)] ?? "").trim();
+
+    const rawType = (get("question_type") || "SCQ").toUpperCase();
+    const question_type: "SCQ" | "MCQ" | "NAT" =
+      rawType === "MCQ" ? "MCQ" : rawType === "NAT" ? "NAT" : "SCQ";
+
+    const correctRaw = get("correct_answer") || get("answer");
+    let correct_answer: string;
+    if (question_type === "NAT") {
+      correct_answer = correctRaw.trim();
+    } else if (question_type === "MCQ") {
+      correct_answer = correctRaw.split(",").map(v => v.trim().toUpperCase()).filter(Boolean).sort().join(",");
+    } else {
+      correct_answer = correctRaw.toUpperCase();
+    }
+
+    const optC = get("option_c") || get("c");
+    const optD = get("option_d") || get("d");
+
     return {
       question_text: get("question_text") || get("question"),
-      options: {
-        A: get("option_a") || get("A"),
-        B: get("option_b") || get("B"),
+      question_type,
+      options: question_type === "NAT" ? null : {
+        A: get("option_a") || get("a"),
+        B: get("option_b") || get("b"),
         ...(optC ? { C: optC } : {}),
         ...(optD ? { D: optD } : {}),
       },
-      correct_answer: (get("correct_answer") || get("answer")).toUpperCase(),
+      correct_answer,
       explanation: get("explanation") || null,
       video_solution_url: get("video_solution_url") || null,
       difficulty: parseInt(get("difficulty") || "3", 10) || 3,
@@ -128,16 +166,36 @@ function parseCsvToQuestions(csv: string): unknown[] {
 
 function validateQuestionClient(q: unknown, idx: number): QuestionPreviewRow {
   const raw = q as Record<string, unknown>;
-  const opts = raw.options as Record<string, string> | undefined;
   const question_text = typeof raw.question_text === "string" ? raw.question_text.trim() : "";
-  const correct_answer = typeof raw.correct_answer === "string" ? raw.correct_answer.trim().toUpperCase() : "";
+  const question_type = (typeof raw.question_type === "string" ? raw.question_type : "SCQ") as "SCQ" | "MCQ" | "NAT";
+  const correct_answer = typeof raw.correct_answer === "string" ? raw.correct_answer.trim() : "";
   const difficulty = Math.round(Number(raw.difficulty ?? 3) || 3);
-  const base = { question_text, correct_answer, difficulty };
+  const base = { question_text, correct_answer, difficulty, question_type };
+
   if (!question_text) return { ...base, valid: false, error: `Row ${idx + 1}: Question text is missing` };
+
+  if (question_type === "NAT") {
+    if (!correct_answer) return { ...base, valid: false, error: `Row ${idx + 1}: Correct answer required for NAT` };
+    if (isNaN(parseFloat(correct_answer)))
+      return { ...base, valid: false, error: `Row ${idx + 1}: NAT answer must be a number (got "${correct_answer}")` };
+    return { ...base, valid: true };
+  }
+
+  const opts = raw.options as Record<string, string> | null | undefined;
   if (!opts?.A?.trim()) return { ...base, valid: false, error: `Row ${idx + 1}: Option A is required` };
   if (!opts?.B?.trim()) return { ...base, valid: false, error: `Row ${idx + 1}: Option B is required` };
-  if (!["A", "B", "C", "D"].includes(correct_answer))
-    return { ...base, valid: false, error: `Row ${idx + 1}: Correct answer must be A, B, C, or D (got "${String(raw.correct_answer)}")` };
+
+  if (question_type === "MCQ") {
+    const parts = correct_answer.split(",").map(v => v.trim().toUpperCase()).filter(Boolean);
+    if (parts.length < 2)
+      return { ...base, valid: false, error: `Row ${idx + 1}: MCQ needs ≥2 correct answers e.g. "A,C"` };
+    if (!parts.every(p => ["A", "B", "C", "D"].includes(p)))
+      return { ...base, valid: false, error: `Row ${idx + 1}: MCQ answers must be A, B, C, or D` };
+    return { ...base, valid: true };
+  }
+
+  if (!["A", "B", "C", "D"].includes(correct_answer.toUpperCase()))
+    return { ...base, valid: false, error: `Row ${idx + 1}: Answer must be A, B, C, or D (got "${String(raw.correct_answer)}")` };
   return { ...base, valid: true };
 }
 
@@ -678,7 +736,8 @@ function Step3_Import({ wizardData, setWd, parsedQuestions, validatedQuestions, 
         <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-2 text-sm">
           <p className="font-medium">CSV Format</p>
           <p className="text-muted-foreground text-xs">
-            Required: <code className="text-foreground">question_text</code>, <code className="text-foreground">option_a</code>, <code className="text-foreground">option_b</code>, <code className="text-foreground">correct_answer</code> (A/B/C/D).
+            Required: <code className="text-foreground">question_text</code>, <code className="text-foreground">question_type</code> (<code className="text-foreground">SCQ</code>/<code className="text-foreground">MCQ</code>/<code className="text-foreground">NAT</code>), <code className="text-foreground">correct_answer</code>.
+            SCQ/MCQ: also need <code className="text-foreground">option_a</code>, <code className="text-foreground">option_b</code>. MCQ answer: comma-separated e.g. <code className="text-foreground">A,C</code>. NAT answer: a number e.g. <code className="text-foreground">9.8</code>.
             Optional: <code className="text-foreground">option_c</code>, <code className="text-foreground">option_d</code>, <code className="text-foreground">explanation</code>, <code className="text-foreground">video_solution_url</code>, <code className="text-foreground">difficulty</code> (1–5).
           </p>
           <div className="flex gap-2 flex-wrap">
@@ -720,7 +779,7 @@ function Step3_Import({ wizardData, setWd, parsedQuestions, validatedQuestions, 
                 <table className="w-full text-xs">
                   <thead className="bg-muted/40 sticky top-0">
                     <tr>
-                      {["#", "Question", "Answer", "Diff", "Status"].map(h => (
+                      {["#", "Question", "Type", "Answer", "Diff", "Status"].map(h => (
                         <th key={h} className="px-3 py-2 text-left font-medium text-muted-foreground whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -730,6 +789,13 @@ function Step3_Import({ wizardData, setWd, parsedQuestions, validatedQuestions, 
                       <tr key={i} className={`${!r.valid ? "bg-destructive/5" : "hover:bg-muted/20"}`}>
                         <td className="px-3 py-1.5 text-muted-foreground">{i + 1}</td>
                         <td className="px-3 py-1.5 max-w-[200px] truncate" title={r.question_text}>{r.question_text || "—"}</td>
+                        <td className="px-3 py-1.5">
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold border ${
+                            r.question_type === "MCQ" ? "bg-primary/15 text-primary border-primary/30"
+                            : r.question_type === "NAT" ? "bg-warning/15 text-warning border-warning/30"
+                            : "bg-muted text-muted-foreground border-border"
+                          }`}>{r.question_type || "SCQ"}</span>
+                        </td>
                         <td className="px-3 py-1.5 font-mono font-bold text-primary">{r.correct_answer || "—"}</td>
                         <td className="px-3 py-1.5 text-center">{r.difficulty}</td>
                         <td className="px-3 py-1.5">

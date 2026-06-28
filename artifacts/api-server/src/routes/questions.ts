@@ -4,8 +4,11 @@ import { requireAdmin, type AuthRequest } from "../middlewares/auth";
 
 const router = Router();
 
+type QuestionType = "SCQ" | "MCQ" | "NAT";
+
 interface RawQuestion {
   question_text?: unknown;
+  question_type?: unknown;
   options?: unknown;
   correct_answer?: unknown;
   explanation?: unknown;
@@ -14,10 +17,25 @@ interface RawQuestion {
   order_index?: unknown;
 }
 
-function isValidOptions(opts: unknown): opts is Record<string, string> {
+function normalizeQuestionType(raw: unknown): QuestionType {
+  const s = String(raw ?? "").trim().toUpperCase();
+  if (s === "MCQ") return "MCQ";
+  if (s === "NAT") return "NAT";
+  return "SCQ";
+}
+
+function normalizeCorrectAnswer(questionType: QuestionType, raw: string): string {
+  if (questionType === "NAT") return raw.trim();
+  if (questionType === "MCQ") {
+    return raw.split(",").map(v => v.trim().toUpperCase()).filter(Boolean).sort().join(",");
+  }
+  return raw.trim().toUpperCase();
+}
+
+function isValidOptions(opts: unknown, questionType: QuestionType): boolean {
+  if (questionType === "NAT") return true;
   if (!opts || typeof opts !== "object" || Array.isArray(opts)) return false;
   const o = opts as Record<string, unknown>;
-  // A and B are required; C and D are optional but must be non-empty strings if present
   if (!("A" in o) || typeof o["A"] !== "string" || o["A"].trim() === "") return false;
   if (!("B" in o) || typeof o["B"] !== "string" || o["B"].trim() === "") return false;
   for (const k of ["C", "D"]) {
@@ -30,15 +48,30 @@ function validateQuestion(raw: RawQuestion, idx: number): { valid: true; row: Re
   const question_text = typeof raw.question_text === "string" ? raw.question_text.trim() : "";
   if (!question_text) return { valid: false, error: `Row ${idx + 1}: missing question_text` };
 
-  if (!isValidOptions(raw.options)) {
-    return { valid: false, error: `Row ${idx + 1}: options must be an object with non-empty A, B, C, D keys` };
+  const question_type = normalizeQuestionType(raw.question_type);
+
+  if (!isValidOptions(raw.options, question_type)) {
+    return { valid: false, error: `Row ${idx + 1}: options must have non-empty A and B (question_type=${question_type})` };
   }
 
-  const correct_answer = typeof raw.correct_answer === "string" ? raw.correct_answer.trim().toUpperCase() : "";
-  if (!["A", "B", "C", "D"].includes(correct_answer)) {
-    return { valid: false, error: `Row ${idx + 1}: correct_answer must be A, B, C, or D (got "${raw.correct_answer}")` };
+  const rawAnswer = typeof raw.correct_answer === "string" ? raw.correct_answer.trim() : "";
+  if (!rawAnswer) return { valid: false, error: `Row ${idx + 1}: correct_answer is missing` };
+
+  if (question_type === "NAT") {
+    if (isNaN(parseFloat(rawAnswer)))
+      return { valid: false, error: `Row ${idx + 1}: NAT correct_answer must be a number (got "${rawAnswer}")` };
+  } else if (question_type === "MCQ") {
+    const parts = rawAnswer.split(",").map(v => v.trim().toUpperCase()).filter(Boolean);
+    if (parts.length < 2)
+      return { valid: false, error: `Row ${idx + 1}: MCQ correct_answer needs ≥2 options e.g. "A,C" (got "${rawAnswer}")` };
+    if (!parts.every(p => ["A", "B", "C", "D"].includes(p)))
+      return { valid: false, error: `Row ${idx + 1}: MCQ correct_answer must only contain A,B,C,D (got "${rawAnswer}")` };
+  } else {
+    if (!["A", "B", "C", "D"].includes(rawAnswer.toUpperCase()))
+      return { valid: false, error: `Row ${idx + 1}: correct_answer must be A, B, C, or D (got "${raw.correct_answer}")` };
   }
 
+  const correct_answer = normalizeCorrectAnswer(question_type, rawAnswer);
   const difficulty = Number(raw.difficulty ?? 3);
   const safeD = isNaN(difficulty) || difficulty < 1 || difficulty > 5 ? 3 : Math.round(difficulty);
   const order_index = Number(raw.order_index ?? idx);
@@ -47,7 +80,8 @@ function validateQuestion(raw: RawQuestion, idx: number): { valid: true; row: Re
     valid: true,
     row: {
       question_text,
-      options: raw.options,
+      question_type,
+      options: question_type === "NAT" ? null : raw.options,
       correct_answer,
       explanation: typeof raw.explanation === "string" && raw.explanation.trim() ? raw.explanation.trim() : null,
       video_solution_url: typeof raw.video_solution_url === "string" && raw.video_solution_url.trim() ? raw.video_solution_url.trim() : null,
