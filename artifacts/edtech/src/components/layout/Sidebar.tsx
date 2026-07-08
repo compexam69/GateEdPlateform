@@ -1,13 +1,15 @@
 import { Link, useLocation } from "wouter";
-import { BookOpen, Home, Settings, Timer, CheckSquare, LineChart, FileText, ShieldCheck, BookOpenCheck } from "lucide-react";
+import { BookOpen, Home, Settings, Timer, CheckSquare, LineChart, FileText, ShieldCheck, BookOpenCheck, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { useHard75Access } from "@/hooks/useHard75Access";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useState } from "react";
 
 export function Sidebar() {
   const [location] = useLocation();
   const { role, user, avatarUrl } = useAuth();
+  const { hasAccess: hard75Access } = useHard75Access();
 
   // Local error flag: if the image fails to load (broken URL, network error)
   // fall back to the initials avatar without touching the global store.
@@ -23,6 +25,10 @@ export function Sidebar() {
     { href: "/tracker", label: "Tracker", icon: LineChart },
     { href: "/profile", label: "Profile", icon: Settings },
   ];
+
+  if (hard75Access) {
+    links.splice(links.length - 1, 0, { href: "/75hard", label: "75 Hard", icon: Trophy });
+  }
 
   if (role === "admin" || role === "super_admin") {
     links.push({ href: "/admin", label: "Admin Panel", icon: ShieldCheck });
@@ -74,7 +80,7 @@ export function Sidebar() {
       <nav className="flex-1 px-3 py-3 space-y-1 overflow-y-auto">
         {links.map((link) => {
           const Icon = link.icon;
-          const isActive = location === link.href || (link.href !== "/dashboard" && location.startsWith(link.href + "/"));
+          const isActive = location === link.href || (link.href !== "/dashboard" && location.startsWith(link.href + "/")) || (link.href === "/75hard" && location.startsWith("/75hard"));
           return (
             <Link key={link.href} href={link.href} className={cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm",

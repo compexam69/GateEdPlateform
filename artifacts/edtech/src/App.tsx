@@ -41,6 +41,20 @@ const AdminRateLimitsPage    = lazy(() => import("@/pages/admin/AdminRateLimitsP
 const AdminContentAccessPage = lazy(() => import("@/pages/admin/AdminContentAccessPage"));
 const AdminAnnouncementsPage = lazy(() => import("@/pages/admin/AdminAnnouncementsPage"));
 const AdminTestManagementPage = lazy(() => import("@/pages/admin/AdminTestManagementPage"));
+const Hard75DashboardPage    = lazy(() => import("@/pages/hard75/Hard75DashboardPage"));
+const Hard75TodaysTasksPage  = lazy(() => import("@/pages/hard75/Hard75TodaysTasksPage"));
+const Hard75WaterPage        = lazy(() => import("@/pages/hard75/Hard75WaterPage"));
+const Hard75WorkoutPage      = lazy(() => import("@/pages/hard75/Hard75WorkoutPage"));
+const Hard75ReadingPage      = lazy(() => import("@/pages/hard75/Hard75ReadingPage"));
+const Hard75DietPage         = lazy(() => import("@/pages/hard75/Hard75DietPage"));
+const Hard75PhotosPage       = lazy(() => import("@/pages/hard75/Hard75PhotosPage"));
+const Hard75JournalPage      = lazy(() => import("@/pages/hard75/Hard75JournalPage"));
+const Hard75CalendarPage     = lazy(() => import("@/pages/hard75/Hard75CalendarPage"));
+const Hard75AnalyticsPage    = lazy(() => import("@/pages/hard75/Hard75AnalyticsPage"));
+const Hard75GoalsPage        = lazy(() => import("@/pages/hard75/Hard75GoalsPage"));
+const Hard75AchievementsPage = lazy(() => import("@/pages/hard75/Hard75AchievementsPage"));
+const Hard75ReportsPage      = lazy(() => import("@/pages/hard75/Hard75ReportsPage"));
+const Hard75SettingsPage     = lazy(() => import("@/pages/hard75/Hard75SettingsPage"));
 
 const queryClient = new QueryClient();
 
@@ -104,6 +118,21 @@ function Router() {
           <Route path="/admin/announcements"><ProtectedRoute requireAdmin><AdminAnnouncementsPage /></ProtectedRoute></Route>
           <Route path="/admin/test-management"><ProtectedRoute requireAdmin><AdminTestManagementPage /></ProtectedRoute></Route>
           <Route path="/tests"><ProtectedRoute><TestsPage /></ProtectedRoute></Route>
+
+          <Route path="/75hard"><ProtectedRoute><Hard75DashboardPage /></ProtectedRoute></Route>
+          <Route path="/75hard/tasks"><ProtectedRoute><Hard75TodaysTasksPage /></ProtectedRoute></Route>
+          <Route path="/75hard/water"><ProtectedRoute><Hard75WaterPage /></ProtectedRoute></Route>
+          <Route path="/75hard/workout"><ProtectedRoute><Hard75WorkoutPage /></ProtectedRoute></Route>
+          <Route path="/75hard/reading"><ProtectedRoute><Hard75ReadingPage /></ProtectedRoute></Route>
+          <Route path="/75hard/diet"><ProtectedRoute><Hard75DietPage /></ProtectedRoute></Route>
+          <Route path="/75hard/photos"><ProtectedRoute><Hard75PhotosPage /></ProtectedRoute></Route>
+          <Route path="/75hard/journal"><ProtectedRoute><Hard75JournalPage /></ProtectedRoute></Route>
+          <Route path="/75hard/calendar"><ProtectedRoute><Hard75CalendarPage /></ProtectedRoute></Route>
+          <Route path="/75hard/analytics"><ProtectedRoute><Hard75AnalyticsPage /></ProtectedRoute></Route>
+          <Route path="/75hard/goals"><ProtectedRoute><Hard75GoalsPage /></ProtectedRoute></Route>
+          <Route path="/75hard/achievements"><ProtectedRoute><Hard75AchievementsPage /></ProtectedRoute></Route>
+          <Route path="/75hard/reports"><ProtectedRoute><Hard75ReportsPage /></ProtectedRoute></Route>
+          <Route path="/75hard/settings"><ProtectedRoute><Hard75SettingsPage /></ProtectedRoute></Route>
 
           <Route component={NotFound} />
         </Switch>

@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
+import hard75Router from "./hard75";
 import csrfRouter from "./csrf";
 import subjectsRouter from "./subjects";
 import chaptersRouter from "./chapters";
@@ -44,5 +45,6 @@ router.use(notificationsRouter);
 router.use(pushRouter);
 router.use(authEmailRouter);
 router.use(userRouter);
+router.use(hard75Router);
 
 export default router;

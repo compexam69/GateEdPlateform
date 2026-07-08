@@ -1,11 +1,12 @@
 import { Link, useLocation } from "wouter";
 import {
   BookOpen, Home, Timer, CheckSquare,
-  FileText, LineChart, Settings, ShieldCheck, LogOut, BookOpenCheck,
+  FileText, LineChart, Settings, ShieldCheck, LogOut, BookOpenCheck, Trophy,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { useHard75Access } from "@/hooks/useHard75Access";
 import {
   Sheet, SheetContent, SheetTitle, SheetDescription,
 } from "@/components/ui/sheet";
@@ -35,6 +36,7 @@ interface Props {
 export function MobileDrawer({ open, onClose }: Props) {
   const [location] = useLocation();
   const { user, role, avatarUrl, signOut } = useAuth();
+  const { hasAccess: hard75Access } = useHard75Access();
   const [imgError, setImgError] = useState(false);
 
   const firstName = user?.user_metadata?.full_name?.split(" ")[0] || "Student";
@@ -42,6 +44,7 @@ export function MobileDrawer({ open, onClose }: Props) {
 
   const links = [
     ...NAV_LINKS,
+    ...(hard75Access ? [{ href: "/75hard", label: "75 Hard", icon: Trophy }] : []),
     ...(role === "admin" || role === "super_admin"
       ? [{ href: "/admin", label: "Admin Panel", icon: ShieldCheck }]
       : []),
@@ -102,7 +105,8 @@ export function MobileDrawer({ open, onClose }: Props) {
             const isActive =
               location === link.href ||
               (link.href !== "/dashboard" &&
-                location.startsWith(link.href + "/"));
+                location.startsWith(link.href + "/")) ||
+              (link.href === "/75hard" && location.startsWith("/75hard"));
             return (
               <Link key={link.href} href={link.href} onClick={onClose}>
                 <div

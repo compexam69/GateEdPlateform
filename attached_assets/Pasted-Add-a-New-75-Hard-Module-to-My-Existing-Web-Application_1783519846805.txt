@@ -1,0 +1,123 @@
+Add a New "75 Hard" Module to My Existing Web Application
+I already have a fully functional web application. Do NOT create a new project or modify the existing core functionality. Instead, add a new module named 75 Hard that integrates seamlessly into my existing application.
+
+GENERAL REQUIREMENTS
+- Reuse existing authentication, user management, theme, layout, navigation, and database.
+- Follow existing coding style, folder structure, UI components, and architecture.
+- Build as an independent, reusable, scalable module.
+- Integrate with authentication, roles, permissions, notifications, settings, and user management.
+- Reuse existing services and components whenever possible.
+
+ROLE-BASED ACCESS CONTROL
+
+Super Admin
+- 75 Hard enabled by default.
+- Full access to all module features.
+- Can manage, reset, delete any user's data.
+- Can manage global settings.
+- Can generate reports and analytics for all users.
+- Can restart/reset any user's challenge.
+- Can enable/disable 75 Hard for verified users.
+
+Inside User Management:
+- Enable/Disable 75 Hard access
+- Assign/Remove access individually
+- Bulk enable/disable
+
+Supported roles:
+- Super Admin
+- Admin
+- Student
+
+Only verified users are eligible.
+
+Admin
+- If enabled by Super Admin, can use the module for themselves.
+- Cannot change global settings.
+
+Student
+- If enabled by Super Admin, can use only their own data.
+
+USER MANAGEMENT
+Add:
+- 75 Hard Access column (Enabled/Disabled)
+Filters:
+- Enabled, Disabled, Verified, Super Admin, Admin, Student
+Bulk actions:
+- Enable, Disable, Restart, Export
+Individual actions:
+- Enable, Disable, Restart, Reset, View Progress, Analytics, Reports
+
+MODULE NAVIGATION
+Dashboard
+Today's Tasks
+Water Tracker
+Workout Tracker
+Reading Tracker
+Diet Tracker
+Progress Photos
+Daily Journal
+Calendar
+Analytics
+Goals & Measurements
+Achievements
+Reports
+Settings
+
+Show navigation only to:
+- Super Admin (always)
+- Enabled Admin
+- Enabled Student
+
+DASHBOARD
+Current Day, Overall Progress, Remaining Days, Current Streak, Completion %, Today's Date, Quote, Task Status, Water, Workout, Reading, Weekly Chart, Quick Actions.
+
+OFFICIAL TASKS
+Workout 1
+Workout 2 (Outdoor)
+Water Tracker
+Reading Tracker
+Diet Tracking
+Progress Photo
+
+Complete day only after all six tasks.
+
+DAILY JOURNAL
+Mood, Energy, Biggest Win, Biggest Challenge, Notes, Rating.
+
+CALENDAR
+Completed, Pending, Missed, Restarted.
+
+PROGRESS PHOTOS
+Gallery, Timeline, Before/After, Download, Delete.
+
+ANALYTICS
+Completion %, Workout, Water, Reading, Streaks, Weekly, Monthly, Heatmap.
+Super Admin analytics:
+Overall users, rankings, completion rate, DAU, adoption.
+
+GOALS & MEASUREMENTS
+Weight, Target Weight, BMI, Body Fat, Chest, Waist, Hips, Arms, Thighs with charts.
+
+ACHIEVEMENTS
+Day 1,7,14,21,30,45,60,75, Perfect Week, Perfect Month, Longest Streak, XP, Levels, Animations.
+
+REPORTS
+Weekly, Monthly, Full 75 Hard, Workout, Water, Reading, Weight.
+Export PDF/CSV.
+Super Admin: individual, multiple, all users.
+
+SETTINGS
+Reminder times, Water goal, Units, Theme, Restart, Reset module, Notifications.
+Super Admin:
+Global enable/disable, defaults, achievements, quotes.
+
+DATABASE
+Suggested:
+hard75, hard75_access, daily_tasks, workouts, water_logs, reading_logs, diet_logs, progress_photos, journals, measurements, achievements, reports, reminders, module_settings.
+
+INTEGRATION
+Integrate with existing authentication, RBAC, verified users, user management, UI, reusable components. Keep isolated and do not break existing functionality.
+
+FINAL REQUIREMENTS
+Production-ready, responsive, secure, accessible, reusable, scalable, maintainable, loading/error states, future-ready for more challenge modules.

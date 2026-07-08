@@ -220,7 +220,7 @@ export default function AdminUsersPage() {
   const [reinstateDialog, setReinstateDialog] = useState<{ userId: string; userName: string } | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<{ userId: string; userName: string } | null>(null);
 
-  const { data: users = [], isLoading } = useQuery({
+  const { data: rawUsers = [], isLoading } = useQuery({
     queryKey: USERS_KEY,
     queryFn: async () => {
       const { data } = await supabase
@@ -230,6 +230,24 @@ export default function AdminUsersPage() {
       return data ?? [];
     },
   });
+
+  const { data: hard75AccessMap = {} } = useQuery<Record<string, boolean>>({
+    queryKey: ["hard75-admin-access-map"],
+    queryFn: async () => {
+      try {
+        const rows = await apiFetch("/hard75/admin/users") as Array<{ id: string; hard75_access?: { enabled: boolean } }>;
+        const map: Record<string, boolean> = {};
+        for (const r of rows) map[r.id] = r.hard75_access?.enabled ?? false;
+        return map;
+      } catch {
+        return {};
+      }
+    },
+    staleTime: 30_000,
+  });
+
+  // Merge 75 Hard access flag into users
+  const users = rawUsers.map((u: any) => ({ ...u, hard75_enabled: hard75AccessMap[u.id] ?? (u.role === "super_admin") }));
 
   const { data: userDetail, isLoading: detailLoading } = useQuery<UserDetail>({
     queryKey: ["admin-user-detail", detailUserId],
@@ -343,6 +361,21 @@ export default function AdminUsersPage() {
     },
     onError: (err: unknown) =>
       toast({ title: "Permission update failed", description: (err as Error).message, variant: "destructive" }),
+  });
+
+  const toggleHard75Access = useMutation({
+    mutationFn: ({ userId, enabled }: { userId: string; enabled: boolean }) =>
+      apiFetch("/hard75/admin/access", {
+        method: "POST",
+        body: JSON.stringify({ user_id: userId, enabled }),
+      }),
+    onSuccess: (_data, { enabled }) => {
+      queryClient.invalidateQueries({ queryKey: USERS_KEY });
+      queryClient.invalidateQueries({ queryKey: ["hard75-admin-access-map"] });
+      toast({ title: enabled ? "75 Hard access enabled" : "75 Hard access disabled" });
+    },
+    onError: (err: unknown) =>
+      toast({ title: "Failed to update 75 Hard access", description: (err as Error).message, variant: "destructive" }),
   });
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -465,6 +498,19 @@ export default function AdminUsersPage() {
               <span className="font-semibold text-sm leading-snug">{userName}</span>
               {roleBadge(role)}
               {statusBadge(status)}
+              {role !== "super_admin" && (
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "text-[10px] px-1.5 py-0",
+                    (user as any).hard75_enabled
+                      ? "bg-orange-500/10 text-orange-600 border-orange-500/30"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  75H: {(user as any).hard75_enabled ? "On" : "Off"}
+                </Badge>
+              )}
             </div>
 
             {isSuperAdmin && currentRole !== "super_admin" ? (
@@ -629,6 +675,23 @@ export default function AdminUsersPage() {
                         <><Lock className="w-4 h-4 mr-2 shrink-0" /> Disable Editing</>
                       ) : (
                         <><Unlock className="w-4 h-4 mr-2 shrink-0" /> Enable Editing</>
+                      )}
+                    </DropdownMenuItem>
+                  </>
+                )}
+
+                {/* 75 Hard Access — super_admin only, non-super_admin targets */}
+                {!isSelf && currentRole === "super_admin" && role !== "super_admin" && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      disabled={toggleHard75Access.isPending}
+                      onClick={() => toggleHard75Access.mutate({ userId, enabled: !(user as any).hard75_enabled })}
+                    >
+                      {(user as any).hard75_enabled ? (
+                        <><Lock className="w-4 h-4 mr-2 shrink-0 text-orange-500" /> Disable 75 Hard</>
+                      ) : (
+                        <><Unlock className="w-4 h-4 mr-2 shrink-0 text-orange-500" /> Enable 75 Hard</>
                       )}
                     </DropdownMenuItem>
                   </>
