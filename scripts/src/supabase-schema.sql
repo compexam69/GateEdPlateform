@@ -1167,7 +1167,7 @@ alter table public.hard75_daily_logs enable row level security;
 drop policy if exists "hard75_daily_logs_own" on public.hard75_daily_logs;
 create policy "hard75_daily_logs_own" on public.hard75_daily_logs
   for select using (user_id = auth.uid());
-create index if not exists idx_hard75_daily_logs_user_date on public.hard75_daily_logs(user_id, date desc);
+create index if not exists idx_hard75_daily_logs_user_date on public.hard75_daily_logs(user_id, "date" desc);
 
 -- 4. hard75_workouts
 create table if not exists public.hard75_workouts (
@@ -1183,7 +1183,7 @@ alter table public.hard75_workouts enable row level security;
 drop policy if exists "hard75_workouts_own" on public.hard75_workouts;
 create policy "hard75_workouts_own" on public.hard75_workouts
   for select using (user_id = auth.uid());
-create index if not exists idx_hard75_workouts_user_date on public.hard75_workouts(user_id, date desc);
+create index if not exists idx_hard75_workouts_user_date on public.hard75_workouts(user_id, "date" desc);
 
 -- 5. hard75_water_logs
 create table if not exists public.hard75_water_logs (
@@ -1285,7 +1285,7 @@ alter table public.hard75_measurements enable row level security;
 drop policy if exists "hard75_measurements_own" on public.hard75_measurements;
 create policy "hard75_measurements_own" on public.hard75_measurements
   for select using (user_id = auth.uid());
-create index if not exists idx_hard75_measurements_user on public.hard75_measurements(user_id, date desc);
+create index if not exists idx_hard75_measurements_user on public.hard75_measurements(user_id, "date" desc);
 
 -- 11. hard75_achievements
 create table if not exists public.hard75_achievements (
