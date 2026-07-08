@@ -1,90 +1,74 @@
 # EdTech Study Platform
 
-A mastery-gated PWA for Indian students (JEE, NEET, GATE) — students cannot skip ahead; every topic is locked until the previous step is completed and passed.
+A full-stack mastery-based learning platform for competitive exam prep (JEE, NEET, GATE). Features course management, quizzes/exams, student progress tracking, a Pomodoro timer, task tracker, and a "75 Hard" study challenge module.
 
-## Run & Operate
+## Architecture
 
-- `pnpm --filter @workspace/edtech run dev` — run the React PWA frontend (port 22495)
-- `pnpm --filter @workspace/api-server run dev` — run the Express API server (port 8080)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
+**Monorepo** managed with PNPM Workspaces.
+
+| Path | Role |
+|---|---|
+| `artifacts/edtech/` | React + Vite frontend (port 5000) |
+| `artifacts/api-server/` | Express backend API (port 8080) |
+| `lib/api-client-react/` | Generated Orval API client (shared) |
+| `lib/api-zod/` | Zod schemas generated from OpenAPI spec |
+| `lib/api-spec/` | OpenAPI spec source |
+| `scripts/` | DB migration & VAPID key generation tools |
+
+## Running the Project
+
+Two workflows must both be running:
+
+- **Backend API** — `cd artifacts/api-server && pnpm dev` (port 8080)
+- **Start application** — `cd artifacts/edtech && pnpm dev` (port 5000, webview)
+
+The Vite dev server proxies `/api/*` to `http://localhost:8080`, so no `VITE_API_URL` is needed in development.
 
 ## Stack
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- **Frontend:** React 18 + Vite, Tailwind CSS, Framer Motion, Zustand, Wouter, Recharts
-- **Auth:** Supabase Auth (email/password + email verification)
-- **DB:** Supabase PostgreSQL + RLS (NOT Replit DB)
-- **File Storage:** Backblaze B2 (PDFs/notes only) + Supabase Storage (profile photos — `avatars` bucket, public)
-- **Backend:** Express 5 API server (Supabase service role key)
-- **Validation:** Zod, Orval codegen from OpenAPI spec
+- **Frontend:** React 19, Vite, TypeScript, Tailwind CSS v4, Radix UI, TanStack Query, Zustand, Wouter
+- **Backend:** Node.js, Express 5, TypeScript, Zod, Pino
+- **Auth/DB:** Supabase (PostgreSQL + Auth + Storage)
+- **File storage:** Backblaze B2
+- **Push notifications:** Web Push (VAPID)
+- **Monitoring:** Sentry (frontend + backend), OpenTelemetry
 
-## Where things live
+## First-Run Prerequisites
 
-- `lib/api-spec/openapi.yaml` — OpenAPI source of truth (all API contracts)
-- `lib/api-client-react/src/generated/` — generated React Query hooks
-- `lib/api-zod/src/generated/` — generated Zod schemas
-- `artifacts/edtech/src/` — React frontend (pages, components, hooks, store)
-- `artifacts/edtech/src/hooks/useAuth.ts` — Zustand auth store (Supabase)
-- `artifacts/edtech/src/lib/supabase.ts` — Supabase browser client
-- `artifacts/api-server/src/routes/` — Express route handlers
-- `artifacts/api-server/src/lib/supabase.ts` — Supabase server client (service role)
-- `artifacts/api-server/src/lib/b2.ts` — Backblaze B2 helpers
-- `scripts/src/supabase-schema.sql` — **Full Supabase SQL schema** (run in Supabase SQL Editor)
+The workflows alone are not enough to make the app fully operational on a fresh Supabase project. Before using the app:
 
-## Architecture decisions
+1. **Apply database migrations** — run the scripts in `scripts/` against your Supabase instance to create all required tables (`profiles`, `subjects`, `chapters`, `quiz_questions`, `push_subscriptions`, etc.).
+2. **Verify Supabase Auth** — ensure email auth is enabled in your Supabase project settings.
 
-- **Serverless-first:** No custom JWT, no Node.js session store. Auth is pure Supabase Auth. Service role key is only used server-side in Express.
-- **Gate enforcement is dual-layer:** Frontend shows locked/unlocked UI states (cosmetic), backend returns HTTP 403 if prerequisites not met (real security).
-- **Backblaze B2 via presigned URLs:** Files never pass through the Express server. Client gets a presigned URL from the API, then uploads/downloads directly to B2.
-- **First user = Super Admin:** A Supabase DB trigger (`handle_new_user`) auto-promotes the first registered user to `super_admin`. All subsequent registrations are `student` with `pending_approval`.
-- **RLS on all tables:** Every table has Row Level Security policies. The API server uses the service role key to bypass RLS where needed (admin operations).
+## Environment Variables & Secrets
 
-## Product
+All configured as Replit Secrets / env vars:
 
-- **Landing:** 5-screen onboarding carousel (Smart Mastery Path, Real Exam Simulation, Video Solutions, Focus Mode, CTA)
-- **Auth:** Register with full name, +91 mobile, email, strong password. Email verification required.
-- **Dashboard:** Focus streak, today's time, progress tree, tasks, performance chart
-- **Learning path:** Subject → Chapter → Topic with 5-step gates (Lecture → Quiz → DPP → PYQs → Topic Test)
-- **Exam interface:** Full-screen, countdown timer, question grid, mark for review, auto-save to IndexedDB (idb), server-time sync every 60s, mobile swipe navigation
-- **Exam results:** Score summary, pie chart, answer sheet with solutions and QR codes
-- **Notes:** Gated PDF upload (unlocked after chapter test), per-user 500MB quota, B2 storage
-- **Pomodoro:** 25/5/15/custom timer modes, streak tracking, context-aware logging, offline session queue (Background Sync)
-- **Study Planner:** Auto-generated + manual tasks, drag-to-reorder, status lifecycle
-- **Test Tracker:** External exam log + line chart (internal vs external scores)
-- **Admin panel:** User approvals, content CRUD (subjects/chapters/topics), analytics, storage monitor
+| Key | Where used | Required |
+|---|---|---|
+| `SUPABASE_URL` | Backend | ✅ |
+| `SUPABASE_SERVICE_ROLE_KEY` | Backend | ✅ |
+| `VITE_SUPABASE_URL` | Frontend | ✅ |
+| `VITE_SUPABASE_ANON_KEY` | Frontend | ✅ |
+| `CSRF_SECRET` | Backend CSRF middleware | ✅ |
+| `SESSION_SECRET` | Backend (auth signing) | ✅ |
+| `VAPID_PUBLIC_KEY` | Backend + Frontend push | Optional |
+| `VAPID_PRIVATE_KEY` | Backend push | Optional |
+| `VAPID_SUBJECT` | Backend push | Optional |
+| `B2_ACCOUNT_ID` | Backend file uploads | Optional |
+| `B2_APPLICATION_KEY_ID` | Backend file uploads | Optional |
+| `B2_APPLICATION_KEY` | Backend file uploads | Optional |
+| `B2_BUCKET_NAME` | Backend file uploads | Optional |
+| `SENTRY_DSN` | Backend error tracking | Optional |
+| `VITE_SENTRY_DSN` | Frontend error tracking | Optional |
 
-## User preferences
+## Key Patterns
 
-- Fully serverless: Supabase + Backblaze B2 only. No Express DB (no DATABASE_URL needed).
-- Dark mode by default. Design system: Deep Slate #0F172A bg, Focus Indigo #6366F1 primary.
-- No emojis in UI — lucide-react icons only.
+- Role/approval status is always read from the `profiles` table, never from Supabase `user_metadata`.
+- CSRF uses the double-submit cookie pattern via `csrf-csrf` v3; token endpoint requires the auth header.
+- B2 file operations use `accountId` from `b2_authorize_account` response, not the raw env var.
+- Shared lib `api-client-react` must have `dist/` generated (`npx tsc -p tsconfig.json` in `lib/api-client-react/`) before frontend typechecks pass.
 
-## Infrastructure (F9 & F11 — manual setup required)
+## User Preferences
 
-### F9: B2 Bucket Lifecycle (file versioning — retain last 3)
-Configure in Backblaze B2 Dashboard → Buckets → your bucket → Lifecycle Rules:
-- Keep only the last 3 versions of each file: set **"Keep prior versions for X days"** to `0` days and **"Number of versions to keep"** to `3`.
-- Or via B2 CLI: `b2 update-bucket --lifecycle-rule '{"daysFromHidingToDeleting":1,"fileNamePrefix":"","daysFromUploadingToHiding":null}' <bucketName> allPrivate`
-
-### F11: CDN in Front of B2 (Cloudflare)
-To serve B2 files through Cloudflare's CDN for lower latency:
-1. Create a **Cloudflare R2** bucket (compatible with B2 S3 API) or set up a **Cloudflare Worker** proxy to your B2 bucket.
-2. Alternatively, point a Cloudflare-proxied CNAME at your B2 bucket's S3-compatible endpoint (`s3.us-west-004.backblazeb2.com`).
-3. Set Cache-Control headers on presigned URL responses: `max-age=3600` for public files.
-4. Update `B2_PUBLIC_BASE_URL` env var to your Cloudflare domain once configured.
-
-## Gotchas
-
-- **MUST run Supabase schema first:** Before the app works end-to-end, run `scripts/src/supabase-schema.sql` in your Supabase project's SQL Editor. This creates all tables, RLS policies, triggers, seed data, and the `avatars` Supabase Storage bucket with its RLS policies.
-- **avatars bucket:** Section 21 of the schema SQL creates the public `avatars` Storage bucket and the four RLS policies required for profile photo upload/update/delete/read. If the bucket was already created manually, re-running the SQL is safe (idempotent `ON CONFLICT` + `DO $$ BEGIN … EXCEPTION WHEN duplicate_object THEN NULL; END $$` guards).
-- **Environment variables:** VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set as shared env vars (VITE_ prefix for frontend access). SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, B2_* are secrets for the API server.
-- **CSRF_SECRET:** Set this secret on the API server for stable CSRF tokens across restarts. Without it, a new random secret is generated each startup, invalidating all CSRF cookies and causing 403 errors on the first mutation after a restart (user just needs to reload). Generate with: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
-- **After OpenAPI spec changes:** Always run `pnpm --filter @workspace/api-spec run codegen` before using updated types.
-- **Gate check latency target:** < 50ms (purely a Supabase RLS lookup, no complex joins).
-
-## Pointers
-
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
-- Supabase project: https://kczzmthgcvirodrnzqnw.supabase.co
+_None recorded yet._
