@@ -2,6 +2,10 @@
 -- SECTION 29: 75 Hard Challenge Module
 -- Run in Supabase SQL Editor after existing sections.
 -- Safe to re-run (all statements are idempotent).
+--
+-- Note: "date" is quoted throughout because it is a reserved
+-- keyword in PostgreSQL and causes parse errors in index /
+-- constraint expressions when left unquoted.
 -- ============================================================
 
 -- 1. hard75_access — which users have been granted module access
@@ -35,7 +39,7 @@ create index if not exists idx_hard75_challenges_user on public.hard75_challenge
 create table if not exists public.hard75_daily_logs (
   id             uuid primary key default gen_random_uuid(),
   user_id        uuid not null references auth.users(id) on delete cascade,
-  date           date not null,
+  "date"         date not null,
   workout1_done  boolean not null default false,
   workout2_done  boolean not null default false,
   water_done     boolean not null default false,
@@ -44,7 +48,7 @@ create table if not exists public.hard75_daily_logs (
   photo_done     boolean not null default false,
   all_done       boolean not null default false,
   created_at     timestamptz not null default now(),
-  unique(user_id, date)
+  unique(user_id, "date")
 );
 alter table public.hard75_daily_logs enable row level security;
 drop policy if exists "hard75_daily_logs_own" on public.hard75_daily_logs;
@@ -56,7 +60,7 @@ create index if not exists idx_hard75_daily_logs_user_date on public.hard75_dail
 create table if not exists public.hard75_workouts (
   id                uuid primary key default gen_random_uuid(),
   user_id           uuid not null references auth.users(id) on delete cascade,
-  date              date not null,
+  "date"            date not null,
   type              text not null check (type in ('indoor', 'outdoor')),
   duration_minutes  int not null default 45,
   notes             text,
@@ -72,11 +76,11 @@ create index if not exists idx_hard75_workouts_user_date on public.hard75_workou
 create table if not exists public.hard75_water_logs (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null references auth.users(id) on delete cascade,
-  date        date not null,
+  "date"      date not null,
   amount_ml   int not null default 0,
   target_ml   int not null default 3785,
   created_at  timestamptz not null default now(),
-  unique(user_id, date)
+  unique(user_id, "date")
 );
 alter table public.hard75_water_logs enable row level security;
 drop policy if exists "hard75_water_logs_own" on public.hard75_water_logs;
@@ -87,12 +91,12 @@ create policy "hard75_water_logs_own" on public.hard75_water_logs
 create table if not exists public.hard75_reading_logs (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null references auth.users(id) on delete cascade,
-  date        date not null,
+  "date"      date not null,
   pages_read  int not null default 0,
   book_title  text,
   notes       text,
   created_at  timestamptz not null default now(),
-  unique(user_id, date)
+  unique(user_id, "date")
 );
 alter table public.hard75_reading_logs enable row level security;
 drop policy if exists "hard75_reading_logs_own" on public.hard75_reading_logs;
@@ -103,11 +107,11 @@ create policy "hard75_reading_logs_own" on public.hard75_reading_logs
 create table if not exists public.hard75_diet_logs (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null references auth.users(id) on delete cascade,
-  date        date not null,
+  "date"      date not null,
   followed    boolean not null default false,
   notes       text,
   created_at  timestamptz not null default now(),
-  unique(user_id, date)
+  unique(user_id, "date")
 );
 alter table public.hard75_diet_logs enable row level security;
 drop policy if exists "hard75_diet_logs_own" on public.hard75_diet_logs;
@@ -118,7 +122,7 @@ create policy "hard75_diet_logs_own" on public.hard75_diet_logs
 create table if not exists public.hard75_progress_photos (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null references auth.users(id) on delete cascade,
-  date        date not null,
+  "date"      date not null,
   day_number  int,
   photo_url   text not null,
   notes       text,
@@ -133,7 +137,7 @@ create policy "hard75_photos_own" on public.hard75_progress_photos
 create table if not exists public.hard75_journals (
   id                 uuid primary key default gen_random_uuid(),
   user_id            uuid not null references auth.users(id) on delete cascade,
-  date               date not null,
+  "date"             date not null,
   day_number         int,
   mood               smallint check (mood between 1 and 5),
   energy             smallint check (energy between 1 and 5),
@@ -142,7 +146,7 @@ create table if not exists public.hard75_journals (
   biggest_challenge  text,
   notes              text,
   created_at         timestamptz not null default now(),
-  unique(user_id, date)
+  unique(user_id, "date")
 );
 alter table public.hard75_journals enable row level security;
 drop policy if exists "hard75_journals_own" on public.hard75_journals;
@@ -153,7 +157,7 @@ create policy "hard75_journals_own" on public.hard75_journals
 create table if not exists public.hard75_measurements (
   id                uuid primary key default gen_random_uuid(),
   user_id           uuid not null references auth.users(id) on delete cascade,
-  date              date not null,
+  "date"            date not null,
   weight_kg         numeric(5,2),
   target_weight_kg  numeric(5,2),
   body_fat_pct      numeric(4,1),
@@ -201,10 +205,10 @@ create policy "hard75_settings_own" on public.hard75_settings
 
 -- 13. hard75_module_settings — global (singleton)
 create table if not exists public.hard75_module_settings (
-  id                   int primary key default 1,
-  enabled_globally     boolean not null default true,
+  id                    int primary key default 1,
+  enabled_globally      boolean not null default true,
   default_water_goal_ml int not null default 3785,
-  updated_at           timestamptz not null default now(),
+  updated_at            timestamptz not null default now(),
   check (id = 1)
 );
 alter table public.hard75_module_settings enable row level security;
