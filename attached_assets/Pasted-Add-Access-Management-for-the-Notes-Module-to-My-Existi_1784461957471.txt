@@ -1,0 +1,487 @@
+Add Access Management for the "Notes" Module to My Existing Web Application
+
+I already have a fully functional web application with an existing User Management system and role-based access control. Add access management for a new module named Notes.
+
+Do NOT create a new project or modify unrelated existing functionality.
+
+The Notes module must follow the same access-management pattern as the 75 Hard module.
+
+---
+
+IMPORTANT IMPLEMENTATION RULE
+
+Before making any changes:
+
+1. Inspect the existing project architecture.
+2. Inspect the existing authentication system.
+3. Inspect the existing role-based access-control system.
+4. Inspect the existing User Management module.
+5. Inspect how the 75 Hard module currently manages access permissions.
+6. Inspect the existing active/inactive user status.
+7. Inspect the existing verified-user status.
+8. Inspect the existing database schema and permission structure.
+9. Inspect the existing API routes, server actions, services, and middleware related to permissions.
+10. Inspect the existing audit/logging system, if available.
+
+Query / Confirmation Rule
+
+Before implementation, determine whether any clarification or query is genuinely required.
+
+If no clarification is required:
+
+Proceed with the implementation directly.
+
+Do not stop unnecessarily to ask questions.
+
+If clarification is required:
+
+Ask only the minimum necessary questions before making changes.
+
+Examples of questions that may be required:
+
+- Which existing permission structure should be extended if multiple permission systems exist?
+- Which existing User Management screen should be modified if there are multiple user-management interfaces?
+- Which existing database structure should be used if the 75 Hard module has multiple access-control implementations?
+
+Do not ask questions whose answers can be determined by inspecting the existing codebase.
+
+Existing Application Should Be the Source of Truth
+
+If the existing application already has a standard way of handling:
+
+- Permissions
+- Roles
+- Active/inactive users
+- Verified users
+- Module access
+- Audit logs
+- Confirmation dialogs
+- Toast notifications
+
+then follow the existing implementation instead of creating a new pattern.
+
+---
+
+ACCESS MANAGEMENT REQUIREMENTS
+
+Super Admin
+
+The Notes module must be enabled for every Super Admin by default.
+
+Every Super Admin should automatically have access to the Notes module without requiring manual activation.
+
+Super Admin can:
+
+- Access the Notes module by default.
+- Create, view, edit, and delete their own notes.
+- Manage Notes access for other users.
+- Enable Notes access for individual users.
+- Disable Notes access for individual users.
+- Enable Notes access for multiple users in bulk.
+- Disable Notes access for multiple users in bulk.
+- Manage Notes access from the existing User Management section.
+
+---
+
+OTHER USER ACCESS
+
+The following users can access the Notes module only when a Super Admin explicitly enables access for them:
+
+- Admin
+- Student
+
+Access must be granted individually from User Management.
+
+Example:
+
+- Admin A → Notes Enabled
+- Admin B → Notes Disabled
+- Student A → Notes Enabled
+- Student B → Notes Disabled
+
+Access must be managed independently for every user.
+
+---
+
+ACTIVE USERS ONLY
+
+The Notes access-management feature must be available only for active users.
+
+Super Admin should be able to enable Notes access only for users who are:
+
+- Active
+- Verified
+- Existing users in the system
+
+Inactive users must not be granted access to the Notes module.
+
+If a user is later deactivated, their access to the Notes module must automatically become unavailable.
+
+When the user becomes active again, handle their previous Notes access permission according to the existing application's permission logic.
+
+---
+
+USER MANAGEMENT INTEGRATION
+
+Integrate Notes access directly into the existing User Management section.
+
+Add a new access status/permission for every eligible active user:
+
+Notes Access
+
+Possible statuses:
+
+- Enabled
+- Disabled
+
+The status should be visible for:
+
+- Super Admin
+- Admin
+- Student
+
+However:
+
+- Super Admin: Enabled by default and cannot lose default access.
+- Admin: Disabled by default until enabled by Super Admin.
+- Student: Disabled by default until enabled by Super Admin.
+
+---
+
+USER MANAGEMENT TABLE
+
+Add a Notes Access column to the existing User Management table.
+
+Example:
+
+User| Role| Status| Verified| Notes Access
+Super Admin| Super Admin| Active| Yes| Enabled
+Admin A| Admin| Active| Yes| Enabled
+Admin B| Admin| Active| Yes| Disabled
+Student A| Student| Active| Yes| Enabled
+Student B| Student| Active| Yes| Disabled
+
+Use the existing table design and UI components.
+
+---
+
+INDIVIDUAL USER ACTIONS
+
+For every eligible active user, Super Admin should be able to:
+
+- Enable Notes
+- Disable Notes
+- View Notes Access Status
+
+For users with Notes access enabled:
+
+- Show an Enabled badge/status.
+
+For users without access:
+
+- Show a Disabled badge/status.
+
+Use existing confirmation dialogs for enabling and disabling access.
+
+---
+
+BULK ACTIONS
+
+Allow Super Admin to select multiple eligible active users and:
+
+- Enable Notes for selected users.
+- Disable Notes for selected users.
+
+Bulk access actions must:
+
+- Apply only to selected users.
+- Respect the user's active and verified status.
+- Show a confirmation before applying changes.
+- Display a success message after completion.
+- Display appropriate error messages if any operation fails.
+
+Super Admin users should always retain their default access.
+
+---
+
+FILTERS
+
+Add Notes-related filters to User Management:
+
+- Notes Enabled
+- Notes Disabled
+- Active Users
+- Inactive Users
+- Verified Users
+- Super Admin
+- Admin
+- Student
+
+The Notes access filter should work together with the existing User Management filters.
+
+---
+
+NOTES MODULE VISIBILITY
+
+The Notes module should appear in the application's sidebar/navigation only for users who have access.
+
+Super Admin
+
+Notes is always visible.
+
+Admin
+
+Notes is visible only when a Super Admin has enabled access.
+
+Student
+
+Notes is visible only when a Super Admin has enabled access.
+
+Inactive Users
+
+Notes must not be accessible while the user is inactive.
+
+---
+
+ROUTE PROTECTION
+
+Protect all Notes routes and pages using the existing authentication and permission system.
+
+A user must not be able to access Notes by manually entering a URL if they do not have permission.
+
+If a user does not have Notes access:
+
+- Hide the Notes navigation item.
+- Block direct URL access.
+- Return an appropriate access-denied state.
+- Do not load private Notes data.
+
+The permission must be checked at both:
+
+- Frontend/UI level
+- Backend/API/database level
+
+---
+
+NOTES DATA PRIVACY
+
+Users should only be able to access their own Notes data unless the existing application specifically provides a separate administrative viewing permission.
+
+By default:
+
+- Admin can access their own notes.
+- Student can access their own notes.
+- Super Admin can manage access permissions.
+- Super Admin should not automatically expose private note content to other users unless an explicit administrative Notes permission is implemented.
+
+Access to the Notes module and access to another user's private Notes content should be treated as separate permissions.
+
+---
+
+DATABASE / PERMISSION STRUCTURE
+
+Reuse the existing permission and User Management architecture wherever possible.
+
+If a separate permission field is required, add a permission such as:
+
+notesAccess: true / false
+
+or integrate it into the existing module-permission structure.
+
+Example:
+
+userPermissions: {
+  75Hard: true,
+  Notes: true
+}
+
+Recommended permission logic:
+
+Super Admin:
+  Notes Access = true by default
+
+Admin:
+  Notes Access = false by default
+  Can become true when enabled by Super Admin
+
+Student:
+  Notes Access = false by default
+  Can become true when enabled by Super Admin
+
+The exact implementation must follow the existing application's database structure and permission architecture.
+
+Do not create duplicate user records or duplicate authentication systems.
+
+---
+
+ACCESS AUDIT LOG
+
+Whenever a Super Admin changes Notes access for another user, record the action in the existing audit/logging system if available.
+
+Record:
+
+- Super Admin who performed the action
+- Target user
+- Action performed
+- Previous access status
+- New access status
+- Date and time
+
+Example actions:
+
+- Notes Access Enabled
+- Notes Access Disabled
+
+---
+
+SECURITY REQUIREMENTS
+
+- Only Super Admin can enable or disable Notes access for other users.
+- Admin cannot grant Notes access to themselves or other users.
+- Student cannot grant Notes access to themselves or other users.
+- Users cannot bypass access restrictions through direct URLs.
+- Users cannot bypass access restrictions through API requests.
+- Inactive users must not access the Notes module.
+- Existing authentication and authorization rules must remain unaffected.
+
+---
+
+INTEGRATION REQUIREMENTS
+
+- Reuse the existing User Management module.
+- Reuse the existing role-based permission system.
+- Reuse existing authentication.
+- Reuse existing active/inactive user status.
+- Reuse existing verified-user status.
+- Reuse existing table components.
+- Reuse existing badges.
+- Reuse existing confirmation dialogs.
+- Reuse existing notifications and toast messages.
+- Reuse existing audit logs where available.
+
+Do not duplicate existing functionality.
+
+---
+
+FINAL ACCESS LOGIC
+
+Implement the following exact logic:
+
+IF user.role === "Super Admin"
+    Notes Access = TRUE by default
+
+ELSE IF user.role === "Admin"
+    Notes Access = TRUE only if Super Admin enables it
+    Otherwise FALSE
+
+ELSE IF user.role === "Student"
+    Notes Access = TRUE only if Super Admin enables it
+    Otherwise FALSE
+
+IF user.status !== "Active"
+    Notes Access = FALSE
+
+IF user.isVerified !== TRUE
+    User is not eligible for Notes access
+
+ONLY Super Admin can:
+    Enable Notes access
+    Disable Notes access
+    Perform bulk Notes access changes
+
+---
+
+VALIDATION AND TESTING REQUIREMENTS
+
+Before completing the implementation, test all important access scenarios.
+
+Test at minimum:
+
+Super Admin
+
+- Can access Notes by default.
+- Can enable Notes for an active verified Admin.
+- Can disable Notes for an active verified Admin.
+- Can enable Notes for an active verified Student.
+- Can disable Notes for an active verified Student.
+- Can perform bulk access changes.
+- Cannot lose default Notes access.
+
+Admin
+
+- Cannot access Notes when disabled.
+- Can access Notes after Super Admin enables it.
+- Cannot enable Notes access for other users.
+- Cannot bypass route protection.
+
+Student
+
+- Cannot access Notes when disabled.
+- Can access Notes after Super Admin enables it.
+- Cannot manage Notes permissions.
+- Cannot bypass route protection.
+
+User Status
+
+- Inactive users cannot access Notes.
+- Unverified users cannot be granted Notes access.
+- Active verified users can receive Notes access.
+
+Security
+
+- Test direct URL access.
+- Test unauthorized API requests.
+- Test permission manipulation attempts.
+- Confirm that private Notes data remains protected.
+
+---
+
+IMPLEMENTATION CHECKPOINT
+
+After completing the implementation and testing, create a checkpoint for this completed feature.
+
+The checkpoint must represent the stable state after:
+
+- Notes access management has been implemented.
+- Super Admin default access has been verified.
+- Admin and Student access control has been verified.
+- Active and verified-user restrictions have been verified.
+- User Management integration has been completed.
+- Individual access management has been tested.
+- Bulk access management has been tested.
+- Route protection has been tested.
+- Backend/API/database permission checks have been tested.
+- Existing application functionality has been verified as unaffected.
+
+The checkpoint should be created only after the implementation is complete and all relevant tests pass.
+
+Use the existing project's checkpoint, versioning, snapshot, commit, or save-state mechanism if one already exists.
+
+If the project already supports checkpoints, create a clearly named checkpoint such as:
+
+Notes Access Management Complete
+
+If the project does not have an existing checkpoint system, create the closest appropriate stable save point according to the project's existing workflow.
+
+The checkpoint must allow the project to safely return to the completed Notes access-management state.
+
+---
+
+FINAL COMPLETION REPORT
+
+After implementation, testing, and checkpoint creation, provide a concise completion summary containing:
+
+- What was implemented.
+- Which existing files/modules were changed.
+- Which permission system was reused or extended.
+- How Super Admin access works.
+- How Admin access works.
+- How Student access works.
+- How active and verified-user restrictions work.
+- What tests were completed.
+- Whether any existing functionality was affected.
+- The name or identifier of the created checkpoint.
+
+If any required information cannot be determined from the existing codebase, ask only the minimum necessary clarification before implementation.
+
+The final result should make Notes a properly permission-controlled module using the same access-management pattern as 75 Hard, while ensuring that Super Admin always has default access and other active verified users receive access only when explicitly enabled by a Super Admin through User Management.

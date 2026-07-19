@@ -246,8 +246,27 @@ export default function AdminUsersPage() {
     staleTime: 30_000,
   });
 
-  // Merge 75 Hard access flag into users
-  const users = rawUsers.map((u: any) => ({ ...u, hard75_enabled: hard75AccessMap[u.id] ?? (u.role === "super_admin") }));
+  const { data: notesAccessMap = {} } = useQuery<Record<string, boolean>>({
+    queryKey: ["notes-admin-access-map"],
+    queryFn: async () => {
+      try {
+        const rows = await apiFetch("/notes/admin/users") as Array<{ id: string; notes_access?: { enabled: boolean } }>;
+        const map: Record<string, boolean> = {};
+        for (const r of rows) map[r.id] = r.notes_access?.enabled ?? false;
+        return map;
+      } catch {
+        return {};
+      }
+    },
+    staleTime: 30_000,
+  });
+
+  // Merge access flags into users
+  const users = rawUsers.map((u: any) => ({
+    ...u,
+    hard75_enabled: hard75AccessMap[u.id] ?? (u.role === "super_admin"),
+    notes_enabled: notesAccessMap[u.id] ?? (u.role === "super_admin"),
+  }));
 
   const { data: userDetail, isLoading: detailLoading } = useQuery<UserDetail>({
     queryKey: ["admin-user-detail", detailUserId],
@@ -376,6 +395,21 @@ export default function AdminUsersPage() {
     },
     onError: (err: unknown) =>
       toast({ title: "Failed to update 75 Hard access", description: (err as Error).message, variant: "destructive" }),
+  });
+
+  const toggleNotesAccess = useMutation({
+    mutationFn: ({ userId, enabled }: { userId: string; enabled: boolean }) =>
+      apiFetch("/notes/admin/access", {
+        method: "POST",
+        body: JSON.stringify({ user_id: userId, enabled }),
+      }),
+    onSuccess: (_data, { enabled }) => {
+      queryClient.invalidateQueries({ queryKey: USERS_KEY });
+      queryClient.invalidateQueries({ queryKey: ["notes-admin-access-map"] });
+      toast({ title: enabled ? "Notes access enabled" : "Notes access disabled" });
+    },
+    onError: (err: unknown) =>
+      toast({ title: "Failed to update Notes access", description: (err as Error).message, variant: "destructive" }),
   });
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -509,6 +543,19 @@ export default function AdminUsersPage() {
                   )}
                 >
                   75H: {(user as any).hard75_enabled ? "On" : "Off"}
+                </Badge>
+              )}
+              {role !== "super_admin" && (
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "text-[10px] px-1.5 py-0",
+                    (user as any).notes_enabled
+                      ? "bg-blue-500/10 text-blue-600 border-blue-500/30"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  Notes: {(user as any).notes_enabled ? "On" : "Off"}
                 </Badge>
               )}
             </div>
@@ -692,6 +739,23 @@ export default function AdminUsersPage() {
                         <><Lock className="w-4 h-4 mr-2 shrink-0 text-orange-500" /> Disable 75 Hard</>
                       ) : (
                         <><Unlock className="w-4 h-4 mr-2 shrink-0 text-orange-500" /> Enable 75 Hard</>
+                      )}
+                    </DropdownMenuItem>
+                  </>
+                )}
+
+                {/* Notes Access — super_admin only, non-super_admin targets */}
+                {!isSelf && currentRole === "super_admin" && role !== "super_admin" && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      disabled={toggleNotesAccess.isPending}
+                      onClick={() => toggleNotesAccess.mutate({ userId, enabled: !(user as any).notes_enabled })}
+                    >
+                      {(user as any).notes_enabled ? (
+                        <><Lock className="w-4 h-4 mr-2 shrink-0 text-blue-500" /> Disable Notes</>
+                      ) : (
+                        <><Unlock className="w-4 h-4 mr-2 shrink-0 text-blue-500" /> Enable Notes</>
                       )}
                     </DropdownMenuItem>
                   </>

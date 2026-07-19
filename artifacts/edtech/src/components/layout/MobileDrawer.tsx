@@ -7,6 +7,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useHard75Access } from "@/hooks/useHard75Access";
+import { useNotesAccess } from "@/hooks/useNotesAccess";
 import {
   Sheet, SheetContent, SheetTitle, SheetDescription,
 } from "@/components/ui/sheet";
@@ -37,13 +38,14 @@ export function MobileDrawer({ open, onClose }: Props) {
   const [location] = useLocation();
   const { user, role, avatarUrl, signOut } = useAuth();
   const { hasAccess: hard75Access } = useHard75Access();
+  const { hasAccess: notesAccess } = useNotesAccess();
   const [imgError, setImgError] = useState(false);
 
   const firstName = user?.user_metadata?.full_name?.split(" ")[0] || "Student";
   const showImage = !!avatarUrl && !imgError;
 
   const links = [
-    ...NAV_LINKS,
+    ...NAV_LINKS.filter(l => l.href !== "/notes" || notesAccess),
     ...(hard75Access ? [{ href: "/75hard", label: "75 Hard", icon: Trophy }] : []),
     ...(role === "admin" || role === "super_admin"
       ? [{ href: "/admin", label: "Admin Panel", icon: ShieldCheck }]

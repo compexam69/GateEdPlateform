@@ -3,6 +3,7 @@ import { BookOpen, Home, Settings, Timer, CheckSquare, LineChart, FileText, Shie
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useHard75Access } from "@/hooks/useHard75Access";
+import { useNotesAccess } from "@/hooks/useNotesAccess";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useState } from "react";
 
@@ -10,6 +11,7 @@ export function Sidebar() {
   const [location] = useLocation();
   const { role, user, avatarUrl } = useAuth();
   const { hasAccess: hard75Access } = useHard75Access();
+  const { hasAccess: notesAccess } = useNotesAccess();
 
   // Local error flag: if the image fails to load (broken URL, network error)
   // fall back to the initials avatar without touching the global store.
@@ -21,7 +23,7 @@ export function Sidebar() {
     { href: "/tasks", label: "Planner", icon: CheckSquare },
     { href: "/pomodoro", label: "Focus Timer", icon: Timer },
     { href: "/tests", label: "Tests", icon: BookOpenCheck },
-    { href: "/notes", label: "Notes", icon: FileText },
+    ...(notesAccess ? [{ href: "/notes", label: "Notes", icon: FileText }] : []),
     { href: "/tracker", label: "Tracker", icon: LineChart },
     { href: "/profile", label: "Profile", icon: Settings },
   ];

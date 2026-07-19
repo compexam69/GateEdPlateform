@@ -1,15 +1,54 @@
 import express, { Router } from "express";
 import { supabase } from "../lib/supabase";
 import { getUploadPresignedUrl, getDownloadPresignedUrl, deleteB2File, generateStoragePath } from "../lib/b2";
-import { requireAuth, type AuthRequest } from "../middlewares/auth";
+import { requireAuth, requireAdmin, requireSuperAdmin, type AuthRequest } from "../middlewares/auth";
 import { logger } from "../lib/logger";
-import { isValidUuid } from "../lib/sanitize";
+import { isValidUuid, capText, MAX } from "../lib/sanitize";
 
 const router = Router();
 
 const PER_USER_LIMIT = 500 * 1024 * 1024; // 500 MB
 
-router.get("/notes", requireAuth, async (req: AuthRequest, res) => {
+// ── Notes access helpers ──────────────────────────────────────────────────────
+
+async function hasNotesAccess(userId: string, role: string): Promise<boolean> {
+  if (role === "super_admin") return true;
+  const { data } = await supabase
+    .from("notes_access")
+    .select("enabled")
+    .eq("user_id", userId)
+    .maybeSingle();
+  return data?.enabled === true;
+}
+
+async function requireNotesAccess(req: AuthRequest, res: any, next: any) {
+  const user = req.user!;
+  const ok = await hasNotesAccess(user.id, user.role);
+  if (!ok) {
+    res.status(403).json({ error: "Notes access not enabled for your account." });
+    return;
+  }
+  next();
+}
+
+// ── Self-check: GET /notes/access ─────────────────────────────────────────────
+router.get("/notes/access", requireAuth, async (req: AuthRequest, res) => {
+  const user = req.user!;
+  if (user.role === "super_admin") {
+    res.json({ enabled: true, role: user.role });
+    return;
+  }
+  const { data } = await supabase
+    .from("notes_access")
+    .select("enabled, enabled_at")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  res.json({ enabled: data?.enabled === true, role: user.role, enabled_at: data?.enabled_at ?? null });
+});
+
+// ── Notes CRUD ────────────────────────────────────────────────────────────────
+
+router.get("/notes", requireAuth, requireNotesAccess, async (req: AuthRequest, res) => {
   const { data, error } = await supabase
     .from("user_notes")
     .select("*")
@@ -19,7 +58,7 @@ router.get("/notes", requireAuth, async (req: AuthRequest, res) => {
   res.json(data ?? []);
 });
 
-router.delete("/notes/:noteId", requireAuth, async (req: AuthRequest, res) => {
+router.delete("/notes/:noteId", requireAuth, requireNotesAccess, async (req: AuthRequest, res) => {
   const { data: note } = await supabase
     .from("user_notes")
     .select("*")
@@ -44,6 +83,7 @@ router.delete("/notes/:noteId", requireAuth, async (req: AuthRequest, res) => {
 router.post(
   "/b2/notes-upload",
   requireAuth,
+  requireNotesAccess,
   express.raw({ type: "*/*", limit: "50mb" }),
   async (req: AuthRequest, res) => {
     const userId = req.user!.id;
@@ -195,7 +235,7 @@ router.post("/b2/download-url", requireAuth, async (req: AuthRequest, res) => {
 // ── Server-side PDF proxy (for react-pdf inline rendering) ───────────────────
 // Fetches the PDF from B2 server-side and streams it to the client.
 // This avoids CORS issues when pdfjs-dist fetches PDFs directly from B2.
-router.get("/b2/pdf-proxy", requireAuth, async (req: AuthRequest, res) => {
+router.get("/b2/pdf-proxy", requireAuth, requireNotesAccess, async (req: AuthRequest, res) => {
   const { storage_path } = req.query as { storage_path?: string };
   const userId = req.user!.id;
 
@@ -248,7 +288,7 @@ router.get("/b2/pdf-proxy", requireAuth, async (req: AuthRequest, res) => {
 // the Supabase JS client. No Express proxy is needed — Supabase Storage handles
 // CORS natively. See ProfilePage.tsx for the upload/delete logic.
 
-router.get("/b2/quota", requireAuth, async (req: AuthRequest, res) => {
+router.get("/b2/quota", requireAuth, requireNotesAccess, async (req: AuthRequest, res) => {
   const userId = req.user!.id;
   const { data } = await supabase
     .from("user_notes")
@@ -262,6 +302,79 @@ router.get("/b2/quota", requireAuth, async (req: AuthRequest, res) => {
     used_percentage: (used / PER_USER_LIMIT) * 100,
     file_count: files,
   });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// NOTES ADMIN ROUTES (super_admin only)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** GET /api/notes/admin/users — list users with notes access status */
+router.get("/notes/admin/users", requireAdmin, async (req: AuthRequest, res) => {
+  const { data: profiles, error } = await supabase
+    .from("profiles")
+    .select("id, full_name, email, role, is_approved, status")
+    .order("created_at", { ascending: false })
+    .limit(500);
+
+  if (error) { res.status(500).json({ error: error.message }); return; }
+
+  const { data: accessRows } = await supabase
+    .from("notes_access")
+    .select("user_id, enabled, enabled_at");
+
+  const accessMap = new Map((accessRows ?? []).map((a: any) => [a.user_id, a]));
+
+  const users = (profiles ?? []).map((p: any) => ({
+    ...p,
+    notes_access: p.role === "super_admin"
+      ? { enabled: true, enabled_at: null }
+      : (accessMap.get(p.id) ?? { enabled: false, enabled_at: null }),
+  }));
+
+  res.json(users);
+});
+
+/** POST /api/notes/admin/access — enable/disable notes access for a user */
+router.post("/notes/admin/access", requireSuperAdmin, async (req: AuthRequest, res) => {
+  const actor = req.user!;
+  const targetId = capText(req.body.user_id, MAX.UUID);
+  if (!targetId || !isValidUuid(targetId)) { res.status(400).json({ error: "Invalid user_id" }); return; }
+  const enabled = req.body.enabled === true || req.body.enabled === "true";
+
+  const { data: profile } = await supabase.from("profiles").select("id,role").eq("id", targetId).maybeSingle();
+  if (!profile) { res.status(404).json({ error: "User not found" }); return; }
+  if (profile.role === "super_admin") { res.status(400).json({ error: "Cannot modify super admin access" }); return; }
+
+  const { error } = await supabase
+    .from("notes_access")
+    .upsert(
+      { user_id: targetId, enabled, enabled_by: actor.id, enabled_at: new Date().toISOString() },
+      { onConflict: "user_id" }
+    );
+
+  if (error) { res.status(500).json({ error: error.message }); return; }
+  res.json({ message: `Notes access ${enabled ? "enabled" : "disabled"}` });
+});
+
+/** POST /api/notes/admin/bulk — bulk enable/disable notes access */
+router.post("/notes/admin/bulk", requireSuperAdmin, async (req: AuthRequest, res) => {
+  const actor = req.user!;
+  const userIds: string[] = Array.isArray(req.body.user_ids) ? req.body.user_ids : [];
+  const enabled = req.body.enabled === true || req.body.enabled === "true";
+
+  const validIds = userIds.filter(id => isValidUuid(id));
+  if (validIds.length === 0) { res.status(400).json({ error: "No valid user IDs" }); return; }
+
+  const rows = validIds.map(id => ({
+    user_id: id,
+    enabled,
+    enabled_by: actor.id,
+    enabled_at: new Date().toISOString(),
+  }));
+
+  const { error } = await supabase.from("notes_access").upsert(rows, { onConflict: "user_id" });
+  if (error) { res.status(500).json({ error: error.message }); return; }
+  res.json({ message: `Bulk ${enabled ? "enabled" : "disabled"} notes access for ${validIds.length} users` });
 });
 
 export default router;

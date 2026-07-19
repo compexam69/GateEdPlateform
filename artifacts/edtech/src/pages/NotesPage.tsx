@@ -15,10 +15,12 @@ import { getApiBase } from "@/lib/api";
 import type { Note } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { useRef, useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import { Progress } from "@/components/ui/progress";
 import { format } from "date-fns";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
+import { useNotesAccess } from "@/hooks/useNotesAccess";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Document, Page, pdfjs } from "react-pdf";
@@ -326,9 +328,28 @@ function PdfViewer({ note, onClose, onDownload, downloading }: PdfViewerProps) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function NotesPage() {
+  const [, setLocation] = useLocation();
+  const { hasAccess, isLoading: accessLoading } = useNotesAccess();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
+
+  // Redirect to dashboard if access not granted (wait until the check resolves)
+  useEffect(() => {
+    if (!accessLoading && !hasAccess) {
+      setLocation("/dashboard");
+    }
+  }, [hasAccess, accessLoading, setLocation]);
+
+  if (accessLoading || !hasAccess) {
+    return (
+      <AppLayout>
+        <div className="flex h-64 items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </div>
+      </AppLayout>
+    );
+  }
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
