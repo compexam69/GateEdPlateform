@@ -4,7 +4,8 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BookOpen, ArrowLeft, CheckCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle } from "lucide-react";
+import { Logo } from "@/components/Logo";
 import { useToast } from "@/hooks/use-toast";
 
 export default function ForgotPasswordPage() {
@@ -34,8 +35,8 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
-          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-            <BookOpen className="w-8 h-8 text-primary" />
+          <div className="flex justify-center mb-4">
+            <Logo size={72} />
           </div>
           <h2 className="text-3xl font-bold tracking-tight">Reset your password</h2>
           <p className="text-muted-foreground mt-2">

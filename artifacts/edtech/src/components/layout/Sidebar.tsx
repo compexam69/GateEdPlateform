@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useHard75Access } from "@/hooks/useHard75Access";
 import { useNotesAccess } from "@/hooks/useNotesAccess";
 import { NotificationBell } from "@/components/NotificationBell";
+import { Logo } from "@/components/Logo";
 import { useState } from "react";
 
 export function Sidebar() {
@@ -45,11 +46,18 @@ export function Sidebar() {
   return (
     <div className="w-64 h-full border-r border-border bg-card flex flex-col">
       {/* Logo + Notifications */}
-      <div className="px-5 py-4 flex items-center justify-between border-b border-border">
-        <h1 className="text-lg font-bold text-primary flex items-center gap-2">
-          <BookOpen className="w-5 h-5" />
-          <span>EdTech</span>
-        </h1>
+      <div className="px-4 py-3 flex items-center justify-between border-b border-border">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <Logo size={40} className="shrink-0" />
+          <div className="leading-tight min-w-0">
+            <p className="text-[11px] font-extrabold text-foreground tracking-tight truncate">
+              One Step Coaching
+            </p>
+            <p className="text-[10px] font-semibold text-muted-foreground tracking-widest uppercase truncate">
+              Classes
+            </p>
+          </div>
+        </div>
         <NotificationBell />
       </div>
 

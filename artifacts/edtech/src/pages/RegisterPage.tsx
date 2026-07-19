@@ -19,7 +19,6 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Eye,
   EyeOff,
-  BookOpen,
   CheckCircle,
   XCircle,
   Mail,
@@ -28,6 +27,7 @@ import {
   Loader2,
   Check,
 } from "lucide-react";
+import { Logo } from "@/components/Logo";
 
 const registerSchema = z.object({
   fullName: z
@@ -160,10 +160,10 @@ function RegistrationSuccess({ email }: { email: string }) {
         transition={{ duration: 0.35, ease: "easeOut" }}
       >
         <div className="text-center mb-6">
-          <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-3 ring-1 ring-primary/20">
-            <BookOpen className="w-6 h-6 text-primary" />
+          <div className="flex justify-center mb-2">
+            <Logo size={60} />
           </div>
-          <h1 className="text-xl font-bold tracking-tight text-foreground">EdTech</h1>
+          <h1 className="text-xl font-bold tracking-tight text-foreground">One Step Coaching Classes</h1>
         </div>
 
         <div className="rounded-2xl border border-border bg-card shadow-sm p-5 space-y-4">
@@ -292,14 +292,14 @@ export default function RegisterPage() {
         {/* Logo + brand — compact */}
         <div className="text-center mb-4">
           <motion.div
-            className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-2.5 ring-1 ring-primary/20"
+            className="flex justify-center mb-2"
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.1, duration: 0.35, ease: "easeOut" }}
           >
-            <BookOpen className="w-6 h-6 text-primary" />
+            <Logo size={72} />
           </motion.div>
-          <h1 className="text-xl font-bold tracking-tight text-foreground">EdTech</h1>
+          <h1 className="text-xl font-bold tracking-tight text-foreground">One Step Coaching Classes</h1>
           <p className="text-xs text-muted-foreground mt-0.5">Join students preparing for JEE, NEET &amp; GATE</p>
         </div>
 

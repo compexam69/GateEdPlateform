@@ -3,6 +3,7 @@ import {
   BookOpen, Home, Timer, CheckSquare,
   FileText, LineChart, Settings, ShieldCheck, LogOut, BookOpenCheck, Trophy,
 } from "lucide-react";
+import { Logo } from "@/components/Logo";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -61,9 +62,16 @@ export function MobileDrawer({ open, onClose }: Props) {
 
         {/* ── App logo ─────────────────────────────────────────── */}
         <div className="px-5 pt-5 pb-4 border-b border-border">
-          <div className="flex items-center gap-2 text-primary font-bold mb-4 select-none">
-            <BookOpen className="w-5 h-5" />
-            <span className="text-base tracking-tight">EdTech</span>
+          <div className="flex items-center gap-2.5 mb-4 select-none">
+            <Logo size={44} className="shrink-0" />
+            <div className="leading-tight">
+              <p className="text-[12px] font-extrabold text-foreground tracking-tight">
+                One Step Coaching
+              </p>
+              <p className="text-[10px] font-semibold text-muted-foreground tracking-widest uppercase">
+                Classes
+              </p>
+            </div>
           </div>
 
           {/* User profile chip — taps to profile page */}

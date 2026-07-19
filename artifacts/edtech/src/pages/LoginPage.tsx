@@ -16,7 +16,8 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, AlertCircle, BookOpen, Loader2 } from "lucide-react";
+import { Eye, EyeOff, AlertCircle, Loader2 } from "lucide-react";
+import { Logo } from "@/components/Logo";
 import { getApiBase } from "@/lib/api";
 
 const loginSchema = z.object({
@@ -106,14 +107,14 @@ export default function LoginPage() {
         {/* Logo + brand */}
         <div className="text-center mb-8">
           <motion.div
-            className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4 ring-1 ring-primary/20"
+            className="flex justify-center mb-3"
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.1, duration: 0.35, ease: "easeOut" }}
           >
-            <BookOpen className="w-8 h-8 text-primary" />
+            <Logo size={88} />
           </motion.div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">EdTech</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">One Step Coaching Classes</h1>
           <p className="text-sm text-muted-foreground mt-1">Welcome back. Continue your learning journey.</p>
         </div>
 
