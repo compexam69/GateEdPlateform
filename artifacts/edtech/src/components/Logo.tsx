@@ -6,13 +6,18 @@ interface LogoProps {
 
 export function Logo({ size = 40, className = "" }: LogoProps) {
   return (
-    <img
-      src="/logo.jpeg"
-      alt="One Step EdPlateform"
-      width={size}
-      height={size}
-      className={`rounded-full object-cover shrink-0 ${className}`}
-      draggable={false}
-    />
+    <div
+      className={`rounded-full overflow-hidden shrink-0 ${className}`}
+      style={{ width: size, height: size }}
+    >
+      <img
+        src="/logo.jpeg"
+        alt="One Step EdPlateform"
+        width={size}
+        height={size}
+        className="w-full h-full object-cover scale-125"
+        draggable={false}
+      />
+    </div>
   );
 }
