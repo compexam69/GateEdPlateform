@@ -5,7 +5,7 @@ import { apiFetch } from "@/lib/api";
 import { BarChart2, Flame, Trophy, TrendingUp, Loader2 } from "lucide-react";
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  CartesianGrid, Cell, Legend,
+  CartesianGrid, Cell,
 } from "recharts";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -53,22 +53,22 @@ export default function Hard75AnalyticsPage() {
 
   return (
     <Hard75Layout>
-      <div className="space-y-6">
+      <div className="space-y-5">
         <h1 className="text-xl font-bold">Analytics</h1>
 
         {/* Key metrics */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { icon: Trophy,    label: "Completion",    value: `${data?.completionPct ?? 0}%`, color: "text-primary" },
-            { icon: Flame,     label: "Current Streak", value: `${data?.currentStreak ?? 0}d`, color: "text-orange-500" },
-            { icon: TrendingUp,label: "Longest Streak", value: `${data?.longestStreak ?? 0}d`, color: "text-green-500" },
-            { icon: BarChart2, label: "Days Complete",  value: `${data?.completedDays ?? 0}/75`, color: "text-foreground" },
+            { icon: Trophy,     label: "Completion",     value: `${data?.completionPct ?? 0}%`,   color: "text-primary" },
+            { icon: Flame,      label: "Current Streak", value: `${data?.currentStreak ?? 0}d`,   color: "text-orange-500" },
+            { icon: TrendingUp, label: "Longest Streak", value: `${data?.longestStreak ?? 0}d`,   color: "text-green-500" },
+            { icon: BarChart2,  label: "Days Complete",  value: `${data?.completedDays ?? 0}/75`, color: "text-foreground" },
           ].map(({ icon: Icon, label, value, color }) => (
             <Card key={label}>
               <CardContent className="p-4 text-center">
                 <Icon className={cn("w-4 h-4 mx-auto mb-1", color)} />
                 <p className={cn("text-xl font-bold", color)}>{value}</p>
-                <p className="text-xs text-muted-foreground">{label}</p>
+                <p className="text-xs text-muted-foreground leading-tight">{label}</p>
               </CardContent>
             </Card>
           ))}
@@ -76,11 +76,11 @@ export default function Hard75AnalyticsPage() {
 
         {/* Task completion breakdown */}
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base">Task Completion Breakdown</CardTitle></CardHeader>
+          <CardHeader className="pb-2 pt-4"><CardTitle className="text-base">Task Completion Breakdown</CardTitle></CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={180}>
+            <ResponsiveContainer width="100%" height={190}>
               <BarChart data={taskData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                <XAxis dataKey="name" tick={{ fontSize: 9 }} interval={0} angle={-15} textAnchor="end" height={40} />
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip formatter={(v: any) => [`${v} days`]} />
                 <Bar dataKey="value" radius={[4, 4, 0, 0]}>
@@ -96,14 +96,14 @@ export default function Hard75AnalyticsPage() {
         {/* Weekly performance */}
         {weekly.length > 0 && (
           <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-base">Last 7 Days</CardTitle></CardHeader>
+            <CardHeader className="pb-2 pt-4"><CardTitle className="text-base">Last 7 Days</CardTitle></CardHeader>
             <CardContent>
               <div className="grid grid-cols-7 gap-1">
                 {weekly.map((day: any) => (
                   <div key={day.date} className="flex flex-col items-center gap-1">
-                    <span className="text-xs text-muted-foreground">{format(new Date(day.date + "T00:00:00"), "EEE")}</span>
+                    <span className="text-[10px] text-muted-foreground">{format(new Date(day.date + "T00:00:00"), "EEE")}</span>
                     <div className={cn(
-                      "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold",
+                      "w-full aspect-square max-w-[36px] rounded-full flex items-center justify-center text-xs font-bold",
                       day.done ? "bg-green-500/20 text-green-600" : "bg-muted text-muted-foreground"
                     )}>
                       {day.done ? "✓" : "✗"}
@@ -119,7 +119,7 @@ export default function Hard75AnalyticsPage() {
         {/* Water trend */}
         {waterHistory.length > 0 && (
           <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-base">Water Intake (Liters)</CardTitle></CardHeader>
+            <CardHeader className="pb-2 pt-4"><CardTitle className="text-base">Water Intake (Liters)</CardTitle></CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={150}>
                 <LineChart data={waterHistory} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
@@ -138,7 +138,7 @@ export default function Hard75AnalyticsPage() {
         {/* Reading trend */}
         {readingHistory.length > 0 && (
           <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-base">Pages Read per Day</CardTitle></CardHeader>
+            <CardHeader className="pb-2 pt-4"><CardTitle className="text-base">Pages Read per Day</CardTitle></CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={150}>
                 <BarChart data={readingHistory} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
@@ -152,21 +152,21 @@ export default function Hard75AnalyticsPage() {
           </Card>
         )}
 
-        {/* Super Admin: Global Analytics */}
+        {/* Super Admin */}
         {isSuperAdmin && adminData && (
           <Card className="border-primary/30">
-            <CardHeader className="pb-2"><CardTitle className="text-base text-primary">Global Analytics (Admin)</CardTitle></CardHeader>
+            <CardHeader className="pb-2 pt-4"><CardTitle className="text-base text-primary">Global Analytics (Admin)</CardTitle></CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {[
-                  { label: "Enabled Users",  value: adminData.enabledUsers },
+                  { label: "Enabled Users",     value: adminData.enabledUsers },
                   { label: "Active Challenges", value: adminData.activeCount },
-                  { label: "Completed",      value: adminData.completedCount },
-                  { label: "Weekly Active",  value: adminData.weeklyDau },
+                  { label: "Completed",         value: adminData.completedCount },
+                  { label: "Weekly Active",     value: adminData.weeklyDau },
                 ].map(({ label, value }) => (
-                  <div key={label} className="text-center p-3 bg-muted/30 rounded-lg">
+                  <div key={label} className="text-center p-3 bg-muted/40 rounded-xl">
                     <p className="text-xl font-bold text-primary">{value}</p>
-                    <p className="text-xs text-muted-foreground">{label}</p>
+                    <p className="text-xs text-muted-foreground leading-tight mt-0.5">{label}</p>
                   </div>
                 ))}
               </div>

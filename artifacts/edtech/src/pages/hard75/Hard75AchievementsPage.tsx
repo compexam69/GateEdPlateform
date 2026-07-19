@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Hard75Layout } from "./Hard75Layout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { apiFetch } from "@/lib/api";
 import { Trophy, Star, Loader2, Lock } from "lucide-react";
@@ -40,18 +40,18 @@ export default function Hard75AchievementsPage() {
 
   return (
     <Hard75Layout>
-      <div className="space-y-6">
+      <div className="space-y-5">
         <h1 className="text-xl font-bold">Achievements</h1>
 
         {/* XP / Level card */}
         <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
-          <CardContent className="p-6">
+          <CardContent className="p-5 sm:p-6">
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                <span className="text-2xl font-black text-primary">L{level}</span>
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                <span className="text-xl sm:text-2xl font-black text-primary">L{level}</span>
               </div>
-              <div className="flex-1">
-                <div className="flex items-center justify-between mb-1">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between mb-1 flex-wrap gap-1">
                   <span className="text-sm font-medium">Level {level}</span>
                   <span className="text-xs text-muted-foreground">{totalXp} XP total</span>
                 </div>

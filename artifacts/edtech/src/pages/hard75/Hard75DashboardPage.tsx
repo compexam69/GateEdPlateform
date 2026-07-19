@@ -7,7 +7,7 @@ import { apiFetch } from "@/lib/api";
 import {
   Flame, Trophy, Target, Calendar, CheckCircle2, Circle,
   Droplets, Dumbbell, BookOpen, Salad, Camera, PlayCircle, RotateCcw,
-  Quote, TrendingUp,
+  Quote, TrendingUp, CheckSquare,
 } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -99,27 +99,32 @@ export default function Hard75DashboardPage() {
   if (!challenge) {
     return (
       <Hard75Layout>
-        <div className="flex flex-col items-center justify-center py-20 gap-6 text-center">
+        <div className="flex flex-col items-center justify-center py-12 gap-6 text-center">
           <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
             <Trophy className="w-10 h-10 text-primary" />
           </div>
           <div>
             <h1 className="text-2xl font-bold mb-2">75 Hard Challenge</h1>
-            <p className="text-muted-foreground max-w-md">
+            <p className="text-muted-foreground max-w-sm mx-auto text-sm leading-relaxed">
               The 75 Hard program is a transformative mental and physical challenge. Complete all 6 tasks every day for 75 days — no exceptions, no substitutions.
             </p>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-w-lg w-full text-sm">
-            {["2 Workouts (45min+)", "1 Workout Outdoors", "1 Gallon of Water", "10 Pages of Reading", "Follow a Diet", "Progress Photo"].map(t => (
-              <div key={t} className="flex items-center gap-2 p-3 rounded-lg bg-muted/40 text-muted-foreground">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-sm text-sm">
+            {["2 Workouts (45 min+)", "1 Workout Outdoors", "1 Gallon of Water", "10 Pages of Reading", "Follow a Diet", "Progress Photo"].map(t => (
+              <div key={t} className="flex items-center gap-2 p-3 rounded-xl bg-muted/50 text-muted-foreground">
                 <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
                 <span>{t}</span>
               </div>
             ))}
           </div>
-          <Button size="lg" onClick={() => startChallenge.mutate()} disabled={startChallenge.isPending}>
+          <Button
+            size="lg"
+            className="w-full sm:w-auto min-h-[52px] text-base px-8"
+            onClick={() => startChallenge.mutate()}
+            disabled={startChallenge.isPending}
+          >
             <PlayCircle className="w-5 h-5 mr-2" />
-            {startChallenge.isPending ? "Starting..." : "Start the Challenge"}
+            {startChallenge.isPending ? "Starting…" : "Start the Challenge"}
           </Button>
         </div>
       </Hard75Layout>
@@ -128,14 +133,15 @@ export default function Hard75DashboardPage() {
 
   return (
     <Hard75Layout>
-      <div className="space-y-6">
+      <div className="space-y-5">
+
         {/* Header stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { icon: Calendar,   label: "Current Day",    value: `Day ${currentDay}`,        color: "text-primary" },
-            { icon: Target,     label: "Days Remaining", value: `${remainingDays} left`,    color: "text-foreground" },
-            { icon: Flame,      label: "Current Streak", value: `${currentStreak} days`,    color: "text-orange-500" },
-            { icon: TrendingUp, label: "Completion",     value: `${completionPct}%`,        color: "text-green-500" },
+            { icon: Calendar,    label: "Current Day",    value: `Day ${currentDay}`,      color: "text-primary" },
+            { icon: Target,      label: "Days Remaining", value: `${remainingDays} left`,  color: "text-foreground" },
+            { icon: Flame,       label: "Streak",         value: `${currentStreak}d`,      color: "text-orange-500" },
+            { icon: TrendingUp,  label: "Completion",     value: `${completionPct}%`,      color: "text-green-500" },
           ].map(({ icon: Icon, label, value, color }) => (
             <Card key={label}>
               <CardContent className="p-4 text-center">
@@ -155,11 +161,11 @@ export default function Hard75DashboardPage() {
                 <p className="text-sm font-medium">{format(new Date(), "EEEE, MMMM d")}</p>
                 <p className="text-xs text-muted-foreground">Today's progress</p>
               </div>
-              <Badge variant={today?.allDone ? "default" : "secondary"}>
+              <Badge variant={today?.allDone ? "default" : "secondary"} className="shrink-0">
                 {doneTasks}/6 tasks
               </Badge>
             </div>
-            <div className="h-2 bg-muted rounded-full overflow-hidden">
+            <div className="h-2.5 bg-muted rounded-full overflow-hidden">
               <div
                 className="h-full bg-primary rounded-full transition-all duration-500"
                 style={{ width: `${(doneTasks / 6) * 100}%` }}
@@ -177,31 +183,39 @@ export default function Hard75DashboardPage() {
         <Card className="bg-primary/5 border-primary/20">
           <CardContent className="p-4 flex gap-3">
             <Quote className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-            <p className="text-sm text-foreground italic">{getTodayQuote()}</p>
+            <p className="text-sm text-foreground italic leading-relaxed">{getTodayQuote()}</p>
           </CardContent>
         </Card>
 
         {/* Today's tasks */}
         <div>
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Today's Tasks</h2>
+          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Today's Tasks</h2>
           <div className="grid gap-2">
             {tasks.map(({ key, label, icon: Icon, done, href }) => (
               <button
                 key={key}
                 onClick={() => setLocation(href)}
-                className="w-full"
+                className="w-full text-left"
               >
-                <Card className={cn("transition-all hover:border-primary/50 cursor-pointer", done && "opacity-70")}>
-                  <CardContent className="p-3 flex items-center gap-3">
+                <Card className={cn(
+                  "transition-all active:scale-[0.99]",
+                  "hover:border-primary/40 cursor-pointer",
+                  done && "opacity-70"
+                )}>
+                  <CardContent className="p-4 flex items-center gap-3 min-h-[56px]">
                     {done
                       ? <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
-                      : <Circle className="w-5 h-5 text-muted-foreground/50 shrink-0" />
+                      : <Circle className="w-5 h-5 text-muted-foreground/40 shrink-0" />
                     }
                     <Icon className="w-4 h-4 text-muted-foreground shrink-0" />
-                    <span className={cn("text-sm flex-1 text-left", done && "line-through text-muted-foreground")}>
+                    <span className={cn("text-sm flex-1", done && "line-through text-muted-foreground")}>
                       {label}
                     </span>
-                    {done && <Badge variant="outline" className="text-green-600 border-green-600/30 bg-green-500/10 text-xs">Done</Badge>}
+                    {done && (
+                      <Badge variant="outline" className="text-green-600 border-green-600/30 bg-green-500/10 text-xs shrink-0">
+                        Done
+                      </Badge>
+                    )}
                   </CardContent>
                 </Card>
               </button>
@@ -210,36 +224,40 @@ export default function Hard75DashboardPage() {
         </div>
 
         {/* Quick actions */}
-        <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" size="sm" onClick={() => setLocation("/75hard/tasks")}>
+        <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
+          <Button
+            variant="outline"
+            className="min-h-[44px]"
+            onClick={() => setLocation("/75hard/tasks")}
+          >
             <CheckSquare className="w-4 h-4 mr-1.5" /> Log Tasks
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setLocation("/75hard/journal")}>
+          <Button
+            variant="outline"
+            className="min-h-[44px]"
+            onClick={() => setLocation("/75hard/journal")}
+          >
             <BookOpen className="w-4 h-4 mr-1.5" /> Journal
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setLocation("/75hard/analytics")}>
+          <Button
+            variant="outline"
+            className="min-h-[44px]"
+            onClick={() => setLocation("/75hard/analytics")}
+          >
             <TrendingUp className="w-4 h-4 mr-1.5" /> Analytics
           </Button>
           <Button
-            variant="ghost" size="sm"
-            className="text-muted-foreground ml-auto"
+            variant="ghost"
+            className="min-h-[44px] text-muted-foreground"
             onClick={() => restartChallenge.mutate()}
             disabled={restartChallenge.isPending}
           >
             <RotateCcw className="w-4 h-4 mr-1.5" />
-            {restartChallenge.isPending ? "Restarting..." : "Restart"}
+            {restartChallenge.isPending ? "Restarting…" : "Restart"}
           </Button>
         </div>
+
       </div>
     </Hard75Layout>
-  );
-}
-
-// Needed for icon reference
-function CheckSquare(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-    </svg>
   );
 }

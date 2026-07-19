@@ -83,13 +83,13 @@ export default function Hard75ReportsPage() {
 
   return (
     <Hard75Layout>
-      <div className="space-y-6">
+      <div className="space-y-5">
         <h1 className="text-xl font-bold">Reports</h1>
 
         {/* Summary card */}
         {challenge && (
           <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-base">Challenge Summary</CardTitle></CardHeader>
+            <CardHeader className="pb-2 pt-4"><CardTitle className="text-base">Challenge Summary</CardTitle></CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
                 {[
@@ -100,7 +100,7 @@ export default function Hard75ReportsPage() {
                   { label: "Streak",        value: `${data?.currentStreak ?? 0} days` },
                   { label: "Best Streak",   value: `${data?.longestStreak ?? 0} days` },
                 ].map(({ label, value }) => (
-                  <div key={label} className="p-3 bg-muted/30 rounded-lg">
+                  <div key={label} className="p-3 bg-muted/30 rounded-xl">
                     <p className="text-xs text-muted-foreground">{label}</p>
                     <p className="font-semibold mt-0.5">{value}</p>
                   </div>
@@ -112,19 +112,19 @@ export default function Hard75ReportsPage() {
 
         {/* Report downloads */}
         <div className="space-y-3">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Export Reports</h2>
+          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Export Reports</h2>
           {REPORTS.map(({ title, desc, action, badge }) => (
             <Card key={title}>
-              <CardContent className="p-4 flex items-center gap-3">
+              <CardContent className="p-4 flex items-center gap-3 flex-wrap sm:flex-nowrap">
                 <FileText className="w-5 h-5 text-primary shrink-0" />
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-[140px]">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-medium">{title}</p>
                     <Badge variant="outline" className="text-xs">{badge}</Badge>
                   </div>
                   <p className="text-xs text-muted-foreground">{desc}</p>
                 </div>
-                <Button size="sm" variant="outline" onClick={action}>
+                <Button size="sm" variant="outline" className="min-h-[40px] w-full sm:w-auto" onClick={action}>
                   <Download className="w-3.5 h-3.5 mr-1.5" /> Export
                 </Button>
               </CardContent>

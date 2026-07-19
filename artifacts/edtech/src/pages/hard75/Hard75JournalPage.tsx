@@ -18,16 +18,22 @@ const MOOD_LABELS = ["Terrible", "Bad", "Okay", "Good", "Great"];
 function RatingPicker({ value, onChange, label }: { value: number; onChange: (v: number) => void; label: string }) {
   return (
     <div>
-      <Label className="text-sm">{label} <span className="text-muted-foreground font-normal">({MOOD_LABELS[value - 1]})</span></Label>
-      <div className="flex gap-2 mt-1.5">
+      <Label className="text-sm">
+        {label}{" "}
+        <span className="text-muted-foreground font-normal">({MOOD_LABELS[value - 1]})</span>
+      </Label>
+      <div className="flex gap-2 mt-2">
         {[1, 2, 3, 4, 5].map(v => (
           <button
             key={v}
             onClick={() => onChange(v)}
             className={cn(
-              "flex-1 py-2 rounded-lg text-lg transition-all border",
-              value === v ? "border-primary bg-primary/10 scale-110" : "border-border hover:border-primary/50 opacity-50 hover:opacity-100"
+              "flex-1 min-h-[48px] rounded-xl text-2xl transition-all border",
+              value === v
+                ? "border-primary bg-primary/10 scale-105"
+                : "border-border hover:border-primary/50 opacity-50 hover:opacity-80"
             )}
+            aria-label={MOOD_LABELS[v - 1]}
           >
             {MOODS[v - 1]}
           </button>
@@ -91,38 +97,58 @@ export default function Hard75JournalPage() {
 
   return (
     <Hard75Layout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="space-y-5">
+        <div className="flex items-center justify-between gap-3">
           <h1 className="text-xl font-bold">Daily Journal</h1>
           <div className="text-sm text-muted-foreground">{journals.length} entries</div>
         </div>
 
         {/* Date navigation */}
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" className="h-8 w-8"
-            onClick={() => { setLoaded(false); setSelectedDate(subDays(new Date(selectedDate), 1).toISOString().slice(0, 10)); }}>
-            <ChevronLeft className="w-4 h-4" />
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-11 w-11 shrink-0"
+            onClick={() => { setLoaded(false); setSelectedDate(subDays(new Date(selectedDate), 1).toISOString().slice(0, 10)); }}
+            aria-label="Previous day"
+          >
+            <ChevronLeft className="w-5 h-5" />
           </Button>
-          <Input type="date" value={selectedDate} onChange={e => { setLoaded(false); setSelectedDate(e.target.value); }}
-            max={today} className="h-8 text-sm text-center flex-1" />
-          <Button variant="outline" size="icon" className="h-8 w-8" disabled={selectedDate >= today}
-            onClick={() => { setLoaded(false); setSelectedDate(addDays(new Date(selectedDate), 1).toISOString().slice(0, 10)); }}>
-            <ChevronRight className="w-4 h-4" />
+          <Input
+            type="date"
+            value={selectedDate}
+            onChange={e => { setLoaded(false); setSelectedDate(e.target.value); }}
+            max={today}
+            className="h-11 text-sm text-center flex-1"
+          />
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-11 w-11 shrink-0"
+            disabled={selectedDate >= today}
+            onClick={() => { setLoaded(false); setSelectedDate(addDays(new Date(selectedDate), 1).toISOString().slice(0, 10)); }}
+            aria-label="Next day"
+          >
+            <ChevronRight className="w-5 h-5" />
           </Button>
         </div>
 
         {/* Entry form */}
         <Card>
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-3 pt-4">
             <CardTitle className="text-base flex items-center gap-2">
               <BookMarked className="w-4 h-4 text-primary" />
               {format(new Date(selectedDate + "T00:00:00"), "EEEE, MMMM d")}
-              {entry && <span className="text-xs text-muted-foreground font-normal ml-1">(saved)</span>}
+              {entry && (
+                <span className="text-xs text-muted-foreground font-normal">(saved)</span>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-5">
             {isLoading ? (
-              <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+              <div className="flex justify-center py-8">
+                <Loader2 className="w-5 h-5 animate-spin text-primary" />
+              </div>
             ) : (
               <>
                 <RatingPicker value={mood} onChange={setMood} label="Mood" />
@@ -130,20 +156,38 @@ export default function Hard75JournalPage() {
 
                 <div>
                   <Label>Biggest Win Today</Label>
-                  <Input value={win} onChange={e => setWin(e.target.value)} placeholder="What went well?" className="mt-1" />
+                  <Input
+                    value={win}
+                    onChange={e => setWin(e.target.value)}
+                    placeholder="What went well?"
+                    className="mt-1.5 h-11"
+                  />
                 </div>
                 <div>
                   <Label>Biggest Challenge</Label>
-                  <Input value={challenge} onChange={e => setChallenge(e.target.value)} placeholder="What was hard today?" className="mt-1" />
+                  <Input
+                    value={challenge}
+                    onChange={e => setChallenge(e.target.value)}
+                    placeholder="What was hard today?"
+                    className="mt-1.5 h-11"
+                  />
                 </div>
                 <div>
                   <Label>Notes / Reflection</Label>
-                  <Textarea value={notes} onChange={e => setNotes(e.target.value)}
-                    placeholder="How are you feeling overall? What did you learn today?" className="mt-1 h-28" />
+                  <Textarea
+                    value={notes}
+                    onChange={e => setNotes(e.target.value)}
+                    placeholder="How are you feeling overall? What did you learn today?"
+                    className="mt-1.5 h-32 resize-none"
+                  />
                 </div>
                 <RatingPicker value={rating} onChange={setRating} label="Overall Day Rating" />
 
-                <Button onClick={() => save.mutate()} disabled={save.isPending} className="w-full">
+                <Button
+                  onClick={() => save.mutate()}
+                  disabled={save.isPending}
+                  className="w-full min-h-[52px] text-base"
+                >
                   {save.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                   {entry ? "Update Entry" : "Save Entry"}
                 </Button>
@@ -152,23 +196,38 @@ export default function Hard75JournalPage() {
           </CardContent>
         </Card>
 
-        {/* Past entries list */}
+        {/* Past entries */}
         {journals.length > 0 && (
           <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-base">Past Entries</CardTitle></CardHeader>
+            <CardHeader className="pb-2 pt-4">
+              <CardTitle className="text-base">Past Entries</CardTitle>
+            </CardHeader>
             <CardContent>
-              <div className="space-y-2">
+              <div className="space-y-1">
                 {journals.slice(0, 10).map((j: any) => (
-                  <button key={j.date} onClick={() => { setLoaded(false); setSelectedDate(j.date); }}
-                    className="w-full flex items-center gap-3 py-2.5 px-3 rounded-lg hover:bg-muted/50 transition-colors text-left">
-                    <div className="text-xl">{MOODS[(j.mood ?? 3) - 1]}</div>
+                  <button
+                    key={j.date}
+                    onClick={() => { setLoaded(false); setSelectedDate(j.date); }}
+                    className="w-full flex items-center gap-3 py-3 px-3 rounded-xl hover:bg-muted/60 active:bg-muted transition-colors text-left min-h-[56px]"
+                  >
+                    <div className="text-2xl w-8 shrink-0 text-center">{MOODS[(j.mood ?? 3) - 1]}</div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{format(new Date(j.date + "T00:00:00"), "EEEE, MMM d")}</p>
-                      {j.biggest_win && <p className="text-xs text-muted-foreground truncate">{j.biggest_win}</p>}
+                      <p className="text-sm font-medium">
+                        {format(new Date(j.date + "T00:00:00"), "EEE, MMM d")}
+                      </p>
+                      {j.biggest_win && (
+                        <p className="text-xs text-muted-foreground truncate">{j.biggest_win}</p>
+                      )}
                     </div>
                     <div className="flex gap-1 shrink-0">
                       {[1, 2, 3, 4, 5].map(i => (
-                        <div key={i} className={cn("w-1.5 h-1.5 rounded-full", i <= (j.rating ?? 3) ? "bg-primary" : "bg-muted")} />
+                        <div
+                          key={i}
+                          className={cn(
+                            "w-1.5 h-1.5 rounded-full",
+                            i <= (j.rating ?? 3) ? "bg-primary" : "bg-muted"
+                          )}
+                        />
                       ))}
                     </div>
                   </button>

@@ -1,0 +1,199 @@
+Mobile-First UI/UX Redesign Prompt for 75 Hard Module
+
+Redesign the entire 75 Hard module to be 100% mobile-first while preserving all existing functionality, business logic, APIs, validations, permissions, database structure, and workflows.
+
+Objective
+
+The current 75 Hard module feels desktop-oriented and does not provide an optimal experience on smartphones. Transform it into a modern, premium, responsive, touch-friendly interface that feels like a high-quality Android/iOS application while remaining fully functional on tablets and desktops.
+
+Core Requirements
+
+1. Mobile-First Architecture
+
+- Design for smartphones first (320px–480px).
+- Adapt seamlessly for tablets (481px–768px).
+- Optimize for desktops (769px+).
+- Never simply shrink desktop layouts—create true mobile-first layouts.
+
+2. Responsive Layout
+
+- Convert multi-column layouts into single-column layouts on mobile.
+- Eliminate horizontal scrolling.
+- Ensure every screen fits perfectly within the viewport.
+- Use responsive spacing, margins, and padding.
+- Keep layouts clean and uncluttered.
+
+3. Dashboard
+
+- Convert dashboard widgets into responsive cards.
+- Stack cards vertically on mobile.
+- Show only essential information first.
+- Allow additional details through expandable sections when needed.
+- Maintain a clean visual hierarchy.
+
+4. Forms
+
+- Make every input field full width.
+- Use mobile-friendly input types.
+- Increase spacing between fields.
+- Ensure buttons have a minimum height of 44px.
+- Group related fields into collapsible sections where appropriate.
+- Keep forms easy to complete using one hand.
+
+5. Tables
+
+Desktop tables should never appear on mobile.
+
+Instead:
+
+- Convert every table into responsive cards.
+- Display each record as an individual card.
+- Show labels with corresponding values.
+- Keep search, filters, sorting, pagination, and actions fully functional.
+- Continue using tables only on tablets and desktops.
+
+6. Navigation
+
+- Make navigation thumb-friendly.
+- Use a responsive hamburger menu or bottom navigation where appropriate.
+- Keep primary actions easily accessible.
+- Use sticky bottom action buttons for common actions.
+- Ensure navigation works smoothly on all screen sizes.
+
+7. Buttons
+
+- Large touch-friendly buttons.
+- Adequate spacing between buttons.
+- Prevent accidental taps.
+- Use icons alongside text where helpful.
+- Maintain consistent button styles throughout the module.
+
+8. Cards
+
+- Replace complex desktop panels with modern cards.
+- Rounded corners.
+- Soft shadows.
+- Consistent spacing.
+- Clear content hierarchy.
+- Responsive sizing.
+
+9. Typography
+
+- Responsive font sizes.
+- Excellent readability.
+- Proper line spacing.
+- No tiny text.
+- Consistent typography across the module.
+
+10. Dialogs & Popups
+
+On mobile:
+
+- Replace centered modals with bottom sheets or full-screen dialogs.
+- Make long dialogs scrollable.
+- Ensure dialogs never overflow the screen.
+
+11. Responsive Breakpoints
+
+Optimize every page for:
+
+- 320px
+- 360px
+- 375px
+- 390px
+- 412px
+- 430px
+- 480px
+- Tablets
+- Desktop
+
+No layout should break at any breakpoint.
+
+12. Performance
+
+- Fast rendering.
+- Lazy-load heavy components.
+- Optimize images.
+- Prevent layout shifts.
+- Smooth scrolling.
+- Responsive animations.
+
+13. Touch Experience
+
+- Comfortable tap targets.
+- Smooth gestures.
+- Instant interaction feedback.
+- One-handed usability.
+- Proper spacing between interactive elements.
+
+14. Accessibility
+
+- High color contrast.
+- Screen-reader compatibility.
+- Keyboard accessibility where applicable.
+- Visible focus indicators.
+- Semantic HTML.
+- Accessible forms and controls.
+
+15. 75 Hard Module Features
+
+Every existing feature must remain fully functional, including:
+
+- Dashboard
+- Daily Tasks
+- Progress Tracking
+- Challenge Timeline
+- Habits
+- Water Intake
+- Workout Tracking
+- Diet Tracking
+- Reading Progress
+- Progress Photos
+- Daily Checklist
+- Calendar
+- Notifications
+- Reports
+- Achievements
+- User Profile
+- Settings
+- Any additional features already implemented
+
+Only improve the UI/UX and responsiveness—do not change feature behavior.
+
+16. Existing Logic
+
+Do not modify:
+
+- Business logic
+- APIs
+- Backend
+- Database
+- Authentication
+- Authorization
+- Roles & Permissions
+- Validation
+- Workflows
+- Existing functionality
+
+Only redesign the frontend for a better mobile experience.
+
+17. Quality Assurance Checklist
+
+Before considering the work complete, verify that:
+
+- No horizontal scrolling exists.
+- No content is clipped.
+- No elements overlap.
+- No layout breaks occur.
+- All pages are fully responsive.
+- All forms are mobile-friendly.
+- All tables become responsive cards on mobile.
+- Buttons are easy to tap.
+- Navigation is optimized for touch.
+- Loading, empty, and error states are responsive.
+- Dark mode (if available) continues to work.
+- The UI is visually consistent across every page.
+
+Expected Result
+
+Deliver a polished, modern, premium-quality 75 Hard interface that feels like a professionally designed mobile application. Every page should be optimized for one-handed use, smooth touch interactions, fast performance, intuitive navigation, and a consistent user experience while preserving every existing feature and functionality.

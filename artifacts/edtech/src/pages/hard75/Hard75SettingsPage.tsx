@@ -9,17 +9,13 @@ import { Settings, RotateCcw, AlertTriangle, Loader2, Globe } from "lucide-react
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
+import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
 
 export default function Hard75SettingsPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const { role } = useAuth();
   const isSuperAdmin = role === "super_admin";
-  const [showReset, setShowReset] = useState(false);
   const [showRestart, setShowRestart] = useState(false);
 
   const { data: settings } = useQuery({
@@ -95,30 +91,39 @@ export default function Hard75SettingsPage() {
 
   return (
     <Hard75Layout>
-      <div className="space-y-6">
+      <div className="space-y-5">
         <h1 className="text-xl font-bold">Settings</h1>
 
         {/* Personal Settings */}
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Settings className="w-4 h-4 text-primary" /> Personal Settings</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
+          <CardHeader className="pb-2 pt-4">
+            <CardTitle className="text-base flex items-center gap-2"><Settings className="w-4 h-4 text-primary" /> Personal Settings</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5">
             <div>
               <Label>Daily Water Goal (ml)</Label>
-              <Input type="number" value={waterGoal} onChange={e => setWaterGoal(e.target.value)} className="mt-1 max-w-xs" min="1000" max="10000" />
-              <p className="text-xs text-muted-foreground mt-1">1 gallon ≈ 3,785ml. Default: 3,785ml.</p>
+              <Input
+                type="number"
+                inputMode="numeric"
+                value={waterGoal}
+                onChange={e => setWaterGoal(e.target.value)}
+                className="mt-1.5 h-11 w-full sm:max-w-xs"
+                min="1000" max="10000"
+              />
+              <p className="text-xs text-muted-foreground mt-1.5">1 gallon ≈ 3,785ml. Default: 3,785ml.</p>
             </div>
             <div>
               <Label>Units</Label>
-              <div className="flex gap-2 mt-1">
+              <div className="grid grid-cols-2 sm:flex gap-2 mt-1.5">
                 {(["metric", "imperial"] as const).map(u => (
-                  <Button key={u} size="sm" variant={units === u ? "default" : "outline"}
-                    onClick={() => setUnits(u)} className="capitalize">{u}</Button>
+                  <Button key={u} variant={units === u ? "default" : "outline"}
+                    onClick={() => setUnits(u)} className="capitalize min-h-[44px]">{u}</Button>
                 ))}
               </div>
             </div>
             <div>
               <Label className="text-sm text-muted-foreground">Reminder Times (optional)</Label>
-              <div className="grid grid-cols-3 gap-2 mt-1.5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-1.5">
                 {[
                   { label: "Workout", value: workoutTime, set: setWorkoutTime },
                   { label: "Reading", value: readingTime, set: setReadingTime },
@@ -126,12 +131,12 @@ export default function Hard75SettingsPage() {
                 ].map(({ label, value, set }) => (
                   <div key={label}>
                     <Label className="text-xs">{label}</Label>
-                    <Input type="time" value={value} onChange={e => set(e.target.value)} className="mt-1 h-8 text-sm" />
+                    <Input type="time" value={value} onChange={e => set(e.target.value)} className="mt-1.5 h-11 text-sm w-full" />
                   </div>
                 ))}
               </div>
             </div>
-            <Button onClick={() => saveSettings.mutate()} disabled={saveSettings.isPending}>
+            <Button className="w-full sm:w-auto min-h-[48px]" onClick={() => saveSettings.mutate()} disabled={saveSettings.isPending}>
               {saveSettings.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null} Save Settings
             </Button>
           </CardContent>
@@ -139,9 +144,11 @@ export default function Hard75SettingsPage() {
 
         {/* Challenge Management */}
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base text-orange-500 flex items-center gap-2"><AlertTriangle className="w-4 h-4" /> Challenge Management</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            <Button variant="outline" className="w-full justify-start gap-2" onClick={() => setShowRestart(true)}>
+          <CardHeader className="pb-2 pt-4">
+            <CardTitle className="text-base text-orange-500 flex items-center gap-2"><AlertTriangle className="w-4 h-4" /> Challenge Management</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Button variant="outline" className="w-full justify-start gap-2 min-h-[48px]" onClick={() => setShowRestart(true)}>
               <RotateCcw className="w-4 h-4 text-orange-500" /> Restart Challenge (Day 1)
             </Button>
           </CardContent>
@@ -150,20 +157,28 @@ export default function Hard75SettingsPage() {
         {/* Super Admin: Global Settings */}
         {isSuperAdmin && (
           <Card className="border-primary/30">
-            <CardHeader className="pb-2"><CardTitle className="text-base text-primary flex items-center gap-2"><Globe className="w-4 h-4" /> Global Module Settings (Super Admin)</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
+            <CardHeader className="pb-2 pt-4">
+              <CardTitle className="text-base text-primary flex items-center gap-2"><Globe className="w-4 h-4" /> Global Module Settings (Super Admin)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-5">
               <div>
                 <Label>Module Status</Label>
-                <div className="flex gap-2 mt-1">
-                  <Button size="sm" variant={globalEnabled ? "default" : "outline"} onClick={() => setGlobalEnabled(true)}>Enabled</Button>
-                  <Button size="sm" variant={!globalEnabled ? "destructive" : "outline"} onClick={() => setGlobalEnabled(false)}>Disabled</Button>
+                <div className="grid grid-cols-2 gap-2 mt-1.5">
+                  <Button variant={globalEnabled ? "default" : "outline"} className="min-h-[44px]" onClick={() => setGlobalEnabled(true)}>Enabled</Button>
+                  <Button variant={!globalEnabled ? "destructive" : "outline"} className="min-h-[44px]" onClick={() => setGlobalEnabled(false)}>Disabled</Button>
                 </div>
               </div>
               <div>
                 <Label>Default Water Goal (ml)</Label>
-                <Input type="number" value={defaultWater} onChange={e => setDefaultWater(e.target.value)} className="mt-1 max-w-xs" />
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  value={defaultWater}
+                  onChange={e => setDefaultWater(e.target.value)}
+                  className="mt-1.5 h-11 w-full sm:max-w-xs"
+                />
               </div>
-              <Button onClick={() => saveModuleSettings.mutate()} disabled={saveModuleSettings.isPending}>
+              <Button className="w-full sm:w-auto min-h-[48px]" onClick={() => saveModuleSettings.mutate()} disabled={saveModuleSettings.isPending}>
                 {saveModuleSettings.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null} Save Global Settings
               </Button>
             </CardContent>
@@ -171,19 +186,23 @@ export default function Hard75SettingsPage() {
         )}
       </div>
 
-      {/* Restart dialog */}
-      <Dialog open={showRestart} onOpenChange={setShowRestart}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle className="flex items-center gap-2"><RotateCcw className="w-5 h-5 text-orange-500" /> Restart Challenge?</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground">This will mark your current challenge as restarted and start a new one from Day 1. Your logged data will be preserved.</p>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowRestart(false)}>Cancel</Button>
-            <Button variant="default" onClick={() => restart.mutate()} disabled={restart.isPending}>
+      {/* Restart sheet */}
+      <ResponsiveDialog open={showRestart} onOpenChange={setShowRestart} title="Restart Challenge?">
+        <div className="space-y-4">
+          <div className="flex items-start gap-2 text-orange-500">
+            <RotateCcw className="w-5 h-5 shrink-0 mt-0.5" />
+            <p className="text-sm text-muted-foreground">
+              This will mark your current challenge as restarted and start a new one from Day 1. Your logged data will be preserved.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Button variant="outline" className="min-h-[44px]" onClick={() => setShowRestart(false)}>Cancel</Button>
+            <Button className="min-h-[44px]" onClick={() => restart.mutate()} disabled={restart.isPending}>
               {restart.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null} Restart
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+        </div>
+      </ResponsiveDialog>
     </Hard75Layout>
   );
 }

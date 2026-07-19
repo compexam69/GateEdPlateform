@@ -6,14 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiFetch } from "@/lib/api";
 import { Ruler, Plus, Trash2, Loader2, TrendingDown, TrendingUp, Minus } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 type MeasurementField = {
-  key: string; label: string; unit: string; icon?: string;
+  key: string; label: string; unit: string;
 };
 
 const FIELDS: MeasurementField[] = [
@@ -26,6 +26,8 @@ const FIELDS: MeasurementField[] = [
   { key: "arms_cm",          label: "Arms",          unit: "cm" },
   { key: "thighs_cm",        label: "Thighs",        unit: "cm" },
 ];
+
+const KEY_FIELDS = FIELDS.slice(0, 3);
 
 type Form = { date: string } & Record<string, string>;
 
@@ -65,7 +67,6 @@ export default function Hard75GoalsPage() {
   const sorted = [...measurements].sort((a: any, b: any) => a.date.localeCompare(b.date));
   const latest = sorted[sorted.length - 1];
   const previous = sorted[sorted.length - 2];
-  const first = sorted[0];
 
   function trend(key: string) {
     if (!latest || !previous) return null;
@@ -84,18 +85,18 @@ export default function Hard75GoalsPage() {
 
   return (
     <Hard75Layout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="space-y-5">
+        <div className="flex items-center justify-between gap-3">
           <h1 className="text-xl font-bold">Goals & Measurements</h1>
-          <Button size="sm" onClick={() => setShowAdd(true)}>
-            <Plus className="w-4 h-4 mr-1.5" /> Log Measurements
+          <Button className="min-h-[44px] shrink-0" onClick={() => setShowAdd(true)}>
+            <Plus className="w-4 h-4 mr-1.5" /> Log
           </Button>
         </div>
 
         {/* Current snapshot */}
         {latest && (
           <Card>
-            <CardHeader className="pb-2">
+            <CardHeader className="pb-2 pt-4">
               <CardTitle className="text-base">Latest — {format(new Date(latest.date + "T00:00:00"), "MMM d, yyyy")}</CardTitle>
             </CardHeader>
             <CardContent>
@@ -103,7 +104,7 @@ export default function Hard75GoalsPage() {
                 {FIELDS.filter(f => latest[f.key] != null && latest[f.key] !== "").map(({ key, label, unit }) => {
                   const t = trend(key);
                   return (
-                    <div key={key} className="p-3 bg-muted/30 rounded-lg">
+                    <div key={key} className="p-3 bg-muted/30 rounded-xl">
                       <p className="text-xs text-muted-foreground">{label}</p>
                       <div className="flex items-center gap-1 mt-0.5">
                         <p className="text-lg font-bold">{Number(latest[key]).toFixed(1)}<span className="text-xs text-muted-foreground ml-0.5">{unit}</span></p>
@@ -122,7 +123,7 @@ export default function Hard75GoalsPage() {
         {/* Weight chart */}
         {weightChartData.length > 1 && (
           <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-base">Weight Over Time</CardTitle></CardHeader>
+            <CardHeader className="pb-2 pt-4"><CardTitle className="text-base">Weight Over Time</CardTitle></CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={160}>
                 <LineChart data={weightChartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
@@ -137,21 +138,22 @@ export default function Hard75GoalsPage() {
           </Card>
         )}
 
-        {/* History table */}
+        {/* History — table on desktop, cards on mobile */}
         {isLoading ? (
           <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
         ) : measurements.length === 0 ? (
           <Card>
             <CardContent className="p-10 text-center">
               <Ruler className="w-10 h-10 mx-auto mb-3 text-muted-foreground opacity-30" />
-              <p className="text-muted-foreground">No measurements yet. Start tracking your progress!</p>
+              <p className="text-muted-foreground text-sm">No measurements yet. Start tracking your progress!</p>
             </CardContent>
           </Card>
         ) : (
           <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-base">History</CardTitle></CardHeader>
+            <CardHeader className="pb-2 pt-4"><CardTitle className="text-base">History</CardTitle></CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
+              {/* Desktop table */}
+              <div className="hidden sm:block overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-muted-foreground text-xs">
@@ -170,9 +172,9 @@ export default function Hard75GoalsPage() {
                           </td>
                         ))}
                         <td className="py-2 text-right">
-                          <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive"
                             onClick={() => remove.mutate(m.id)} disabled={remove.isPending}>
-                            <Trash2 className="w-3 h-3" />
+                            <Trash2 className="w-3.5 h-3.5" />
                           </Button>
                         </td>
                       </tr>
@@ -180,41 +182,70 @@ export default function Hard75GoalsPage() {
                   </tbody>
                 </table>
               </div>
+
+              {/* Mobile cards */}
+              <div className="sm:hidden space-y-2">
+                {[...measurements].slice(0, 15).map((m: any) => (
+                  <div key={m.id} className="p-3.5 rounded-xl border border-border bg-muted/20">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-muted-foreground">
+                        {format(new Date(m.date + "T00:00:00"), "MMM d, yyyy")}
+                      </span>
+                      <Button
+                        variant="ghost" size="icon"
+                        className="h-9 w-9 text-muted-foreground hover:text-destructive -mr-2"
+                        onClick={() => remove.mutate(m.id)}
+                        disabled={remove.isPending}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {KEY_FIELDS.map(f => (
+                        m[f.key] != null ? (
+                          <div key={f.key}>
+                            <p className="text-[11px] text-muted-foreground">{f.label}</p>
+                            <p className="text-sm font-semibold">{Number(m[f.key]).toFixed(1)}{f.unit}</p>
+                          </div>
+                        ) : null
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         )}
       </div>
 
-      {/* Add dialog */}
-      <Dialog open={showAdd} onOpenChange={setShowAdd}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Log Measurements</DialogTitle></DialogHeader>
-          <div className="space-y-4 pt-2 max-h-[70vh] overflow-y-auto">
-            <div>
-              <Label>Date</Label>
-              <Input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} className="mt-1" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              {FIELDS.map(({ key, label, unit }) => (
-                <div key={key}>
-                  <Label className="text-xs">{label} ({unit})</Label>
-                  <Input
-                    type="number" step="0.1" placeholder="Optional"
-                    value={form[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                    className="mt-1 h-8 text-sm"
-                  />
-                </div>
-              ))}
-            </div>
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => { setShowAdd(false); setForm(emptyForm()); }}>Cancel</Button>
-              <Button onClick={() => add.mutate(form)} disabled={add.isPending}>
-                {add.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null} Save
-              </Button>
-            </div>
+      {/* Add sheet */}
+      <ResponsiveDialog open={showAdd} onOpenChange={setShowAdd} title="Log Measurements">
+        <div className="space-y-4">
+          <div>
+            <Label>Date</Label>
+            <Input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} className="mt-1.5 h-11" />
           </div>
-        </DialogContent>
-      </Dialog>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {FIELDS.map(({ key, label, unit }) => (
+              <div key={key}>
+                <Label className="text-sm">{label} ({unit})</Label>
+                <Input
+                  type="number" step="0.1" placeholder="Optional"
+                  value={form[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                  className="mt-1.5 h-11 text-sm"
+                  inputMode="decimal"
+                />
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Button variant="outline" className="min-h-[44px]" onClick={() => { setShowAdd(false); setForm(emptyForm()); }}>Cancel</Button>
+            <Button className="min-h-[44px]" onClick={() => add.mutate(form)} disabled={add.isPending}>
+              {add.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null} Save
+            </Button>
+          </div>
+        </div>
+      </ResponsiveDialog>
     </Hard75Layout>
   );
 }

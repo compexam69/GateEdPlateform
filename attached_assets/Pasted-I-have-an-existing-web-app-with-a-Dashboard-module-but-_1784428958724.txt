@@ -1,0 +1,281 @@
+I have an existing web app with a Dashboard module, but the current Dashboard is not mobile-friendly. Redesign and improve the Dashboard using a true mobile-first responsive approach, then progressively enhance the layout for tablet and desktop.
+
+Main Goal
+
+Create a polished, modern, responsive Dashboard that is designed for mobile screens first and progressively enhanced for larger screens.
+
+Do not simply shrink the desktop layout. Start with the mobile experience and build upward.
+
+---
+
+1. Analyze the Existing Dashboard First
+
+Before making changes:
+
+- Inspect the complete Dashboard module and related components.
+- Understand the existing layout, widgets, cards, charts, tables, filters, navigation, and data flow.
+- Identify all current responsive issues.
+- Check fixed widths, fixed heights, overflow, cramped layouts, unreadable content, and difficult interactions.
+- Preserve all existing functionality, business logic, API integrations, and data.
+- Follow the existing design system, branding, colors, fonts, and component patterns.
+
+---
+
+2. Mobile-First Responsive Design
+
+Design the Dashboard for mobile screens first, starting from approximately 320px width.
+
+The mobile layout should:
+
+- Use a single-column layout by default.
+- Stack cards, widgets, charts, and sections vertically where appropriate.
+- Avoid unnecessary horizontal scrolling.
+- Prevent content overflow and clipping.
+- Use responsive widths such as "width: 100%" and flexible layouts instead of unnecessary fixed widths.
+- Avoid fixed heights that cause content to be cut off.
+- Use responsive containers and fluid layouts.
+- Make every section easy to scan and interact with on a small screen.
+
+---
+
+3. Responsive Typography
+
+Maintain a clear and consistent typography hierarchy across mobile, tablet, and desktop.
+
+For mobile:
+
+- Do not make text too small.
+- Maintain readable body text.
+- Keep headings visually distinct.
+- Adjust heading sizes proportionally when necessary.
+- Ensure labels, KPI values, captions, and supporting text remain readable.
+- Prevent text from overflowing or being unnecessarily truncated.
+
+Use responsive typography only when it improves usability.
+
+Example approach:
+
+- Body text: comfortable and readable on mobile.
+- Small labels: never so small that they become difficult to read.
+- KPI numbers: prominent but responsive.
+- Headings: scale progressively for larger screens.
+
+The goal is not to make everything smaller on mobile. The goal is to maintain readability and hierarchy.
+
+---
+
+4. Responsive Icons
+
+Maintain consistent and usable icon sizes across devices.
+
+For mobile:
+
+- Icons must remain clearly visible.
+- Do not make icons too small.
+- Maintain proper alignment with text.
+- Use consistent icon sizing across buttons, navigation, cards, alerts, and dashboard widgets.
+- Ensure icon-only buttons have sufficiently large touch areas.
+- Use appropriate padding around icons.
+
+Icons should scale or adjust only when necessary, while maintaining visual consistency.
+
+---
+
+5. Responsive Spacing and Layout
+
+Use a consistent responsive spacing system.
+
+On mobile:
+
+- Reduce excessive desktop spacing where necessary.
+- Maintain enough spacing between interactive elements.
+- Avoid cramped content.
+- Maintain clear separation between dashboard sections.
+- Use responsive padding and gaps.
+- Ensure cards and widgets have appropriate internal spacing.
+
+Spacing should progressively increase or adapt for tablet and desktop where additional screen space is available.
+
+---
+
+6. Responsive Components
+
+Every Dashboard component must be evaluated for mobile usability, including:
+
+KPI Cards
+
+- Stack vertically or use a responsive grid.
+- Keep important values visible.
+- Maintain readable numbers and labels.
+- Avoid overly wide cards.
+
+Charts
+
+- Resize responsively.
+- Remain readable on mobile.
+- Prevent labels and legends from overlapping.
+- Use horizontal scrolling only when necessary.
+- Ensure charts do not break their container.
+
+Tables
+
+Use the most appropriate mobile-friendly solution:
+
+- Responsive horizontal scrolling when needed.
+- Card-based layout for complex data.
+- Prioritized columns.
+- Expandable rows where appropriate.
+
+Do not force a large desktop table into a tiny mobile screen if it becomes unusable.
+
+Filters and Search
+
+- Stack controls on mobile where necessary.
+- Make inputs and dropdowns easy to use.
+- Ensure controls do not overflow.
+- Make filter actions accessible and clear.
+
+Navigation and Sidebar
+
+- Use a mobile-friendly navigation pattern.
+- Convert sidebar navigation to a drawer, collapsible menu, or other appropriate mobile pattern if needed.
+- Ensure navigation is easy to access without taking too much screen space.
+
+Buttons and Touch Targets
+
+- Maintain comfortable touch targets.
+- Avoid tiny buttons and icons.
+- Keep sufficient spacing between interactive elements.
+- Ensure buttons are easy to use with one hand on mobile.
+
+---
+
+7. Progressive Enhancement
+
+Build the Dashboard progressively:
+
+Mobile First
+
+Start with:
+
+- Single-column layouts.
+- Essential content prioritized.
+- Responsive typography.
+- Usable touch targets.
+- Simplified navigation.
+- Mobile-friendly cards, charts, tables, and filters.
+
+Tablet
+
+Progressively enhance with:
+
+- Two-column layouts where appropriate.
+- More horizontal space for widgets.
+- Improved card grids.
+- Expanded navigation where appropriate.
+- Larger spacing where useful.
+
+Desktop
+
+Progressively enhance with:
+
+- Multi-column dashboard layouts.
+- Wider grids.
+- Expanded sidebars.
+- Larger chart areas.
+- More information visible at once.
+- More generous spacing without wasting space.
+
+The layout should adapt naturally between screen sizes rather than using completely separate designs.
+
+---
+
+8. Responsive Breakpoints
+
+Use the project's existing responsive breakpoint system if one already exists.
+
+If no system exists, use sensible responsive breakpoints based on content needs rather than blindly applying device-specific breakpoints.
+
+Use a mobile-first CSS approach:
+
+/* Base styles: mobile */
+.dashboard {
+  ...
+}
+
+/* Progressively enhance for larger screens */
+@media (min-width: ...) {
+  ...
+}
+
+Avoid unnecessary device-specific hacks.
+
+---
+
+9. Accessibility and Usability
+
+Ensure:
+
+- Readable font sizes.
+- Sufficient color contrast.
+- Visible focus states.
+- Accessible buttons and controls.
+- Touch-friendly interactive elements.
+- Icons do not replace important text without accessible labels.
+- Content remains usable at different zoom levels.
+- No important information is hidden or inaccessible on mobile.
+
+---
+
+10. Testing
+
+Test the Dashboard at:
+
+- 320px
+- 375px
+- 390px
+- 430px
+- Tablet widths
+- Desktop widths
+
+Check for:
+
+- Horizontal overflow.
+- Broken layouts.
+- Text clipping.
+- Inconsistent font sizes.
+- Icons that are too small or too large.
+- Buttons that are difficult to tap.
+- Overlapping elements.
+- Broken charts.
+- Unusable tables.
+- Poor spacing.
+- Navigation problems.
+- Content disappearing or becoming inaccessible.
+
+---
+
+Final Requirement
+
+The final Dashboard must follow this principle:
+
+Mobile first → Responsive foundation → Progressive enhancement for tablet → Progressive enhancement for desktop.
+
+Maintain a consistent and usable system for:
+
+- Font sizes
+- Icon sizes
+- Line heights
+- Spacing
+- Padding
+- Margins
+- Card dimensions
+- Button sizes
+- Input sizes
+- Grid layouts
+- Navigation
+- Charts
+- Tables
+- Touch targets
+
+Do not simply reduce the size of the desktop Dashboard. Create a genuinely mobile-first responsive experience that progressively becomes richer and more spacious on tablet and desktop while preserving the existing functionality and visual identity.
