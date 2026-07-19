@@ -15,20 +15,22 @@ import { cn } from "@/lib/utils";
 const MOODS = ["😞", "😕", "😐", "🙂", "😄"];
 const MOOD_LABELS = ["Terrible", "Bad", "Okay", "Good", "Great"];
 
+// ─── RatingPicker: compact on mobile, comfortable on sm+ ─────────────────────
 function RatingPicker({ value, onChange, label }: { value: number; onChange: (v: number) => void; label: string }) {
   return (
     <div>
-      <Label className="text-sm">
+      <Label className="text-xs sm:text-sm">
         {label}{" "}
         <span className="text-muted-foreground font-normal">({MOOD_LABELS[value - 1]})</span>
       </Label>
-      <div className="flex gap-2 mt-2">
+      {/* Mobile: tighter gap + smaller touch targets; sm+: original sizing */}
+      <div className="flex gap-1.5 sm:gap-2 mt-1.5 sm:mt-2">
         {[1, 2, 3, 4, 5].map(v => (
           <button
             key={v}
             onClick={() => onChange(v)}
             className={cn(
-              "flex-1 min-h-[48px] rounded-xl text-2xl transition-all border",
+              "flex-1 min-h-[40px] sm:min-h-[48px] rounded-lg sm:rounded-xl text-xl sm:text-2xl transition-all border",
               value === v
                 ? "border-primary bg-primary/10 scale-105"
                 : "border-border hover:border-primary/50 opacity-50 hover:opacity-80"
@@ -97,57 +99,63 @@ export default function Hard75JournalPage() {
 
   return (
     <Hard75Layout>
-      <div className="space-y-5">
-        <div className="flex items-center justify-between gap-3">
-          <h1 className="text-xl font-bold">Daily Journal</h1>
-          <div className="text-sm text-muted-foreground">{journals.length} entries</div>
+      {/* Mobile: tighter vertical stacking; sm+: original spacing */}
+      <div className="space-y-3 sm:space-y-5">
+
+        {/* ── Page header ─────────────────────────────────────────────── */}
+        <div className="flex items-center justify-between gap-2">
+          <h1 className="text-lg sm:text-xl font-bold leading-tight">Daily Journal</h1>
+          <div className="text-xs sm:text-sm text-muted-foreground">{journals.length} entries</div>
         </div>
 
-        {/* Date navigation */}
+        {/* ── Date navigation ──────────────────────────────────────────── */}
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="icon"
-            className="h-11 w-11 shrink-0"
+            className="h-9 w-9 sm:h-11 sm:w-11 shrink-0"
             onClick={() => { setLoaded(false); setSelectedDate(subDays(new Date(selectedDate), 1).toISOString().slice(0, 10)); }}
             aria-label="Previous day"
           >
-            <ChevronLeft className="w-5 h-5" />
+            <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
           </Button>
           <Input
             type="date"
             value={selectedDate}
             onChange={e => { setLoaded(false); setSelectedDate(e.target.value); }}
             max={today}
-            className="h-11 text-sm text-center flex-1"
+            className="h-9 sm:h-11 text-xs sm:text-sm text-center flex-1"
           />
           <Button
             variant="outline"
             size="icon"
-            className="h-11 w-11 shrink-0"
+            className="h-9 w-9 sm:h-11 sm:w-11 shrink-0"
             disabled={selectedDate >= today}
             onClick={() => { setLoaded(false); setSelectedDate(addDays(new Date(selectedDate), 1).toISOString().slice(0, 10)); }}
             aria-label="Next day"
           >
-            <ChevronRight className="w-5 h-5" />
+            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
           </Button>
         </div>
 
-        {/* Entry form */}
+        {/* ── Entry form card ──────────────────────────────────────────── */}
         <Card>
-          <CardHeader className="pb-3 pt-4">
-            <CardTitle className="text-base flex items-center gap-2">
-              <BookMarked className="w-4 h-4 text-primary" />
+          {/* Mobile: tighter header padding; sm+: original */}
+          <CardHeader className="pb-2 pt-3 px-3 sm:pb-3 sm:pt-4 sm:px-6">
+            <CardTitle className="text-sm sm:text-base flex items-center gap-1.5 sm:gap-2">
+              <BookMarked className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary shrink-0" />
               {format(new Date(selectedDate + "T00:00:00"), "EEEE, MMMM d")}
               {entry && (
-                <span className="text-xs text-muted-foreground font-normal">(saved)</span>
+                <span className="text-[10px] sm:text-xs text-muted-foreground font-normal">(saved)</span>
               )}
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-5">
+
+          {/* Mobile: tighter vertical rhythm; sm+: original */}
+          <CardContent className="space-y-3 sm:space-y-5 px-3 pb-3 sm:px-6 sm:pb-6">
             {isLoading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="w-5 h-5 animate-spin text-primary" />
+              <div className="flex justify-center py-6 sm:py-8">
+                <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin text-primary" />
               </div>
             ) : (
               <>
@@ -155,40 +163,41 @@ export default function Hard75JournalPage() {
                 <RatingPicker value={energy} onChange={setEnergy} label="Energy Level" />
 
                 <div>
-                  <Label>Biggest Win Today</Label>
+                  <Label className="text-xs sm:text-sm">Biggest Win Today</Label>
                   <Input
                     value={win}
                     onChange={e => setWin(e.target.value)}
                     placeholder="What went well?"
-                    className="mt-1.5 h-11"
+                    className="mt-1 sm:mt-1.5 h-9 sm:h-11 text-xs sm:text-sm"
                   />
                 </div>
                 <div>
-                  <Label>Biggest Challenge</Label>
+                  <Label className="text-xs sm:text-sm">Biggest Challenge</Label>
                   <Input
                     value={challenge}
                     onChange={e => setChallenge(e.target.value)}
                     placeholder="What was hard today?"
-                    className="mt-1.5 h-11"
+                    className="mt-1 sm:mt-1.5 h-9 sm:h-11 text-xs sm:text-sm"
                   />
                 </div>
                 <div>
-                  <Label>Notes / Reflection</Label>
+                  <Label className="text-xs sm:text-sm">Notes / Reflection</Label>
                   <Textarea
                     value={notes}
                     onChange={e => setNotes(e.target.value)}
                     placeholder="How are you feeling overall? What did you learn today?"
-                    className="mt-1.5 h-32 resize-none"
+                    className="mt-1 sm:mt-1.5 h-24 sm:h-32 resize-none text-xs sm:text-sm"
                   />
                 </div>
                 <RatingPicker value={rating} onChange={setRating} label="Overall Day Rating" />
 
+                {/* Save button: compact on mobile, full-height on sm+ */}
                 <Button
                   onClick={() => save.mutate()}
                   disabled={save.isPending}
-                  className="w-full min-h-[52px] text-base"
+                  className="w-full h-10 sm:min-h-[52px] text-sm sm:text-base"
                 >
-                  {save.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                  {save.isPending ? <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin mr-1.5 sm:mr-2" /> : null}
                   {entry ? "Update Entry" : "Save Entry"}
                 </Button>
               </>
@@ -196,29 +205,35 @@ export default function Hard75JournalPage() {
           </CardContent>
         </Card>
 
-        {/* Past entries */}
+        {/* ── Past entries ─────────────────────────────────────────────── */}
         {journals.length > 0 && (
           <Card>
-            <CardHeader className="pb-2 pt-4">
-              <CardTitle className="text-base">Past Entries</CardTitle>
+            <CardHeader className="pb-1.5 pt-3 px-3 sm:pb-2 sm:pt-4 sm:px-6">
+              <CardTitle className="text-sm sm:text-base">Past Entries</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-1">
+            <CardContent className="px-3 pb-3 sm:px-6 sm:pb-4">
+              <div className="space-y-0.5 sm:space-y-1">
                 {journals.slice(0, 10).map((j: any) => (
                   <button
                     key={j.date}
                     onClick={() => { setLoaded(false); setSelectedDate(j.date); }}
-                    className="w-full flex items-center gap-3 py-3 px-3 rounded-xl hover:bg-muted/60 active:bg-muted transition-colors text-left min-h-[56px]"
+                    className="w-full flex items-center gap-2 sm:gap-3 py-2 px-2 sm:py-3 sm:px-3 rounded-lg sm:rounded-xl hover:bg-muted/60 active:bg-muted transition-colors text-left min-h-[44px] sm:min-h-[56px]"
                   >
-                    <div className="text-2xl w-8 shrink-0 text-center">{MOODS[(j.mood ?? 3) - 1]}</div>
+                    {/* Mood emoji: smaller on mobile */}
+                    <div className="text-lg sm:text-2xl w-7 sm:w-8 shrink-0 text-center">
+                      {MOODS[(j.mood ?? 3) - 1]}
+                    </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">
+                      <p className="text-xs sm:text-sm font-medium leading-snug">
                         {format(new Date(j.date + "T00:00:00"), "EEE, MMM d")}
                       </p>
                       {j.biggest_win && (
-                        <p className="text-xs text-muted-foreground truncate">{j.biggest_win}</p>
+                        <p className="text-[10px] sm:text-xs text-muted-foreground truncate mt-0.5">
+                          {j.biggest_win}
+                        </p>
                       )}
                     </div>
+                    {/* Rating dots: unchanged — already minimal */}
                     <div className="flex gap-1 shrink-0">
                       {[1, 2, 3, 4, 5].map(i => (
                         <div
