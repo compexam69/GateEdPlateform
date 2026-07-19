@@ -1,12 +1,15 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useCallback } from "react";
 import { Link, useLocation } from "wouter";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, CheckSquare, Droplets, Dumbbell, BookOpen,
   Salad, Camera, BookMarked, CalendarDays, BarChart2,
-  Ruler, Trophy, FileText, Settings, ChevronRight, LayoutGrid, X,
+  Ruler, Trophy, FileText, Settings, ChevronRight, Menu, X,
 } from "lucide-react";
+import {
+  Sheet, SheetContent, SheetTitle, SheetDescription,
+} from "@/components/ui/sheet";
 
 export const HARD75_NAV = [
   { href: "/75hard",              label: "Dashboard",            icon: LayoutDashboard },
@@ -32,7 +35,10 @@ interface Props {
 
 export function Hard75Layout({ children, fullHeight }: Props) {
   const [location] = useLocation();
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const openDrawer  = useCallback(() => setDrawerOpen(true),  []);
+  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
 
   const activeNav = HARD75_NAV.find(n => n.href === location);
 
@@ -40,25 +46,29 @@ export function Hard75Layout({ children, fullHeight }: Props) {
     <AppLayout fullHeight={fullHeight}>
       <div className="flex flex-col h-full -mx-4 md:-mx-8 -my-6 md:-my-8">
 
-        {/* ── Mobile sub-header (< md) ── */}
-        <div className="md:hidden bg-card border-b border-border px-4 py-2.5 flex items-center justify-between shrink-0 min-h-[52px]">
+        {/* ── Mobile sub-header (< md) ─────────────────────────────────────── */}
+        <div className="md:hidden bg-card border-b border-border px-3 py-2 flex items-center justify-between shrink-0 min-h-[52px]">
+          {/* Left: module badge + current page name */}
           <div className="flex items-center gap-2 min-w-0">
             <Trophy className="w-4 h-4 text-primary shrink-0" />
             <span className="text-sm font-semibold truncate">
               {activeNav?.label ?? "75 Hard"}
             </span>
           </div>
+
+          {/* Right: hamburger button — same position & size as the old button */}
           <button
-            onClick={() => setMobileNavOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-muted/70 text-xs font-medium text-muted-foreground active:bg-muted shrink-0 min-h-[44px]"
-            aria-label="Open navigation"
+            onClick={openDrawer}
+            aria-label="Open 75 Hard navigation"
+            aria-expanded={drawerOpen}
+            aria-controls="hard75-nav-drawer"
+            className="flex items-center justify-center w-11 h-11 rounded-xl text-foreground hover:bg-muted active:bg-muted/70 transition-colors shrink-0"
           >
-            <LayoutGrid className="w-4 h-4" />
-            <span className="hidden xs:inline">All</span>
+            <Menu className="w-5 h-5" />
           </button>
         </div>
 
-        {/* ── Desktop horizontal tab nav (≥ md) ── */}
+        {/* ── Desktop horizontal tab nav (≥ md) ───────────────────────────── */}
         <div className="hidden md:block bg-card border-b border-border shrink-0 overflow-x-auto scrollbar-none">
           <nav className="flex gap-0.5 px-4 py-1.5 min-w-max">
             {HARD75_NAV.map(({ href, label, icon: Icon }) => {
@@ -96,64 +106,80 @@ export function Hard75Layout({ children, fullHeight }: Props) {
           )}
         </div>
 
-        {/* ── Mobile nav bottom sheet ── */}
-        {mobileNavOpen && (
-          <>
-            {/* Backdrop */}
-            <div
-              className="md:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
-              onClick={() => setMobileNavOpen(false)}
-              aria-hidden="true"
-            />
-            {/* Sheet */}
-            <div className="md:hidden fixed inset-x-0 bottom-0 z-50 bg-card rounded-t-2xl shadow-2xl">
-              {/* Drag handle */}
-              <div className="flex justify-center pt-3 pb-1">
-                <div className="w-10 h-1 rounded-full bg-border" />
-              </div>
-              {/* Sheet header */}
-              <div className="flex items-center justify-between px-4 pb-3 pt-2 border-b border-border">
-                <div className="flex items-center gap-2">
-                  <Trophy className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-semibold">75 Hard Challenge</span>
-                </div>
-                <button
-                  onClick={() => setMobileNavOpen(false)}
-                  className="p-2 rounded-xl hover:bg-muted transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
-                  aria-label="Close navigation"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-              {/* Nav grid */}
-              <div className="grid grid-cols-3 gap-2 p-4 overflow-y-auto max-h-[60vh]">
-                {HARD75_NAV.map(({ href, label, icon: Icon }) => {
-                  const isActive = location === href;
-                  return (
-                    <Link key={href} href={href}>
-                      <div
-                        onClick={() => setMobileNavOpen(false)}
-                        className={cn(
-                          "flex flex-col items-center gap-2 p-3 rounded-xl text-center cursor-pointer transition-colors min-h-[72px] justify-center",
-                          isActive
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-muted/50 hover:bg-muted text-muted-foreground active:bg-muted"
-                        )}
-                      >
-                        <Icon className="w-5 h-5 shrink-0" />
-                        <span className="text-[11px] leading-tight font-medium">{label}</span>
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
-              {/* Safe area bottom padding */}
-              <div className="h-6" />
-            </div>
-          </>
-        )}
+        {/* ── Right-side navigation drawer (mobile only) ───────────────────── */}
+        <Sheet open={drawerOpen} onOpenChange={(v) => { if (!v) closeDrawer(); }}>
+          <SheetContent
+            id="hard75-nav-drawer"
+            side="right"
+            className="w-72 sm:w-80 p-0 flex flex-col md:hidden"
+          >
+            {/* Accessibility */}
+            <SheetTitle className="sr-only">75 Hard navigation</SheetTitle>
+            <SheetDescription className="sr-only">
+              Navigate between 75 Hard challenge sections
+            </SheetDescription>
 
-        {/* ── Page content ── */}
+            {/* ── Drawer header ── */}
+            <div className="flex items-center justify-between px-4 pt-5 pb-4 border-b border-border shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <Trophy className="w-4 h-4 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold leading-tight">75 Hard</p>
+                  <p className="text-xs text-muted-foreground leading-tight">Challenge</p>
+                </div>
+              </div>
+              <button
+                onClick={closeDrawer}
+                aria-label="Close navigation"
+                className="flex items-center justify-center w-11 h-11 rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground active:bg-muted/70 transition-colors shrink-0"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* ── Nav items ── */}
+            <nav
+              aria-label="75 Hard sections"
+              className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5"
+            >
+              {HARD75_NAV.map(({ href, label, icon: Icon }) => {
+                const isActive = location === href;
+                return (
+                  <Link key={href} href={href} onClick={closeDrawer}>
+                    <div
+                      className={cn(
+                        "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-colors cursor-pointer min-h-[48px]",
+                        isActive
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground active:bg-muted/70"
+                      )}
+                    >
+                      <Icon className={cn(
+                        "w-4 h-4 shrink-0",
+                        isActive ? "text-primary-foreground" : "text-muted-foreground"
+                      )} />
+                      <span className="truncate">{label}</span>
+                      {isActive && (
+                        <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary-foreground shrink-0" />
+                      )}
+                    </div>
+                  </Link>
+                );
+              })}
+            </nav>
+
+            {/* ── Drawer footer ── */}
+            <div className="px-4 pb-6 pt-3 border-t border-border shrink-0">
+              <p className="text-xs text-muted-foreground text-center">
+                {HARD75_NAV.length} sections
+              </p>
+            </div>
+          </SheetContent>
+        </Sheet>
+
+        {/* ── Page content ─────────────────────────────────────────────────── */}
         <div className={cn(
           "flex-1 overflow-y-auto",
           fullHeight ? "overflow-hidden flex flex-col" : ""

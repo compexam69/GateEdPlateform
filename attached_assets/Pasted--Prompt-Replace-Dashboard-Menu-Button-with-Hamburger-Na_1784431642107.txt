@@ -1,0 +1,369 @@
+## **Prompt: Replace Dashboard Menu Button with Hamburger Navigation Drawer in the 75 Hard Module**
+
+Implement a production-ready navigation improvement for the **75 Hard module**.
+
+Before making any changes, perform a complete analysis of the existing frontend components, navigation structure, state management, animations, responsive layouts, icon system, routing, and all functionality currently associated with the Dashboard header menu. Ensure the new implementation integrates seamlessly without breaking any existing behavior.
+
+---
+
+# Objective
+
+Replace the existing **small rounded-square menu button** on the right side of the **Dashboard header** with a **hamburger menu icon (☰)** that opens a smooth **right-side slide-out navigation drawer (off-canvas sidebar)** containing all existing menu items and functionality.
+
+The implementation must be fully responsive, mobile-first, accessible, performant, and maintain the current dark theme and user experience.
+
+---
+
+# Functional Requirements
+
+## 1. Replace the Current Menu Button
+
+Replace only the current rounded-square menu button.
+
+Requirements:
+
+* Keep it in the exact same position.
+* Maintain the same overall button size.
+* Preserve the existing dark theme styling.
+* Replace only the icon with a clean white hamburger icon (three horizontal lines).
+* Vertically align the icon with the Dashboard title.
+* Do not modify any other header elements.
+
+---
+
+## 2. Right-Side Navigation Drawer
+
+When the user taps the hamburger icon:
+
+Open a right-side off-canvas navigation drawer.
+
+Requirements:
+
+* Slide in smoothly from the right edge.
+* Use hardware-accelerated animations.
+* Maintain the existing dark theme.
+* Display every menu item currently available in the rounded-square menu.
+* Preserve the existing menu order.
+* Preserve all existing functionality.
+* Preserve existing navigation destinations.
+* Preserve existing permissions and visibility rules.
+
+No menu item should be removed, renamed, duplicated, or reordered unless already defined by the current implementation.
+
+---
+
+## 3. Drawer Closing Behavior
+
+The navigation drawer must close when:
+
+* User taps outside the drawer.
+* User taps the hamburger icon again.
+* User taps a close (✕) icon (if included).
+* User selects a navigation item (after navigation completes).
+* User presses the Android Back button (if applicable).
+
+Ensure smooth closing animations.
+
+---
+
+## 4. Navigation Functionality
+
+Verify that every existing menu action continues working exactly as before.
+
+Ensure:
+
+* Routing remains unchanged.
+* Navigation state remains correct.
+* Active page highlighting (if implemented) remains functional.
+* Authentication and role-based permissions remain unchanged.
+
+---
+
+## 5. Mobile-First Responsive Design
+
+Optimize the entire navigation experience for mobile devices.
+
+Requirements:
+
+* Responsive layout for all screen sizes.
+* Proper spacing.
+* Responsive typography.
+* Responsive icon sizes.
+* Responsive button sizes.
+* Responsive drawer width.
+* Responsive padding and margins.
+* Responsive touch targets.
+
+Use responsive units whenever appropriate:
+
+* rem
+* em
+* %
+* vw
+* vh
+
+or responsive utility classes (e.g., Tailwind responsive utilities).
+
+Avoid unnecessary fixed pixel values.
+
+---
+
+## 6. Touch Accessibility
+
+Ensure:
+
+* Minimum touch target size of **44 × 44 px**.
+* Comfortable spacing between interactive items.
+* Proper focus states.
+* Proper keyboard accessibility (where applicable).
+* Screen reader compatibility.
+* ARIA labels for navigation controls.
+
+---
+
+## 7. Prevent Layout Issues
+
+Verify:
+
+* No text overflow.
+* No icon clipping.
+* No horizontal scrolling.
+* No drawer overflow.
+* No viewport shifting.
+* No layout jumping during animation.
+
+Ensure compatibility across:
+
+* Small mobile devices
+* Medium mobile devices
+* Large mobile devices
+* Tablets
+* Desktop (if applicable)
+
+---
+
+## 8. Preserve Existing Design
+
+Do not modify:
+
+* Dashboard layout
+* Cards
+* Typography
+* Color palette
+* Animations (except the new drawer animation)
+* Theme system
+* Existing dark theme
+* Existing spacing outside the affected navigation components
+
+Only replace the menu interaction as specified.
+
+---
+
+## 9. Animation Requirements
+
+Implement smooth animations for:
+
+* Drawer opening
+* Drawer closing
+* Overlay fade
+* Icon transitions (if applicable)
+
+Animations should be:
+
+* Smooth
+* Responsive
+* Jank-free
+* Hardware accelerated
+* Consistent with the application's existing animation style
+
+---
+
+## 10. Performance Review
+
+Analyze and optimize:
+
+* Rendering performance
+* Animation performance
+* State updates
+* Event listeners
+* Navigation handling
+
+Avoid:
+
+* Unnecessary re-renders
+* Memory leaks
+* Duplicate event listeners
+* Blocking animations
+
+---
+
+## 11. Accessibility Review
+
+Verify:
+
+* ARIA labels
+* Semantic navigation
+* Keyboard navigation
+* Focus trapping inside the drawer (if appropriate)
+* Proper focus restoration after closing
+* Sufficient color contrast
+* Screen reader compatibility
+
+---
+
+## 12. Preserve Existing Functionality
+
+Ensure no regressions occur in:
+
+* Dashboard
+* 75 Hard module
+* Navigation
+* Theme system
+* User permissions
+* Authentication
+* Routing
+* Mobile responsiveness
+* Desktop responsiveness
+* Existing menu functionality
+
+All existing features must continue working correctly.
+
+---
+
+# Testing & Validation
+
+After implementation, verify:
+
+### Header
+
+* [ ] Rounded-square menu button replaced with hamburger icon.
+* [ ] Same position maintained.
+* [ ] Same size maintained.
+* [ ] Proper alignment with Dashboard title.
+
+### Navigation Drawer
+
+* [ ] Opens from the right.
+* [ ] Smooth slide animation.
+* [ ] Displays all existing menu items.
+* [ ] Correct menu order maintained.
+* [ ] Existing functionality preserved.
+
+### Closing Behavior
+
+* [ ] Tap outside closes drawer.
+* [ ] Hamburger toggles drawer.
+* [ ] Close icon works (if implemented).
+* [ ] Selecting a menu item closes drawer.
+* [ ] Android Back button closes drawer.
+
+### Responsive Testing
+
+Verify on:
+
+* Small mobile
+* Medium mobile
+* Large mobile
+* Tablet
+* Desktop
+
+Ensure:
+
+* No overflow.
+* No clipping.
+* No broken layouts.
+* Proper scaling.
+* Touch-friendly interface.
+
+### Accessibility Testing
+
+Verify:
+
+* Keyboard navigation.
+* Screen reader compatibility.
+* ARIA labels.
+* Focus management.
+* Minimum 44 × 44 px touch targets.
+
+### Performance Testing
+
+Verify:
+
+* Smooth animations.
+* No dropped frames.
+* No unnecessary re-renders.
+* No console errors.
+* No runtime warnings.
+
+---
+
+# SQL Editor Guidance (IMPORTANT)
+
+Analyze whether any database changes are required.
+
+Since this is a frontend navigation and UI enhancement, database changes are generally **not expected**.
+
+If analysis confirms that no database modifications are needed, explicitly state:
+
+**"No SQL Editor changes are required."**
+
+If any unexpected database dependency is discovered, provide:
+
+* SQL Migration Script
+* Rollback Script
+* Explanation of why the change is required
+* Risk assessment
+* Data impact
+* Downtime requirements
+
+Do not assume SQL changes are necessary—analyze first.
+
+---
+
+# Fix Any Related Issues
+
+While implementing this feature, analyze all related navigation, header, responsive layout, animation, accessibility, and UI code. Fix any related bugs, inconsistencies, animation issues, responsiveness problems, accessibility issues, or performance issues discovered during implementation. Do not leave partially implemented functionality.
+
+---
+
+# Checkpoint Requirement
+
+After implementation, testing, and validation, create a checkpoint/commit.
+
+**Checkpoint Name:**
+
+**"75 Hard Module – Hamburger Navigation Drawer & Responsive Header Enhancement"**
+
+Provide a final implementation report including:
+
+* Files modified
+* Components updated
+* Navigation changes
+* Animation improvements
+* Accessibility improvements
+* Responsive design improvements
+* Performance optimizations
+* Bugs fixed
+* SQL changes (if any)
+* Remaining risks (if any)
+
+---
+
+# Acceptance Criteria
+
+* [ ] Rounded-square menu button replaced with a hamburger icon.
+* [ ] Hamburger icon remains in the same position and size.
+* [ ] Right-side navigation drawer opens smoothly.
+* [ ] Drawer displays all existing menu items in the same order.
+* [ ] All existing menu functionality is preserved.
+* [ ] Drawer closes via outside tap, hamburger toggle, close icon (if implemented), menu selection, and Android Back button.
+* [ ] Mobile-first responsive design implemented.
+* [ ] Minimum 44 × 44 px touch targets maintained.
+* [ ] No layout overflow, clipping, or broken responsiveness.
+* [ ] Existing dark theme and UI consistency preserved.
+* [ ] Accessibility requirements satisfied.
+* [ ] Performance remains smooth and optimized.
+* [ ] All related issues discovered during implementation are fixed.
+* [ ] SQL guidance provided only if required.
+* [ ] All testing passes successfully.
+* [ ] Checkpoint created after successful implementation and verification.
