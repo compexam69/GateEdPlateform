@@ -1,0 +1,93 @@
+"Don't Implement anything"
+Please inspect the complete codebase and provide the following information:
+
+1. Project Overview
+- Framework(s) used (React, Next.js, Vite, Express, etc.)
+- Package manager (pnpm, npm, yarn, bun)
+- Monorepo tool (pnpm workspaces, Turborepo, Nx, etc.)
+- Node.js version required
+
+2. Repository Structure
+- Display the complete folder tree (excluding node_modules)
+- Identify every deployable application
+- Identify all shared packages/libraries
+
+3. Web Application
+- Which folder contains the production web app?
+- What should be the Vercel Root Directory?
+- What should be the Netlify Base Directory?
+
+4. Build Configuration
+- Build command
+- Install command
+- Development command
+- Start command (if applicable)
+- Output/Publish directory
+- Framework preset
+
+5. Package Files
+- Analyze every package.json in the repository.
+- Explain the purpose of each workspace.
+
+6. Deployment Files
+Check whether these files exist and explain them:
+- pnpm-workspace.yaml
+- turbo.json
+- nx.json
+- vercel.json
+- netlify.toml
+- tsconfig.json
+- vite.config.*
+- next.config.*
+- package.json
+
+7. Environment Variables
+- List every required environment variable.
+- Explain where each variable is used.
+- Indicate which ones are required in Vercel/Netlify.
+
+8. Deployment Issues
+- Identify anything that could prevent deployment.
+- Suggest fixes before deployment.
+
+9. Vercel Configuration
+Provide the exact values for:
+- Root Directory
+- Framework Preset
+- Install Command
+- Build Command
+- Output Directory
+- Node Version
+- Environment Variables
+
+10. Netlify Configuration
+Provide the exact values for:
+- Base Directory
+- Package Directory (if needed)
+- Build Command
+- Publish Directory
+- Node Version
+- Environment Variables
+
+11. Deployment Guide
+Generate a step-by-step guide to deploy this project on:
+- Vercel
+- Netlify
+
+12. Final Summary
+Create a table containing:
+
+| Setting | Value |
+|---------|-------|
+| Framework | |
+| Package Manager | |
+| Monorepo Tool | |
+| Root Directory | |
+| Build Command | |
+| Install Command | |
+| Output Directory | |
+| Node Version | |
+| Environment Variables | |
+| Deployment Platform Recommendation | |
+
+Do not guess. Inspect the actual project files and configuration before answering.
