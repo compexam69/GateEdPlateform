@@ -15,7 +15,7 @@ export function Logo({ size = 40, className = "" }: LogoProps) {
         alt="One Step EdPlateform"
         width={size}
         height={size}
-        className="w-full h-full object-cover scale-125"
+        className="w-full h-full object-cover scale-150"
         draggable={false}
       />
     </div>
