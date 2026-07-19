@@ -98,6 +98,12 @@ export default function DashboardPage() {
 
   const hasChart = chartData.length >= 1;
 
+  // Only subjects where the user has started at least one topic
+  type SubjectProgress = { subject_id: string; subject_title: string; topics_complete: number; topics_total: number };
+  const startedSubjects = ((summary?.subjects_progress ?? []) as SubjectProgress[]).filter(
+    (s) => s.topics_complete > 0
+  );
+
   // Sparse tick interval so labels don't overlap on narrow screens
   const xTickInterval =
     chartData.length <= 5 ? 0 : chartData.length <= 10 ? 1 : Math.ceil(chartData.length / 5) - 1;
@@ -407,26 +413,15 @@ export default function DashboardPage() {
               </Link>
             </CardHeader>
             <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6 pt-0">
-              {(summary?.subjects_progress as Array<{
-                subject_id: string;
-                subject_title: string;
-                topics_complete: number;
-                topics_total: number;
-              }> | undefined)?.length ? (
+              {startedSubjects.length > 0 ? (
                 <div className="space-y-4">
-                  {(summary!.subjects_progress as Array<{
-                    subject_id: string;
-                    subject_title: string;
-                    topics_complete: number;
-                    topics_total: number;
-                  }>).map((sub) => {
+                  {startedSubjects.map((sub) => {
                     const pct =
                       sub.topics_total > 0
                         ? Math.round((sub.topics_complete / sub.topics_total) * 100)
                         : 0;
                     return (
                       <div key={sub.subject_id} className="space-y-1.5">
-                        {/* Title + count row — flex-wrap prevents overflow */}
                         <div className="flex items-baseline justify-between gap-2 flex-wrap">
                           <span className="text-sm font-medium leading-snug min-w-0 flex-1">
                             {sub.subject_title}
@@ -435,7 +430,6 @@ export default function DashboardPage() {
                             {sub.topics_complete}/{sub.topics_total}
                           </span>
                         </div>
-                        {/* Progress bar + percentage */}
                         <div className="flex items-center gap-2">
                           <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
                             <div
@@ -454,7 +448,7 @@ export default function DashboardPage() {
               ) : (
                 <div className="flex flex-col items-center justify-center py-8 text-muted-foreground gap-2">
                   <BookOpen className="w-8 h-8 opacity-20" />
-                  <p className="text-sm">No subjects yet</p>
+                  <p className="text-sm">No progress yet</p>
                   <Link href="/subjects">
                     <Button size="sm" variant="outline" className="text-xs mt-1 min-h-[36px]">
                       Browse Subjects
