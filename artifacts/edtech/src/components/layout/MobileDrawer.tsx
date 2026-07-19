@@ -66,7 +66,7 @@ export function MobileDrawer({ open, onClose }: Props) {
             <Logo size={44} className="shrink-0" />
             <div className="leading-tight">
               <p className="text-[12px] font-extrabold text-foreground tracking-tight">
-                One Step Coaching
+                One Step EdPlateform
               </p>
               <p className="text-[10px] font-semibold text-muted-foreground tracking-widest uppercase">
                 Classes

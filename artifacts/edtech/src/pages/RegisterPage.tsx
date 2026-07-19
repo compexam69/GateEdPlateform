@@ -163,7 +163,7 @@ function RegistrationSuccess({ email }: { email: string }) {
           <div className="flex justify-center mb-2">
             <Logo size={60} />
           </div>
-          <h1 className="text-xl font-bold tracking-tight text-foreground">One Step Coaching Classes</h1>
+          <h1 className="text-xl font-bold tracking-tight text-foreground">One Step EdPlateform</h1>
         </div>
 
         <div className="rounded-2xl border border-border bg-card shadow-sm p-5 space-y-4">
@@ -299,7 +299,7 @@ export default function RegisterPage() {
           >
             <Logo size={72} />
           </motion.div>
-          <h1 className="text-xl font-bold tracking-tight text-foreground">One Step Coaching Classes</h1>
+          <h1 className="text-xl font-bold tracking-tight text-foreground">One Step EdPlateform</h1>
           <p className="text-xs text-muted-foreground mt-0.5">Join students preparing for JEE, NEET &amp; GATE</p>
         </div>
 

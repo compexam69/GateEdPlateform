@@ -8,7 +8,7 @@ export function Logo({ size = 40, className = "" }: LogoProps) {
   return (
     <img
       src="/logo.jpeg"
-      alt="One Step Coaching Classes"
+      alt="One Step EdPlateform"
       width={size}
       height={size}
       className={`rounded-full object-cover shrink-0 ${className}`}

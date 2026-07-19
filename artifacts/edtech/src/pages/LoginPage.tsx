@@ -114,7 +114,7 @@ export default function LoginPage() {
           >
             <Logo size={88} />
           </motion.div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">One Step Coaching Classes</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">One Step EdPlateform</h1>
           <p className="text-sm text-muted-foreground mt-1">Welcome back. Continue your learning journey.</p>
         </div>
 

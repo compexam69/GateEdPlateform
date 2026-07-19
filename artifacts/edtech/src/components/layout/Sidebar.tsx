@@ -51,7 +51,7 @@ export function Sidebar() {
           <Logo size={40} className="shrink-0" />
           <div className="leading-tight min-w-0">
             <p className="text-[11px] font-extrabold text-foreground tracking-tight truncate">
-              One Step Coaching
+              One Step EdPlateform
             </p>
             <p className="text-[10px] font-semibold text-muted-foreground tracking-widest uppercase truncate">
               Classes
